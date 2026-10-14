@@ -12,9 +12,9 @@ import kotlin.time.Clock
 
 /**
  * Copies the ready-made workouts bundled with the app (built by tools/catalogue) into the
- * local database, alongside the user's own. Like [CatalogueImporter], it only imports when the
- * bundled version differs from the one already imported. Run it after the catalogue, whose
- * exercises these refer to.
+ * local database, alongside the user's own, with the built-in splits they're filed under.
+ * Like [CatalogueImporter], it only imports when the bundled version differs from the one
+ * already imported. Run it after the catalogue, whose exercises these refer to.
  */
 class KinzoWorkoutsImporter(
     private val db: KinzoDatabase,
@@ -40,12 +40,27 @@ class KinzoWorkoutsImporter(
             // Anything the new version dropped stays deleted; everything else is revived below.
             queries.softDeleteExercisesOfRoutinesBy(now = now, createdBy = source)
             queries.softDeleteRoutinesBy(now = now, createdBy = source)
+            db.splitQueries.softDeleteSplitsBy(now = now, createdBy = source)
+            file.splits.forEachIndexed { index, split ->
+                db.splitQueries.upsertSplit(
+                    id = split.id,
+                    name = split.name,
+                    workoutType = split.type,
+                    createdBy = source,
+                    // Keeps the bundled order in lists.
+                    createdAt = index.toLong(),
+                    updatedAt = now,
+                )
+            }
             file.workouts.forEachIndexed { index, workout ->
                 queries.upsertRoutine(
                     id = workout.id,
                     name = workout.name,
                     notes = workout.notes,
                     createdBy = source,
+                    workoutType = workout.type,
+                    splitId = workout.splitId,
+                    mesocycleId = null,
                     // Keeps the bundled order in lists.
                     createdAt = index.toLong(),
                     updatedAt = now,
@@ -78,13 +93,22 @@ class KinzoWorkoutsImporter(
 }
 
 @Serializable
-internal data class WorkoutsFile(val version: Int, val workouts: List<BundledWorkout>)
+internal data class WorkoutsFile(
+    val version: Int,
+    val splits: List<BundledSplit> = emptyList(),
+    val workouts: List<BundledWorkout>,
+)
+
+@Serializable
+internal data class BundledSplit(val id: String, val name: String, val type: String)
 
 @Serializable
 internal data class BundledWorkout(
     val id: String,
     val name: String,
     val notes: String? = null,
+    val type: String = "resistance",
+    val splitId: String? = null,
     val exercises: List<BundledWorkoutExercise>,
 )
 

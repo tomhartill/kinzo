@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import com.tomhartill.kinzo.domain.Equipment
 import com.tomhartill.kinzo.domain.ExerciseSummary
 import com.tomhartill.kinzo.domain.Muscle
+import com.tomhartill.kinzo.ui.components.ExerciseIcon
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
@@ -190,6 +191,7 @@ private fun ExerciseRow(exercise: ExerciseSummary, selected: Boolean?, onClick: 
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md),
         ) {
+            ExerciseIcon(exercise.icon)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(exercise.name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (details.isNotEmpty()) {
@@ -211,10 +213,11 @@ private fun ExerciseRow(exercise: ExerciseSummary, selected: Boolean?, onClick: 
                 }
             }
         }
+        // Starts under the name, past the pictogram.
         HorizontalDivider(
             thickness = 0.5.dp,
             color = colors.outlineVariant,
-            modifier = Modifier.padding(start = KinzoTheme.spacing.screen),
+            modifier = Modifier.padding(start = KinzoTheme.spacing.screen + 44.dp + KinzoTheme.spacing.md),
         )
     }
 }

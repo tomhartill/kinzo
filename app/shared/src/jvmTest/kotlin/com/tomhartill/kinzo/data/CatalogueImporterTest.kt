@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,6 +34,8 @@ class CatalogueImporterTest {
         assertEquals("Barbell", bench.equipmentName)
         assertEquals(listOf(Muscle.Chest), bench.primaryMuscles)
         assertEquals(setOf(Muscle.Shoulders, Muscle.Triceps), bench.secondaryMuscles.toSet())
+        assertEquals("bench_press", bench.icon)
+        assertEquals(null, exercises.single { it.name == "Plank" }.icon)
     }
 
     @Test
@@ -50,6 +53,7 @@ class CatalogueImporterTest {
         importer(smallCatalogue()).importIfNeeded()
         val bench = assertNotNull(catalogue.exercise("ex-bench").first())
         assertEquals(listOf("Lie on the bench.", "Press the bar."), bench.instructions)
+        assertEquals("bench_press", bench.icon)
         assertEquals(listOf(Muscle.Chest), bench.primaryMuscles)
     }
 
@@ -65,6 +69,12 @@ class CatalogueImporterTest {
             assertTrue(exercise.equipmentId == null || exercise.equipmentId in equipmentIds, exercise.name)
             (exercise.primaryMuscles + exercise.secondaryMuscles).forEach { assertNotNull(Muscle.fromKey(it), it) }
         }
+
+        // Every exercise has a pictogram, and every one they name is drawn.
+        val icons = json.parseToJsonElement(File("src/commonMain/composeResources/files/exercise_icons.json").readText())
+            .jsonObject.getValue("icons").jsonObject.keys
+        assertTrue("generic" in icons)
+        parsed.exercises.forEach { exercise -> assertTrue(exercise.icon in icons, "${exercise.name}: ${exercise.icon}") }
 
         assertTrue(importer(file.readText()).importIfNeeded())
         assertEquals(parsed.exercises.size, catalogue.exercises().first().size)

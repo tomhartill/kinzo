@@ -16,12 +16,15 @@ object Dates {
         Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(zone)
 
     /** "Morning workout" and so on, from the local hour the workout started. */
-    fun defaultWorkoutName(epochMillis: Long, zone: TimeZone): String =
+    fun defaultWorkoutName(epochMillis: Long, zone: TimeZone): String = "${partOfDay(epochMillis, zone)} workout"
+
+    /** "Morning", "Afternoon", "Evening" or "Night", from the local hour. */
+    fun partOfDay(epochMillis: Long, zone: TimeZone): String =
         when (localDateTime(epochMillis, zone).hour) {
-            in 5..11 -> "Morning workout"
-            in 12..16 -> "Afternoon workout"
-            in 17..21 -> "Evening workout"
-            else -> "Night workout"
+            in 5..11 -> "Morning"
+            in 12..16 -> "Afternoon"
+            in 17..21 -> "Evening"
+            else -> "Night"
         }
 
     /** Midnight at the start of the Monday of the week containing [epochMillis]. */
@@ -63,6 +66,16 @@ object Dates {
         val time = localDateTime(epochMillis, zone)
         return "${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}"
     }
+
+    /** "14 Oct", or "14 Oct 2027" outside the year of [today]. */
+    fun dateLabel(date: LocalDate, today: LocalDate): String {
+        val label = "${date.day} ${monthShort(date)}"
+        return if (date.year == today.year) label else "$label ${date.year}"
+    }
+
+    /** "14 Oct – 5 Jan 2027": both ends, each with its year when that isn't this year. */
+    fun dateRangeLabel(start: LocalDate, end: LocalDate, today: LocalDate): String =
+        "${dateLabel(start, today)} – ${dateLabel(end, today)}"
 
     private fun weekday(date: LocalDate): String = date.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
 

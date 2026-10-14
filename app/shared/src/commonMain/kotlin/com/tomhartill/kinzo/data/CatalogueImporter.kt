@@ -56,6 +56,7 @@ class CatalogueImporter(
                     measurementType = exercise.measurementType,
                     source = SOURCE,
                     sourceRef = exercise.sourceRef,
+                    icon = exercise.icon,
                     updatedAt = now,
                 )
                 exercise.primaryMuscles.forEach { queries.insertMuscle(exerciseId = exercise.id, muscle = it, isPrimary = 1) }
@@ -94,4 +95,5 @@ internal data class CatalogueExercise(
     val secondaryMuscles: List<String> = emptyList(),
     val instructions: List<String> = emptyList(),
     val sourceRef: String? = null,
+    val icon: String? = null,
 )

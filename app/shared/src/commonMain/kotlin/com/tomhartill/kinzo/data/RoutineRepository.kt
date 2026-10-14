@@ -12,6 +12,7 @@ import com.tomhartill.kinzo.domain.RoutineSummary
 import com.tomhartill.kinzo.domain.SetRules
 import com.tomhartill.kinzo.domain.SetValues
 import com.tomhartill.kinzo.domain.Settings
+import com.tomhartill.kinzo.domain.WorkoutType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -54,6 +55,9 @@ class RoutineRepository(
                     source = RoutineSource.fromKey(row.created_by),
                     exerciseNames = namesByRoutine[row.id].orEmpty(),
                     lastUsedAt = row.last_used_at,
+                    type = WorkoutType.fromKey(row.workout_type),
+                    splitName = row.split_name,
+                    mesocycleId = row.mesocycle_id,
                 )
             }
     }.distinctUntilChanged()
@@ -84,19 +88,25 @@ class RoutineRepository(
                     restSeconds = row.rest_s?.toInt(),
                 )
             },
+            type = WorkoutType.fromKey(header.workout_type),
+            splitId = header.split_id,
+            splitName = header.split_name,
+            mesocycleId = header.mesocycle_id,
         )
     }.distinctUntilChanged()
 
     /**
      * Saves one of the user's workouts, creating it if [routine]'s ID is new. Its exercises
-     * become exactly [Routine.exercises], in that order. Ready-made workouts can't be saved
-     * over (save a [Routine.copyAsNew] instead); returns false and changes nothing for those.
+     * become exactly [Routine.exercises], in that order. Without a mesocycle it goes into the
+     * current one. Ready-made workouts can't be saved over (save a [Routine.copyAsNew]
+     * instead); returns false and changes nothing for those.
      */
     suspend fun save(routine: Routine): Boolean = withContext(io) {
         db.transactionWithResult {
             val now = now()
             val name = routine.name.trim().ifEmpty { UNTITLED }
             val notes = routine.notes?.trim()?.ifEmpty { null }
+            val mesocycleId = routine.mesocycleId ?: db.mesocycleQueries.currentMesocycle().executeAsOneOrNull()?.id
             val existing = queries.routineById(routine.id).executeAsOneOrNull()
             when {
                 existing == null -> queries.upsertRoutine(
@@ -104,11 +114,22 @@ class RoutineRepository(
                     name = name,
                     notes = notes,
                     createdBy = RoutineSource.User.key,
+                    workoutType = routine.type.key,
+                    splitId = routine.splitId,
+                    mesocycleId = mesocycleId,
                     createdAt = now,
                     updatedAt = now,
                 )
                 RoutineSource.fromKey(existing.created_by) != RoutineSource.User -> return@transactionWithResult false
-                else -> queries.updateRoutine(name = name, notes = notes, now = now, id = routine.id)
+                else -> queries.updateRoutine(
+                    name = name,
+                    notes = notes,
+                    workoutType = routine.type.key,
+                    splitId = routine.splitId,
+                    mesocycleId = mesocycleId,
+                    now = now,
+                    id = routine.id,
+                )
             }
             writeExercises(routine.id, routine.exercises, now)
             true

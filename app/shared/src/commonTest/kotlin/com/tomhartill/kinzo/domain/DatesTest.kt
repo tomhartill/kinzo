@@ -1,5 +1,6 @@
 package com.tomhartill.kinzo.domain
 
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -18,6 +19,8 @@ class DatesTest {
         assertEquals("Evening workout", Dates.defaultWorkoutName(at("2026-10-14T18:15"), zone))
         assertEquals("Night workout", Dates.defaultWorkoutName(at("2026-10-14T23:10"), zone))
         assertEquals("Night workout", Dates.defaultWorkoutName(at("2026-10-14T02:00"), zone))
+        assertEquals("Afternoon", Dates.partOfDay(at("2026-10-14T16:59"), zone))
+        assertEquals("Evening", Dates.partOfDay(at("2026-10-14T17:00"), zone))
     }
 
     @Test
@@ -42,5 +45,13 @@ class DatesTest {
         assertEquals("October 2026", Dates.monthLabel(at("2026-10-14T18:00"), zone))
         assertEquals("Wednesday 14 October", Dates.longDayLabel(at("2026-10-14T18:00"), zone))
         assertEquals("08:05", Dates.timeLabel(at("2026-10-14T08:05"), zone))
+    }
+
+    @Test
+    fun calendarDatesShowTheYearOnlyWhenItIsNotThisOne() {
+        val today = LocalDate(2026, 10, 14)
+        assertEquals("14 Oct", Dates.dateLabel(LocalDate(2026, 10, 14), today))
+        assertEquals("5 Jan 2027", Dates.dateLabel(LocalDate(2027, 1, 5), today))
+        assertEquals("14 Oct – 5 Jan 2027", Dates.dateRangeLabel(LocalDate(2026, 10, 14), LocalDate(2027, 1, 5), today))
     }
 }

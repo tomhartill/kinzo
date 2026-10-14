@@ -201,7 +201,11 @@ class RoutineRepositoryTest {
         val freshRoutines = RoutineRepository(fresh, clock, Dispatchers.Unconfined)
         val list = freshRoutines.routines().first()
         assertTrue(list.size >= 8)
+        val splits = SplitRepository(fresh, clock, Dispatchers.Unconfined).splits().first()
+        assertTrue(splits.size >= 10 && splits.all { it.isBuiltIn })
         list.forEach { summary ->
+            // Filed under one of the built-in splits.
+            assertTrue(summary.splitName in splits.map { it.name }, summary.name)
             val routine = assertNotNull(freshRoutines.routine(summary.id).first())
             // Every exercise was found in the catalogue (the join would drop it otherwise).
             assertEquals(summary.exerciseNames.size, routine.exercises.size)

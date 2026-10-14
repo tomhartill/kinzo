@@ -2,6 +2,7 @@ package com.tomhartill.kinzo.ui.screens.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tomhartill.kinzo.data.MesocycleRepository
 import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.data.SettingsRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
@@ -19,6 +20,8 @@ data class RoutineDetailState(
     /** Null once loaded means it was deleted. */
     val routine: Routine? = null,
     val settings: Settings = Settings(),
+    /** The name of the mesocycle it belongs to, for the user's own. */
+    val mesocycleName: String? = null,
 )
 
 class RoutineDetailViewModel(
@@ -26,11 +29,21 @@ class RoutineDetailViewModel(
     private val routines: RoutineRepository,
     private val workouts: WorkoutRepository,
     settings: SettingsRepository,
+    mesocycles: MesocycleRepository,
 ) : ViewModel() {
     private var busy = false
 
-    val state: StateFlow<RoutineDetailState> = combine(routines.routine(routineId), settings.settings()) { routine, settingsValue ->
-        RoutineDetailState(loading = false, routine = routine, settings = settingsValue)
+    val state: StateFlow<RoutineDetailState> = combine(
+        routines.routine(routineId),
+        settings.settings(),
+        mesocycles.mesocycles(),
+    ) { routine, settingsValue, blocks ->
+        RoutineDetailState(
+            loading = false,
+            routine = routine,
+            settings = settingsValue,
+            mesocycleName = blocks.firstOrNull { it.id == routine?.mesocycleId }?.name,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RoutineDetailState())
 
     /**

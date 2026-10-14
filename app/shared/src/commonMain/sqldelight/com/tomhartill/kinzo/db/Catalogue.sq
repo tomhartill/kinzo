@@ -24,6 +24,8 @@ CREATE TABLE exercise (
     measurement_type    TEXT NOT NULL,
     source              TEXT NOT NULL,
     source_ref          TEXT,
+    -- The key of its pictogram in files/exercise_icons.json, such as 'squat'.
+    icon                TEXT,
     updated_at          INTEGER NOT NULL,
     deleted_at          INTEGER
 );
@@ -40,8 +42,8 @@ INSERT OR REPLACE INTO equipment(id, name, type, description, setup_instructions
 VALUES (:id, :name, :type, NULL, NULL, :source, :updatedAt, NULL);
 
 upsertExercise:
-INSERT OR REPLACE INTO exercise(id, name, description, instructions, equipment_id, measurement_type, source, source_ref, updated_at, deleted_at)
-VALUES (:id, :name, NULL, :instructions, :equipmentId, :measurementType, :source, :sourceRef, :updatedAt, NULL);
+INSERT OR REPLACE INTO exercise(id, name, description, instructions, equipment_id, measurement_type, source, source_ref, icon, updated_at, deleted_at)
+VALUES (:id, :name, NULL, :instructions, :equipmentId, :measurementType, :source, :sourceRef, :icon, :updatedAt, NULL);
 
 insertMuscle:
 INSERT OR REPLACE INTO exercise_muscle(exercise_id, muscle, is_primary)
@@ -66,6 +68,7 @@ SELECT
     e.measurement_type,
     e.equipment_id,
     eq.name AS equipment_name,
+    e.icon,
     COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 1), '') AS primary_muscles,
     COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 0), '') AS secondary_muscles
 FROM exercise e
@@ -84,7 +87,8 @@ SELECT
     e.measurement_type,
     e.equipment_id,
     eq.name AS equipment_name,
-    e.source
+    e.source,
+    e.icon
 FROM exercise e
 LEFT JOIN equipment eq ON eq.id = e.equipment_id
 WHERE e.id = :id;

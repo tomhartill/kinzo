@@ -4,8 +4,10 @@ import com.tomhartill.kinzo.data.CatalogueImporter
 import com.tomhartill.kinzo.data.CatalogueRepository
 import com.tomhartill.kinzo.data.DriverFactory
 import com.tomhartill.kinzo.data.KinzoWorkoutsImporter
+import com.tomhartill.kinzo.data.MesocycleRepository
 import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.data.SettingsRepository
+import com.tomhartill.kinzo.data.SplitRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.data.createDatabase
 import com.tomhartill.kinzo.domain.RestTimer
@@ -16,6 +18,7 @@ import com.tomhartill.kinzo.ui.screens.exercises.ExerciseDetailViewModel
 import com.tomhartill.kinzo.ui.screens.history.HistoryViewModel
 import com.tomhartill.kinzo.ui.screens.history.WorkoutDetailViewModel
 import com.tomhartill.kinzo.ui.screens.library.LibraryViewModel
+import com.tomhartill.kinzo.ui.screens.library.MesocycleViewModel
 import com.tomhartill.kinzo.ui.screens.library.RoutineDetailViewModel
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorViewModel
 import com.tomhartill.kinzo.ui.screens.profile.ProfileViewModel
@@ -40,6 +43,8 @@ internal fun dataModule(driverFactory: DriverFactory): Module = module {
     single { SettingsRepository(get()) }
     single { WorkoutRepository(get(), get()) }
     single { RoutineRepository(get(), get()) }
+    single { SplitRepository(get(), get()) }
+    single { MesocycleRepository(get(), get()) }
     // One rest timer for the whole app, so it keeps counting when you leave the workout.
     single { RestTimer(get(), CoroutineScope(SupervisorJob() + Dispatchers.Default)) }
     single {
@@ -60,8 +65,9 @@ internal val viewModelModule: Module = module {
     viewModelOf(::LibraryViewModel)
     viewModel { params -> ExerciseDetailViewModel(params.get(), get(), get(), get()) }
     viewModel { params -> WorkoutDetailViewModel(params.get(), get(), get()) }
-    viewModel { params -> RoutineDetailViewModel(params.get(), get(), get(), get()) }
-    viewModel { params -> RoutineEditorViewModel(params.get(), get(), get()) }
+    viewModel { params -> RoutineDetailViewModel(params.get(), get(), get(), get(), get()) }
+    viewModel { params -> MesocycleViewModel(params.get(), get(), get()) }
+    viewModel { params -> RoutineEditorViewModel(params.get(), get(), get(), get(), get(), get()) }
 }
 
 /** Called once at startup by each platform, which supplies its own SQLite driver. */

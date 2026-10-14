@@ -129,7 +129,7 @@ fun RoutineDetailScreen(
                 contentPadding = PaddingValues(start = spacing.screen, end = spacing.screen, top = spacing.sm, bottom = spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
-                item(key = "header") { Header(routine) }
+                item(key = "header") { Header(routine, state.mesocycleName) }
                 item(key = "exercises-header") { SectionHeader("Exercises", Modifier.padding(top = spacing.md)) }
                 if (routine.exercises.isEmpty()) {
                     item(key = "empty") {
@@ -190,10 +190,10 @@ fun RoutineDetailScreen(
 }
 
 @Composable
-private fun Header(routine: Routine) {
+private fun Header(routine: Routine, mesocycleName: String?) {
     val colors = MaterialTheme.colorScheme
     val madeBy = when (routine.source) {
-        RoutineSource.User -> "Your workout"
+        RoutineSource.User -> mesocycleName ?: "Your workout"
         RoutineSource.Kinzo -> "Ready-made"
         RoutineSource.Ai -> "Made by the AI coach"
     }
@@ -205,6 +205,10 @@ private fun Header(routine: Routine) {
     ).joinToString(" · ")
     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
         Text(routine.name, style = MaterialTheme.typography.headlineSmall)
+        Text(
+            listOfNotNull(routine.type.label, routine.splitName).joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium,
+        )
         Text(summary, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         val notes = routine.notes
         if (notes != null) {

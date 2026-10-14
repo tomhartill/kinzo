@@ -12,6 +12,13 @@ CREATE TABLE routine (
     notes               TEXT,
     -- 'user', 'kinzo' (bundled), or later 'ai' and 'coach'.
     created_by          TEXT NOT NULL,
+    -- A WorkoutType key, such as 'resistance' or 'swimming'.
+    workout_type        TEXT NOT NULL DEFAULT 'resistance',
+    -- Which split it trains, such as Push (see Split.sq), if any.
+    split_id            TEXT,
+    -- The mesocycle it belongs to (see Mesocycle.sq). Every one of the user's own has one;
+    -- ready-made workouts don't.
+    mesocycle_id        TEXT,
     -- For bundled workouts this is their place in the bundle, which keeps them in order.
     created_at          INTEGER NOT NULL,
     updated_at          INTEGER NOT NULL,
@@ -34,16 +41,22 @@ CREATE TABLE routine_exercise (
 );
 CREATE INDEX routine_exercise_routine ON routine_exercise(routine_id, position);
 
+-- A removed split still names the workouts that use it.
 routines:
 SELECT
     r.id,
     r.name,
     r.notes,
     r.created_by,
+    r.workout_type,
+    r.split_id,
+    s.name AS split_name,
+    r.mesocycle_id,
     r.created_at,
     r.updated_at,
     (SELECT MAX(w.started_at) FROM workout w WHERE w.routine_id = r.id AND w.deleted_at IS NULL) AS last_used_at
 FROM routine r
+LEFT JOIN split s ON s.id = r.split_id
 WHERE r.deleted_at IS NULL;
 
 -- Every saved workout's exercise names in order, to summarise each one in a list.
@@ -56,9 +69,23 @@ WHERE re.deleted_at IS NULL AND r.deleted_at IS NULL
 ORDER BY re.routine_id, re.position;
 
 routineById:
-SELECT id, name, notes, created_by
-FROM routine
-WHERE id = :id AND deleted_at IS NULL;
+SELECT r.id, r.name, r.notes, r.created_by, r.workout_type, r.split_id, s.name AS split_name, r.mesocycle_id
+FROM routine r
+LEFT JOIN split s ON s.id = r.split_id
+WHERE r.id = :id AND r.deleted_at IS NULL;
+
+-- The user's own workouts in a mesocycle, to copy into the next one.
+routinesInMesocycle:
+SELECT
+    r.id,
+    r.name,
+    r.notes,
+    r.workout_type,
+    r.split_id,
+    r.updated_at,
+    (SELECT MAX(w.started_at) FROM workout w WHERE w.routine_id = r.id AND w.deleted_at IS NULL) AS last_used_at
+FROM routine r
+WHERE r.mesocycle_id = :mesocycleId AND r.created_by = 'user' AND r.deleted_at IS NULL;
 
 routineExercises:
 SELECT
@@ -82,11 +109,24 @@ SELECT id FROM routine_exercise
 WHERE routine_id = :routineId AND deleted_at IS NULL;
 
 upsertRoutine:
-INSERT OR REPLACE INTO routine(id, name, notes, created_by, created_at, updated_at, deleted_at)
-VALUES (:id, :name, :notes, :createdBy, :createdAt, :updatedAt, NULL);
+INSERT OR REPLACE INTO routine(
+    id, name, notes, created_by, workout_type, split_id, mesocycle_id, created_at, updated_at, deleted_at
+)
+VALUES (
+    :id, :name, :notes, :createdBy, :workoutType, :splitId, :mesocycleId, :createdAt, :updatedAt, NULL
+);
 
 updateRoutine:
-UPDATE routine SET name = :name, notes = :notes, updated_at = :now WHERE id = :id;
+UPDATE routine
+SET name = :name, notes = :notes, workout_type = :workoutType, split_id = :splitId,
+    mesocycle_id = :mesocycleId, updated_at = :now
+WHERE id = :id;
+
+-- Puts the user's workouts that have no mesocycle into one. Leaves updated_at alone so the
+-- library keeps them in the same order.
+assignMesocycle:
+UPDATE routine SET mesocycle_id = :mesocycleId
+WHERE mesocycle_id IS NULL AND created_by = 'user';
 
 softDeleteRoutine:
 UPDATE routine SET deleted_at = :now, updated_at = :now WHERE id = :id;

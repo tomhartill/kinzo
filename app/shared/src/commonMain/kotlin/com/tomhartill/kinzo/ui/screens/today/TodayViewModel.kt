@@ -2,6 +2,7 @@ package com.tomhartill.kinzo.ui.screens.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tomhartill.kinzo.data.MesocycleRepository
 import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.data.SettingsRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
@@ -27,7 +28,10 @@ data class TodayState(
     val weekWorkouts: Int = 0,
     val weekVolumeKg: Double = 0.0,
     val unit: WeightUnit = WeightUnit.Kilograms,
-    /** The user's most recently used workouts, or a few ready-made ones until they have some. */
+    /**
+     * The user's most recently used workouts in the current mesocycle, or a few ready-made ones
+     * until they have some.
+     */
     val routines: List<RoutineSummary> = emptyList(),
 ) {
     val hasOwnRoutines: Boolean get() = routines.any { it.source == RoutineSource.User }
@@ -39,6 +43,7 @@ class TodayViewModel(
     private val workouts: WorkoutRepository,
     routines: RoutineRepository,
     settings: SettingsRepository,
+    mesocycles: MesocycleRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val zone = TimeZone.currentSystemDefault()
@@ -49,7 +54,8 @@ class TodayViewModel(
         workouts.history(),
         settings.settings(),
         routines.routines(),
-    ) { hasActive, history, settingsValue, saved ->
+        mesocycles.current(),
+    ) { hasActive, history, settingsValue, saved, mesocycle ->
         val weekStart = Dates.startOfWeek(clock.now().toEpochMilliseconds(), zone)
         val thisWeek = history.filter { it.startedAt >= weekStart }
         TodayState(
@@ -59,7 +65,10 @@ class TodayViewModel(
             weekWorkouts = thisWeek.size,
             weekVolumeKg = thisWeek.sumOf { it.volumeKg },
             unit = settingsValue.weightUnit,
-            routines = saved.filter { it.source == RoutineSource.User }.ifEmpty { saved }.take(ROUTINES_SHOWN),
+            routines = saved
+                .filter { it.source == RoutineSource.User && (mesocycle == null || it.mesocycleId in setOf(null, mesocycle.id)) }
+                .ifEmpty { saved.filter { it.source == RoutineSource.Kinzo } }
+                .take(ROUTINES_SHOWN),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayState())
 

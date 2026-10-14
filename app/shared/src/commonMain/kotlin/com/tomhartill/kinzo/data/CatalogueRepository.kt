@@ -34,6 +34,7 @@ class CatalogueRepository(
                     equipmentName = row.equipment_name,
                     primaryMuscles = Muscle.parseList(row.primary_muscles),
                     secondaryMuscles = Muscle.parseList(row.secondary_muscles),
+                    icon = row.icon,
                 )
             }
         }
@@ -52,6 +53,7 @@ class CatalogueRepository(
                 equipmentName = it.equipment_name,
                 primaryMuscles = muscles.filter { m -> m.is_primary == 1L }.mapNotNull { m -> Muscle.fromKey(m.muscle) },
                 secondaryMuscles = muscles.filter { m -> m.is_primary == 0L }.mapNotNull { m -> Muscle.fromKey(m.muscle) },
+                icon = it.icon,
             )
         }
     }

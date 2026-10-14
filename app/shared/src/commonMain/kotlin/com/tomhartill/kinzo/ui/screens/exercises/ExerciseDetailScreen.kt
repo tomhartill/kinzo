@@ -35,6 +35,7 @@ import com.tomhartill.kinzo.domain.SetRules
 import com.tomhartill.kinzo.domain.SetValues
 import com.tomhartill.kinzo.domain.Weight
 import com.tomhartill.kinzo.domain.WeightUnit
+import com.tomhartill.kinzo.ui.components.ExerciseIcon
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
 import com.tomhartill.kinzo.ui.components.SectionHeader
@@ -121,6 +122,7 @@ private fun Header(exercise: ExerciseDetail) {
         exercise.equipmentName,
     ).joinToString(" · ")
     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
+        ExerciseIcon(exercise.icon, size = 72.dp, modifier = Modifier.padding(bottom = KinzoTheme.spacing.sm))
         Text(exercise.name, style = MaterialTheme.typography.headlineSmall)
         if (works.isNotEmpty()) {
             Text(works, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)

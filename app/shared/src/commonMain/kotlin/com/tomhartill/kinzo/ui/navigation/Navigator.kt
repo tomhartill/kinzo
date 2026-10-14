@@ -50,6 +50,11 @@ sealed interface Destination {
         override val route = "routine-editor/${routineId ?: NONE}/${copyFromId ?: NONE}"
     }
 
+    /** A mesocycle: its dates, how far through it is, and its workouts. */
+    data class Mesocycle(val mesocycleId: String) : Destination {
+        override val route = "mesocycle/$mesocycleId"
+    }
+
     data object DesignSystem : Destination {
         override val route = "design-system"
     }
@@ -66,6 +71,7 @@ sealed interface Destination {
                 parts.size == 2 && parts[0] == "exercise" -> ExerciseDetail(parts[1])
                 parts.size == 3 && parts[0] == "history" -> WorkoutDetail(parts[1], justFinished = parts[2] == "finished")
                 parts.size == 2 && parts[0] == "routine" -> RoutineDetail(parts[1])
+                parts.size == 2 && parts[0] == "mesocycle" -> Mesocycle(parts[1])
                 parts.size == 3 && parts[0] == "routine-editor" ->
                     RoutineEditor(parts[1].takeUnless { it == NONE }, parts[2].takeUnless { it == NONE })
                 else -> null

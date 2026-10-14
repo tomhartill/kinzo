@@ -26,7 +26,7 @@ internal fun smallCatalogue(version: Int = 1, includeCurl: Boolean = true): Stri
     return """{"version":$version,"source":{"name":"test"},
         "equipment":[{"id":"eq-bar","name":"Barbell","type":"free_weight"},{"id":"eq-body","name":"Bodyweight","type":"bodyweight"}],
         "exercises":[
-          {"id":"ex-bench","name":"Bench Press","equipmentId":"eq-bar","measurementType":"weight_reps","primaryMuscles":["chest"],"secondaryMuscles":["shoulders","triceps"],"instructions":["Lie on the bench.","Press the bar."],"sourceRef":"Bench_Press"},
+          {"id":"ex-bench","name":"Bench Press","equipmentId":"eq-bar","measurementType":"weight_reps","primaryMuscles":["chest"],"secondaryMuscles":["shoulders","triceps"],"instructions":["Lie on the bench.","Press the bar."],"sourceRef":"Bench_Press","icon":"bench_press"},
           {"id":"ex-plank","name":"Plank","equipmentId":"eq-body","measurementType":"duration","primaryMuscles":["abdominals"],"secondaryMuscles":[],"instructions":["Hold."],"sourceRef":"Plank"}
           $curl
         ]}"""

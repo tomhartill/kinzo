@@ -1,0 +1,46 @@
+-- Mesocycles: blocks of training, usually a few months long, each with its own workouts. Once
+-- the body has got used to a routine, the user starts the next mesocycle and changes the
+-- exercises. Each of the user's own workouts belongs to one (routine.mesocycle_id); the
+-- current mesocycle is the one that started last.
+--
+-- Dates are local calendar dates as yyyy-mm-dd, and both ends are included.
+
+CREATE TABLE mesocycle (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    start_date          TEXT NOT NULL,
+    end_date            TEXT NOT NULL,
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+-- The current one first.
+mesocycles:
+SELECT id, name, start_date, end_date
+FROM mesocycle
+WHERE deleted_at IS NULL
+ORDER BY start_date DESC, created_at DESC;
+
+currentMesocycle:
+SELECT id, name, start_date, end_date
+FROM mesocycle
+WHERE deleted_at IS NULL
+ORDER BY start_date DESC, created_at DESC
+LIMIT 1;
+
+mesocycleById:
+SELECT id, name, start_date, end_date
+FROM mesocycle
+WHERE id = :id AND deleted_at IS NULL;
+
+countMesocycles:
+SELECT COUNT(*) FROM mesocycle WHERE deleted_at IS NULL;
+
+insertMesocycle:
+INSERT INTO mesocycle(id, name, start_date, end_date, created_at, updated_at, deleted_at)
+VALUES (:id, :name, :startDate, :endDate, :now, :now, NULL);
+
+updateMesocycle:
+UPDATE mesocycle SET name = :name, start_date = :startDate, end_date = :endDate, updated_at = :now
+WHERE id = :id;

@@ -1,6 +1,7 @@
 package com.tomhartill.kinzo.ui.screens.library
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,7 +18,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
@@ -27,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.domain.Dates
 import com.tomhartill.kinzo.domain.RoutineSummary
+import com.tomhartill.kinzo.domain.WorkoutType
 import com.tomhartill.kinzo.ui.components.ChoiceRow
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoIcons
@@ -41,16 +45,17 @@ import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
 
-/** The two halves of the Library tab. */
+/** The parts of the Library tab. */
 enum class LibrarySection(val label: String) {
     Workouts("Workouts"),
+    Mesocycles("Mesocycles"),
     Exercises("Exercises"),
 }
 
 /**
- * The Library tab: saved workouts to start from (your own, ready-made ones, and later the AI
- * coach's), and the searchable exercise library. The app holds [section], so other tabs can
- * open a particular one.
+ * The Library tab: saved workouts to start from (your own in the current mesocycle, ready-made
+ * ones, and later the AI coach's), the mesocycles, and the searchable exercise library. The app
+ * holds [section], so other tabs can open a particular one.
  */
 @Composable
 fun LibraryScreen(
@@ -58,12 +63,14 @@ fun LibraryScreen(
     onSectionChange: (LibrarySection) -> Unit,
     onCreateWorkout: () -> Unit,
     onOpenWorkout: (routineId: String) -> Unit,
+    onOpenMesocycle: (mesocycleId: String) -> Unit,
     onOpenExercise: (exerciseId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel(),
     exercises: ExerciseBrowserViewModel = koinViewModel(),
 ) {
     val spacing = KinzoTheme.spacing
+    var startingNext by remember { mutableStateOf<MesocycleDraft?>(null) }
 
     // The exercise list stops at the keyboard so its last results stay reachable.
     Column(modifier.fillMaxSize().imePadding()) {
@@ -86,8 +93,36 @@ fun LibraryScreen(
                     state = state,
                     onCreateWorkout = onCreateWorkout,
                     onOpenWorkout = onOpenWorkout,
+                    onOpenMesocycles = { onSectionChange(LibrarySection.Mesocycles) },
                     modifier = Modifier.weight(1f),
                 )
+            }
+            LibrarySection.Mesocycles -> {
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                MesocycleList(
+                    state = state,
+                    onStartNext = { startingNext = viewModel.nextDraft() },
+                    onOpenMesocycle = onOpenMesocycle,
+                    modifier = Modifier.weight(1f),
+                )
+                val draft = startingNext
+                val today = state.today
+                if (draft != null && today != null) {
+                    MesocycleFormDialog(
+                        title = "Start next mesocycle",
+                        confirmLabel = "Start",
+                        initial = draft,
+                        today = today,
+                        defaultEnd = viewModel::defaultEnd,
+                        startAfter = state.current,
+                        copyCount = state.mesocycles.firstOrNull()?.workouts?.size ?: 0,
+                        onConfirm = { next, copy ->
+                            startingNext = null
+                            viewModel.startNext(next, copy, onStarted = { onOpenMesocycle(it.id) })
+                        },
+                        onDismiss = { startingNext = null },
+                    )
+                }
             }
             LibrarySection.Exercises -> {
                 val state by exercises.state.collectAsStateWithLifecycle()
@@ -111,6 +146,7 @@ private fun WorkoutList(
     state: LibraryState,
     onCreateWorkout: () -> Unit,
     onOpenWorkout: (routineId: String) -> Unit,
+    onOpenMesocycles: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = KinzoTheme.spacing
@@ -125,6 +161,18 @@ private fun WorkoutList(
         item(key = "ai") { GenerateWithAiCard() }
 
         header("My workouts")
+        val current = state.current
+        val today = state.today
+        if (current != null && today != null) {
+            item(key = "mesocycle") {
+                Text(
+                    "${current.name} · ${mesocycleStatus(current, today)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.clickable(onClickLabel = "See mesocycles", onClick = onOpenMesocycles),
+                )
+            }
+        }
         if (state.mine.isEmpty()) {
             if (!state.loading) {
                 item(key = "mine-empty") {
@@ -199,7 +247,11 @@ internal fun RoutineCard(
                 }
             }
             Text(
-                if (count == 1) "1 exercise" else "$count exercises",
+                listOfNotNull(
+                    // Push, say, or Swimming when it's not weight training.
+                    if (routine.type == WorkoutType.Resistance) routine.splitName else routine.type.label,
+                    if (count == 1) "1 exercise" else "$count exercises",
+                ).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
             )

@@ -20,6 +20,7 @@ class DestinationTest {
             Destination.RoutineEditor(),
             Destination.RoutineEditor(routineId = id),
             Destination.RoutineEditor(copyFromId = id),
+            Destination.Mesocycle(id),
         )
         destinations.forEach { destination ->
             assertEquals(destination, Destination.fromRoute(destination.route), destination.route)

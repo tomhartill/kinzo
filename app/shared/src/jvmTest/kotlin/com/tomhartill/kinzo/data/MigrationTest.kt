@@ -9,6 +9,7 @@ import java.util.Properties
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Phones keep their database across app updates, so each schema change ships as a migration
@@ -46,6 +47,27 @@ class MigrationTest {
         } finally {
             upgraded.close()
             fresh.close()
+        }
+    }
+
+    @Test
+    fun workoutsSavedBeforeVersion4AreWeightTraining() {
+        JdbcSqliteDriver(url, Properties()).use { driver ->
+            VERSION_1_SCHEMA.forEach { driver.execute(null, it, 0) }
+            KinzoDatabase.Schema.migrate(driver, 1, 3)
+            driver.execute(null, "INSERT INTO routine VALUES ('r1', 'Push', NULL, 'user', 1, 2, NULL)", 0)
+            driver.execute(null, "PRAGMA user_version = 3", 0)
+        }
+
+        val upgraded = JdbcSqliteDriver(url, Properties(), KinzoDatabase.Schema)
+        try {
+            val routine = KinzoDatabase(upgraded).routineQueries.routineById("r1").executeAsOne()
+            assertEquals("Push", routine.name)
+            assertEquals("resistance", routine.workout_type)
+            assertNull(routine.split_id)
+            assertNull(routine.mesocycle_id)
+        } finally {
+            upgraded.close()
         }
     }
 

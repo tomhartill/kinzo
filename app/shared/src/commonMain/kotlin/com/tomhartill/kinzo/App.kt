@@ -32,10 +32,12 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -46,11 +48,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.domain.ActiveWorkoutInfo
 import com.tomhartill.kinzo.domain.RestTimer
+import com.tomhartill.kinzo.resources.Res
 import com.tomhartill.kinzo.ui.AppViewModel
 import com.tomhartill.kinzo.ui.components.ActiveWorkoutBanner
 import com.tomhartill.kinzo.ui.components.BottomBarItem
+import com.tomhartill.kinzo.ui.components.ExerciseIconSet
 import com.tomhartill.kinzo.ui.components.KinzoIcons
 import com.tomhartill.kinzo.ui.components.KinzoBottomBar
+import com.tomhartill.kinzo.ui.components.LocalExerciseIcons
 import com.tomhartill.kinzo.ui.navigation.BackStackEntry
 import com.tomhartill.kinzo.ui.navigation.Destination
 import com.tomhartill.kinzo.ui.navigation.Navigator
@@ -67,6 +72,7 @@ import com.tomhartill.kinzo.ui.screens.history.HistoryScreen
 import com.tomhartill.kinzo.ui.screens.history.WorkoutDetailScreen
 import com.tomhartill.kinzo.ui.screens.library.LibraryScreen
 import com.tomhartill.kinzo.ui.screens.library.LibrarySection
+import com.tomhartill.kinzo.ui.screens.library.MesocycleScreen
 import com.tomhartill.kinzo.ui.screens.library.RoutineDetailScreen
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorScreen
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorViewModel
@@ -74,6 +80,10 @@ import com.tomhartill.kinzo.ui.screens.profile.ProfileScreen
 import com.tomhartill.kinzo.ui.screens.today.TodayScreen
 import com.tomhartill.kinzo.ui.screens.workout.ActiveWorkoutScreen
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.koin.compose.viewmodel.koinViewModel
 
 // In the same order as Tab. The AI coach gets its own tab here in phase 2.
@@ -90,11 +100,27 @@ private const val TRANSITION_MILLIS = 300
 fun App() {
     KinzoTheme {
         val navigator = rememberNavigator()
-        ProvideScreenStores { stores ->
-            AppContent(navigator, stores)
+        CompositionLocalProvider(LocalExerciseIcons provides rememberExerciseIcons()) {
+            ProvideScreenStores { stores ->
+                AppContent(navigator, stores)
+            }
         }
     }
 }
+
+/** Reads the exercise pictograms once. Without them, exercises just show no picture. */
+@OptIn(ExperimentalResourceApi::class)
+@Composable
+private fun rememberExerciseIcons(): ExerciseIconSet? = produceState<ExerciseIconSet?>(null) {
+    value = try {
+        withContext(Dispatchers.Default) { ExerciseIconSet.parse(Res.readBytes(ExerciseIconSet.RESOURCE_PATH).decodeToString()) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        println("Kinzo: couldn't read the exercise pictograms: $e")
+        null
+    }
+}.value
 
 @Composable
 private fun AppContent(navigator: Navigator, stores: ScreenStores, viewModel: AppViewModel = koinViewModel()) {
@@ -225,6 +251,7 @@ private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: 
                     onSectionChange = { librarySection = it.ordinal },
                     onCreateWorkout = { open(Destination.RoutineEditor()) },
                     onOpenWorkout = { open(Destination.RoutineDetail(it)) },
+                    onOpenMesocycle = { open(Destination.Mesocycle(it)) },
                     onOpenExercise = { open(Destination.ExerciseDetail(it)) },
                     modifier = modifier,
                 )
@@ -277,6 +304,12 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
                 }
             },
             onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
+        )
+        is Destination.Mesocycle -> MesocycleScreen(
+            mesocycleId = destination.mesocycleId,
+            onBack = back,
+            onOpenWorkout = { id -> ifCurrent { navigator.push(Destination.RoutineDetail(id)) } },
+            onCreateWorkout = { ifCurrent { navigator.push(Destination.RoutineEditor()) } },
         )
         Destination.DesignSystem -> DesignSystemScreen(onBack = back)
     }

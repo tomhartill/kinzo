@@ -30,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,10 +52,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.domain.Format
+import com.tomhartill.kinzo.domain.Mesocycle
 import com.tomhartill.kinzo.domain.Routine
 import com.tomhartill.kinzo.domain.RoutineExercise
 import com.tomhartill.kinzo.domain.SetValues
+import com.tomhartill.kinzo.domain.Split
 import com.tomhartill.kinzo.domain.WeightUnit
+import com.tomhartill.kinzo.domain.WorkoutType
 import com.tomhartill.kinzo.ui.components.ConfirmDialog
 import com.tomhartill.kinzo.ui.components.KinzoIcons
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
@@ -66,18 +68,22 @@ import com.tomhartill.kinzo.ui.components.RestChip
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.components.TargetInputs
+import com.tomhartill.kinzo.ui.components.TextInputDialog
+import com.tomhartill.kinzo.ui.components.kinzoTextFieldColors
 import com.tomhartill.kinzo.ui.navigation.SystemBackHandler
 import com.tomhartill.kinzo.ui.screens.EmptyState
 import com.tomhartill.kinzo.ui.screens.exercises.ExercisePicker
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import com.tomhartill.kinzo.ui.theme.NumericStyle
 import kotlinx.coroutines.flow.first
+import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * Creates or edits one of the user's workouts: its name and notes, and for each exercise the
- * sets, the reps, weight or time to aim for, and the rest. Nothing is saved until Save.
+ * Creates or edits one of the user's workouts: its type, split, name, mesocycle and notes, and
+ * for each exercise the sets, the reps, weight or time to aim for, and the rest. Nothing is
+ * saved until Save.
  */
 @Composable
 fun RoutineEditorScreen(
@@ -97,11 +103,16 @@ fun RoutineEditorScreen(
 
     val draft = viewModel.draft
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val splits by viewModel.splits.collectAsStateWithLifecycle()
+    val mesocycles by viewModel.mesocycles.collectAsStateWithLifecycle()
+    val today = remember(viewModel) { viewModel.today() }
     val colors = MaterialTheme.colorScheme
     val listState = rememberLazyListState()
     var picking by rememberSaveable { mutableStateOf(false) }
     var reordering by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
+    var addingSplit by remember { mutableStateOf(false) }
+    var splitToDelete by remember { mutableStateOf<Split?>(null) }
     // Set when exercises are added, to scroll down to them once the editor is back.
     var scrollToEnd by remember { mutableStateOf(false) }
 
@@ -150,6 +161,14 @@ fun RoutineEditorScreen(
                     listState = listState,
                     unit = settings.weightUnit,
                     defaultRest = settings.restSeconds,
+                    splits = splits.filter { it.type == draft.type },
+                    mesocycles = mesocycles,
+                    today = today,
+                    onTypeChange = viewModel::setType,
+                    onSplitChange = viewModel::setSplit,
+                    onAddSplit = { addingSplit = true },
+                    onDeleteSplit = { splitToDelete = it },
+                    onMesocycleChange = viewModel::setMesocycle,
                     onNameChange = viewModel::setName,
                     onNotesChange = viewModel::setNotes,
                     onReorder = { reordering = true },
@@ -190,6 +209,33 @@ fun RoutineEditorScreen(
         )
     }
 
+    if (addingSplit) {
+        TextInputDialog(
+            title = "New split",
+            initialValue = "",
+            confirmLabel = "Add",
+            onConfirm = { name ->
+                addingSplit = false
+                viewModel.addSplit(name)
+            },
+            onDismiss = { addingSplit = false },
+        )
+    }
+
+    splitToDelete?.let { split ->
+        ConfirmDialog(
+            title = "Remove ${split.name}?",
+            message = "It won't be offered for new workouts. Workouts already filed under it keep the name.",
+            confirmLabel = "Remove",
+            destructive = true,
+            onConfirm = {
+                splitToDelete = null
+                viewModel.deleteSplit(split)
+            },
+            onDismiss = { splitToDelete = null },
+        )
+    }
+
     if (confirmDiscard) {
         ConfirmDialog(
             title = if (viewModel.isNew) "Discard this workout?" else "Discard changes?",
@@ -212,6 +258,14 @@ private fun EditorContent(
     listState: LazyListState,
     unit: WeightUnit,
     defaultRest: Int,
+    splits: List<Split>,
+    mesocycles: List<Mesocycle>,
+    today: LocalDate,
+    onTypeChange: (WorkoutType) -> Unit,
+    onSplitChange: (Split?) -> Unit,
+    onAddSplit: () -> Unit,
+    onDeleteSplit: (Split) -> Unit,
+    onMesocycleChange: (String) -> Unit,
     onNameChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
     onReorder: () -> Unit,
@@ -234,6 +288,20 @@ private fun EditorContent(
         contentPadding = PaddingValues(horizontal = spacing.screen, vertical = spacing.lg),
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
+        item(key = "type") { WorkoutTypeField(type = draft.type, onChange = onTypeChange) }
+        // Only types with splits (for now, resistance training) offer them.
+        if (splits.isNotEmpty() || draft.splitId != null) {
+            item(key = "split") {
+                SplitField(
+                    selectedId = draft.splitId,
+                    selectedName = draft.splitName,
+                    splits = splits,
+                    onChange = onSplitChange,
+                    onAdd = onAddSplit,
+                    onDelete = onDeleteSplit,
+                )
+            }
+        }
         item(key = "name") {
             EditorTextField(
                 value = draft.name,
@@ -242,6 +310,11 @@ private fun EditorContent(
                 placeholder = "Push day, Legs, Full body…",
                 singleLine = true,
             )
+        }
+        if (mesocycles.isNotEmpty()) {
+            item(key = "mesocycle") {
+                MesocycleField(selectedId = draft.mesocycleId, mesocycles = mesocycles, today = today, onChange = onMesocycleChange)
+            }
         }
         item(key = "notes") {
             EditorTextField(
@@ -315,12 +388,7 @@ private fun EditorTextField(
             imeAction = if (singleLine) ImeAction.Next else ImeAction.Default,
         ),
         shape = MaterialTheme.shapes.small,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = colors.onSurface,
-            unfocusedBorderColor = colors.outline,
-            focusedLabelColor = colors.onSurface,
-            cursorColor = colors.onSurface,
-        ),
+        colors = kinzoTextFieldColors(),
     )
 }
 

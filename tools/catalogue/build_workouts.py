@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Builds the ready-made workouts that ship inside the app (the "Kinzo workouts" in Library).
+"""Builds the ready-made workouts that ship inside the app (the "Kinzo workouts" in Library),
+and the built-in splits (Push, Upper and so on) that workouts are filed under.
 
 Each workout names its exercises as they appear in the catalogue built by build_catalogue.py,
 so run that first. This script looks the names up, checks each target suits the exercise
@@ -18,7 +19,7 @@ import sys
 import uuid
 from pathlib import Path
 
-WORKOUTS_VERSION = 1
+WORKOUTS_VERSION = 2
 
 ROOT = Path(__file__).resolve().parents[2]
 CATALOGUE = ROOT / "app/shared/src/commonMain/composeResources/files/catalogue.json"
@@ -26,6 +27,27 @@ OUTPUT = ROOT / "app/shared/src/commonMain/composeResources/files/workouts.json"
 
 # Fixed namespace for these IDs. Never change it, or installed apps see all-new workouts.
 NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/tomhartill/kinzo/workouts")
+
+
+# The built-in splits, in the order the app lists them, as (name, workout type). Users can add
+# their own in the app. Removing one here hides it, but workouts filed under it keep its name.
+SPLITS = [
+    ("Full body", "resistance"),
+    ("Upper", "resistance"),
+    ("Lower", "resistance"),
+    ("Push", "resistance"),
+    ("Pull", "resistance"),
+    ("Legs", "resistance"),
+    ("Arms", "resistance"),
+    ("Posterior", "resistance"),
+    ("Quads", "resistance"),
+    ("Front", "resistance"),
+    ("Limbs", "resistance"),
+    ("Chest", "resistance"),
+    ("Back", "resistance"),
+    ("Shoulders", "resistance"),
+    ("Core", "resistance"),
+]
 
 
 def reps(name, sets, count, rest):
@@ -42,6 +64,7 @@ BENCH = "Barbell Bench Press - Medium Grip"
 WORKOUTS = [
     {
         "key": "full-body-a",
+        "split": "Full body",
         "name": "Full body A",
         "notes": "A beginner barbell session. Alternate with Full body B, three days a week, and add a little weight each time.",
         "exercises": [
@@ -53,6 +76,7 @@ WORKOUTS = [
     },
     {
         "key": "full-body-b",
+        "split": "Full body",
         "name": "Full body B",
         "notes": "The other half of the beginner plan. Alternate with Full body A.",
         "exercises": [
@@ -64,6 +88,7 @@ WORKOUTS = [
     },
     {
         "key": "push",
+        "split": "Push",
         "name": "Push",
         "notes": "Chest, shoulders and triceps. Pairs with Pull and Legs.",
         "exercises": [
@@ -76,6 +101,7 @@ WORKOUTS = [
     },
     {
         "key": "pull",
+        "split": "Pull",
         "name": "Pull",
         "notes": "Back and biceps. Pairs with Push and Legs.",
         "exercises": [
@@ -89,6 +115,7 @@ WORKOUTS = [
     },
     {
         "key": "legs",
+        "split": "Legs",
         "name": "Legs",
         "notes": "Quads, hamstrings, glutes and calves. Pairs with Push and Pull.",
         "exercises": [
@@ -101,6 +128,7 @@ WORKOUTS = [
     },
     {
         "key": "upper",
+        "split": "Upper",
         "name": "Upper body",
         "notes": "Everything above the waist. Alternate with Lower body, four days a week.",
         "exercises": [
@@ -114,6 +142,7 @@ WORKOUTS = [
     },
     {
         "key": "lower",
+        "split": "Lower",
         "name": "Lower body",
         "notes": "Legs and core. Alternate with Upper body.",
         "exercises": [
@@ -127,6 +156,7 @@ WORKOUTS = [
     },
     {
         "key": "dumbbell-full-body",
+        "split": "Full body",
         "name": "Dumbbell full body",
         "notes": "One pair of dumbbells and a bench, for home or a quiet gym.",
         "exercises": [
@@ -139,6 +169,7 @@ WORKOUTS = [
     },
     {
         "key": "bodyweight",
+        "split": "Full body",
         "name": "Bodyweight at home",
         "notes": "No equipment needed. Add reps as it gets easier.",
         "exercises": [
@@ -152,6 +183,7 @@ WORKOUTS = [
     },
     {
         "key": "core",
+        "split": "Core",
         "name": "Core",
         "notes": "A short abs and core finisher, on its own or after another workout.",
         "exercises": [
@@ -166,12 +198,25 @@ WORKOUTS = [
 ]
 
 
+def split_id(name, kind):
+    return str(uuid.uuid5(NAMESPACE, f"split:{kind}:{name.lower()}"))
+
+
 def build():
     catalogue = json.loads(CATALOGUE.read_text(encoding="utf-8"))
     by_name = {exercise["name"]: exercise for exercise in catalogue["exercises"]}
     problems = []
+    splits = [{"id": split_id(name, kind), "name": name, "type": kind} for name, kind in SPLITS]
+    split_types = {name: kind for name, kind in SPLITS}
+    if len(split_types) != len(SPLITS):
+        problems.append("two built-in splits share a name")
     workouts = []
     for workout in WORKOUTS:
+        workout_type = workout.get("type", "resistance")
+        if workout["split"] not in split_types:
+            problems.append(f"{workout['name']}: no built-in split called {workout['split']!r}")
+        elif split_types[workout["split"]] != workout_type:
+            problems.append(f"{workout['name']}: the {workout['split']} split is for {split_types[workout['split']]}, not {workout_type}")
         workout_id = str(uuid.uuid5(NAMESPACE, f"workout:{workout['key']}"))
         exercises = []
         for position, planned in enumerate(workout["exercises"]):
@@ -192,16 +237,23 @@ def build():
                 "durationS": planned.get("seconds"),
                 "restS": planned["rest"],
             })
-        workouts.append({"id": workout_id, "name": workout["name"], "notes": workout["notes"], "exercises": exercises})
+        workouts.append({
+            "id": workout_id,
+            "name": workout["name"],
+            "notes": workout["notes"],
+            "type": workout_type,
+            "splitId": split_id(workout["split"], workout_type),
+            "exercises": exercises,
+        })
     if problems:
         sys.exit("\n".join(problems))
-    return {"version": WORKOUTS_VERSION, "workouts": workouts}
+    return {"version": WORKOUTS_VERSION, "splits": splits, "workouts": workouts}
 
 
 def main():
     workouts = build()
     OUTPUT.write_text(json.dumps(workouts, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-    print(f"wrote {len(workouts['workouts'])} workouts to {OUTPUT}")
+    print(f"wrote {len(workouts['workouts'])} workouts and {len(workouts['splits'])} splits to {OUTPUT}")
 
 
 if __name__ == "__main__":

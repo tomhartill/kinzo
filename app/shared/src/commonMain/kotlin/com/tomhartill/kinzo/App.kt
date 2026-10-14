@@ -26,11 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -48,6 +46,7 @@ import com.tomhartill.kinzo.domain.RestTimer
 import com.tomhartill.kinzo.ui.AppViewModel
 import com.tomhartill.kinzo.ui.components.ActiveWorkoutBanner
 import com.tomhartill.kinzo.ui.components.BottomBarItem
+import com.tomhartill.kinzo.ui.components.KinzoIcons
 import com.tomhartill.kinzo.ui.components.KinzoBottomBar
 import com.tomhartill.kinzo.ui.navigation.BackStackEntry
 import com.tomhartill.kinzo.ui.navigation.Destination
@@ -61,9 +60,12 @@ import com.tomhartill.kinzo.ui.navigation.rememberNavigator
 import com.tomhartill.kinzo.ui.screens.DesignSystemScreen
 import com.tomhartill.kinzo.ui.screens.exercises.ExerciseDetailScreen
 import com.tomhartill.kinzo.ui.screens.exercises.ExercisePickerScreen
-import com.tomhartill.kinzo.ui.screens.exercises.ExercisesScreen
 import com.tomhartill.kinzo.ui.screens.history.HistoryScreen
 import com.tomhartill.kinzo.ui.screens.history.WorkoutDetailScreen
+import com.tomhartill.kinzo.ui.screens.library.LibraryScreen
+import com.tomhartill.kinzo.ui.screens.library.RoutineDetailScreen
+import com.tomhartill.kinzo.ui.screens.library.RoutineEditorScreen
+import com.tomhartill.kinzo.ui.screens.library.RoutineEditorViewModel
 import com.tomhartill.kinzo.ui.screens.profile.ProfileScreen
 import com.tomhartill.kinzo.ui.screens.today.TodayScreen
 import com.tomhartill.kinzo.ui.screens.workout.ActiveWorkoutScreen
@@ -74,7 +76,7 @@ import org.koin.compose.viewmodel.koinViewModel
 private val TabItems = listOf(
     BottomBarItem("Today", Icons.Outlined.Home, Icons.Filled.Home),
     BottomBarItem("History", Icons.Outlined.DateRange, Icons.Filled.DateRange),
-    BottomBarItem("Exercises", Icons.Outlined.Search, Icons.Filled.Search),
+    BottomBarItem("Library", KinzoIcons.Dumbbell, KinzoIcons.Dumbbell),
     BottomBarItem("Profile", Icons.Outlined.Person, Icons.Filled.Person),
 )
 
@@ -201,11 +203,19 @@ private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: 
             when (navigator.tab) {
                 Tab.Today -> TodayScreen(
                     onOpenWorkout = { open(Destination.ActiveWorkout) },
+                    onCreateWorkout = { open(Destination.RoutineEditor()) },
+                    onOpenRoutine = { open(Destination.RoutineDetail(it)) },
+                    onSeeAllRoutines = { navigator.selectTab(Tab.Library) },
                     onOpenFinishedWorkout = { open(Destination.WorkoutDetail(it)) },
                     modifier = modifier,
                 )
                 Tab.History -> HistoryScreen(onOpenWorkout = { open(Destination.WorkoutDetail(it)) }, modifier = modifier)
-                Tab.Exercises -> ExercisesScreen(onOpenExercise = { open(Destination.ExerciseDetail(it)) }, modifier = modifier)
+                Tab.Library -> LibraryScreen(
+                    onCreateWorkout = { open(Destination.RoutineEditor()) },
+                    onOpenWorkout = { open(Destination.RoutineDetail(it)) },
+                    onOpenExercise = { open(Destination.ExerciseDetail(it)) },
+                    modifier = modifier,
+                )
                 Tab.Profile -> ProfileScreen(onOpenDesignSystem = { open(Destination.DesignSystem) }, modifier = modifier)
             }
         }
@@ -235,6 +245,26 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             workoutId = destination.workoutId,
             justFinished = destination.justFinished,
             onClose = back,
+        )
+        is Destination.RoutineDetail -> RoutineDetailScreen(
+            routineId = destination.routineId,
+            onBack = back,
+            // The workout replaces everything, so closing it goes back to the tabs.
+            onStarted = { ifCurrent { navigator.resetTo(Destination.ActiveWorkout) } },
+            onEdit = { ifCurrent { navigator.push(Destination.RoutineEditor(routineId = destination.routineId)) } },
+            onCopy = { ifCurrent { navigator.push(Destination.RoutineEditor(copyFromId = destination.routineId)) } },
+            onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
+        )
+        is Destination.RoutineEditor -> RoutineEditorScreen(
+            args = RoutineEditorViewModel.Args(routineId = destination.routineId, copyFromId = destination.copyFromId),
+            onClose = back,
+            onSaved = { id ->
+                ifCurrent {
+                    // A new workout opens to show it off; an edited one goes back to where it was.
+                    if (destination.routineId == null) navigator.replace(Destination.RoutineDetail(id)) else navigator.pop()
+                }
+            },
+            onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
         )
         Destination.DesignSystem -> DesignSystemScreen(onBack = back)
     }

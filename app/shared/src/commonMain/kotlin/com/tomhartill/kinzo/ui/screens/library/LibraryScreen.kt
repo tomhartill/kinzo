@@ -1,0 +1,247 @@
+package com.tomhartill.kinzo.ui.screens.library
+
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tomhartill.kinzo.domain.Dates
+import com.tomhartill.kinzo.domain.RoutineSummary
+import com.tomhartill.kinzo.ui.components.ChoiceRow
+import com.tomhartill.kinzo.ui.components.KinzoCard
+import com.tomhartill.kinzo.ui.components.KinzoIcons
+import com.tomhartill.kinzo.ui.components.PrimaryButton
+import com.tomhartill.kinzo.ui.components.SectionHeader
+import com.tomhartill.kinzo.ui.components.rememberNow
+import com.tomhartill.kinzo.ui.screens.EmptyState
+import com.tomhartill.kinzo.ui.screens.ScreenTitle
+import com.tomhartill.kinzo.ui.screens.exercises.ExerciseBrowser
+import com.tomhartill.kinzo.ui.screens.exercises.ExerciseBrowserViewModel
+import com.tomhartill.kinzo.ui.theme.KinzoTheme
+import kotlinx.datetime.TimeZone
+import org.koin.compose.viewmodel.koinViewModel
+
+private enum class LibrarySection(val label: String) {
+    Workouts("Workouts"),
+    Exercises("Exercises"),
+}
+
+/**
+ * The Library tab: saved workouts to start from (your own, ready-made ones, and later the AI
+ * coach's), and the searchable exercise library.
+ */
+@Composable
+fun LibraryScreen(
+    onCreateWorkout: () -> Unit,
+    onOpenWorkout: (routineId: String) -> Unit,
+    onOpenExercise: (exerciseId: String) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: LibraryViewModel = koinViewModel(),
+    exercises: ExerciseBrowserViewModel = koinViewModel(),
+) {
+    // An index rather than the enum, so it saves on every platform.
+    var sectionIndex by rememberSaveable { mutableIntStateOf(LibrarySection.Workouts.ordinal) }
+    val section = LibrarySection.entries[sectionIndex]
+    val spacing = KinzoTheme.spacing
+
+    // The exercise list stops at the keyboard so its last results stay reachable.
+    Column(modifier.fillMaxSize().imePadding()) {
+        Column(
+            modifier = Modifier.padding(start = spacing.screen, end = spacing.screen, top = spacing.xl, bottom = spacing.md),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        ) {
+            ScreenTitle("Library")
+            ChoiceRow(
+                options = LibrarySection.entries,
+                selected = section,
+                optionLabel = { it.label },
+                onSelect = { sectionIndex = it.ordinal },
+            )
+        }
+        when (section) {
+            LibrarySection.Workouts -> {
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                WorkoutList(
+                    state = state,
+                    onCreateWorkout = onCreateWorkout,
+                    onOpenWorkout = onOpenWorkout,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            LibrarySection.Exercises -> {
+                val state by exercises.state.collectAsStateWithLifecycle()
+                ExerciseBrowser(
+                    query = exercises.query,
+                    state = state,
+                    onQueryChange = exercises::search,
+                    onMuscleChange = exercises::setMuscle,
+                    onEquipmentChange = exercises::setEquipment,
+                    onExerciseClick = { onOpenExercise(it.id) },
+                    modifier = Modifier.weight(1f).padding(top = spacing.xs),
+                    contentPadding = PaddingValues(bottom = spacing.lg),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkoutList(
+    state: LibraryState,
+    onCreateWorkout: () -> Unit,
+    onOpenWorkout: (routineId: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = KinzoTheme.spacing
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val now by rememberNow(intervalMillis = 60_000)
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(start = spacing.screen, end = spacing.screen, top = spacing.sm, bottom = spacing.xl),
+        verticalArrangement = Arrangement.spacedBy(spacing.md),
+    ) {
+        item(key = "create") { PrimaryButton(text = "Create workout", onClick = onCreateWorkout) }
+        item(key = "ai") { GenerateWithAiCard() }
+
+        header("My workouts")
+        if (state.mine.isEmpty()) {
+            if (!state.loading) {
+                item(key = "mine-empty") {
+                    EmptyState(
+                        title = "No workouts of your own yet",
+                        body = "Create one from scratch, or open a ready-made workout below and copy it to make it yours.",
+                    )
+                }
+            }
+        } else {
+            routineCards(state.mine, now, zone, onOpenWorkout)
+        }
+
+        if (state.generated.isNotEmpty()) {
+            header("From the AI coach")
+            routineCards(state.generated, now, zone, onOpenWorkout)
+        }
+
+        if (state.readyMade.isNotEmpty()) {
+            header("Ready-made")
+            routineCards(state.readyMade, now, zone, onOpenWorkout)
+        }
+    }
+}
+
+private fun LazyListScope.header(title: String) {
+    item(key = "header-$title") {
+        SectionHeader(title, modifier = Modifier.padding(top = KinzoTheme.spacing.md))
+    }
+}
+
+private fun LazyListScope.routineCards(
+    routines: List<RoutineSummary>,
+    now: Long,
+    zone: TimeZone,
+    onOpen: (routineId: String) -> Unit,
+) {
+    items(routines, key = { it.id }) { routine ->
+        RoutineCard(routine = routine, now = now, zone = zone, onClick = { onOpen(routine.id) })
+    }
+}
+
+/** A saved workout in a list: its name, when it was last done, and its exercises. */
+@Composable
+internal fun RoutineCard(
+    routine: RoutineSummary,
+    now: Long,
+    zone: TimeZone,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val count = routine.exerciseNames.size
+    KinzoCard(modifier = modifier, onClick = onClick) {
+        Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm)) {
+                Text(
+                    routine.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).alignByBaseline(),
+                )
+                val lastUsed = routine.lastUsedAt
+                if (lastUsed != null) {
+                    Text(
+                        Dates.dayLabel(lastUsed, now, zone),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
+            }
+            Text(
+                if (count == 1) "1 exercise" else "$count exercises",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
+        if (count > 0) {
+            Text(
+                routine.exerciseNames.joinToString(", "),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** Where AI-made workouts will start. Not tappable until the coach exists. */
+@Composable
+private fun GenerateWithAiCard() {
+    val colors = MaterialTheme.colorScheme
+    KinzoCard(modifier = Modifier.semantics { stateDescription = "Coming soon" }) {
+        Row(horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md), verticalAlignment = Alignment.Top) {
+            Icon(KinzoIcons.Sparkle, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(24.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Generate with AI", style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
+                    Text(
+                        "SOON",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.onSurfaceVariant,
+                        modifier = Modifier
+                            .border(1.dp, colors.outlineVariant, MaterialTheme.shapes.extraSmall)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+                Text(
+                    "Say what you want, like \"45 minutes, dumbbells only\", and Kinzo will build the workout for you.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}

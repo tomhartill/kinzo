@@ -14,7 +14,7 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 
-enum class Tab { Today, History, Exercises, Profile }
+enum class Tab { Today, History, Library, Profile }
 
 /** Screens pushed on top of the tabs. */
 sealed interface Destination {
@@ -37,11 +37,26 @@ sealed interface Destination {
         override val route = "history/$workoutId/${if (justFinished) "finished" else "view"}"
     }
 
+    /** A saved workout: its plan, and the button to start it. */
+    data class RoutineDetail(val routineId: String) : Destination {
+        override val route = "routine/$routineId"
+    }
+
+    /**
+     * Creates or edits one of the user's own workouts. With no [routineId] it makes a new one,
+     * starting from a copy of [copyFromId] if given (a ready-made workout, say).
+     */
+    data class RoutineEditor(val routineId: String? = null, val copyFromId: String? = null) : Destination {
+        override val route = "routine-editor/${routineId ?: NONE}/${copyFromId ?: NONE}"
+    }
+
     data object DesignSystem : Destination {
         override val route = "design-system"
     }
 
     companion object {
+        private const val NONE = "-"
+
         fun fromRoute(route: String): Destination? {
             val parts = route.split('/')
             return when {
@@ -50,6 +65,9 @@ sealed interface Destination {
                 route == DesignSystem.route -> DesignSystem
                 parts.size == 2 && parts[0] == "exercise" -> ExerciseDetail(parts[1])
                 parts.size == 3 && parts[0] == "history" -> WorkoutDetail(parts[1], justFinished = parts[2] == "finished")
+                parts.size == 2 && parts[0] == "routine" -> RoutineDetail(parts[1])
+                parts.size == 3 && parts[0] == "routine-editor" ->
+                    RoutineEditor(parts[1].takeUnless { it == NONE }, parts[2].takeUnless { it == NONE })
                 else -> null
             }
         }
@@ -100,6 +118,15 @@ class Navigator internal constructor(
     /** Pops back to the tabs. */
     fun popToRoot() {
         _stack.clear()
+    }
+
+    /**
+     * Replaces every screen with [destination], for example the workout just started from a
+     * saved one: closing it then goes straight back to the tabs.
+     */
+    fun resetTo(destination: Destination) {
+        _stack.clear()
+        _stack.add(BackStackEntry(nextId++, destination))
     }
 
     /** False once [entry] has been popped, as opposed to hidden under another screen. */

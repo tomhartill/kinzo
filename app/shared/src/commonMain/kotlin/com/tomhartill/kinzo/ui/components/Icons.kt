@@ -25,6 +25,29 @@ object KinzoIcons {
         )
     }
 
+    /** A dumbbell, for the Library tab. */
+    val Dumbbell: ImageVector by lazy {
+        icon(
+            "Dumbbell",
+            "M20.57,14.86L22,13.43 20.57,12 17,15.57 8.43,7 12,3.43 10.57,2 9.14,3.43 7.71,2 5.57,4.14 4.14,2.71 " +
+                "2.71,4.14l1.43,1.43L2,7.71l1.43,1.43L2,10.57 3.43,12 7,8.43 15.57,17 12,20.57 13.43,22l1.43,-1.43" +
+                "L16.29,22l2.14,-2.14 1.43,1.43 1.43,-1.43 -1.43,-1.43L22,16.29z",
+        )
+    }
+
+    /** Three sparkles, for anything the AI coach makes. */
+    val Sparkle: ImageVector by lazy {
+        icon(
+            "Sparkle",
+            "M19,9l1.25,-2.75L23,5l-2.75,-1.25L19,1l-1.25,2.75L15,5l2.75,1.25L19,9z" +
+                "M11.5,9.5L9,4L6.5,9.5L1,12l5.5,2.5L9,20l2.5,-5.5L17,12L11.5,9.5z" +
+                "M19,15l-1.25,2.75L15,19l2.75,1.25L19,23l1.25,-2.75L23,19l-2.75,-1.25L19,15z",
+        )
+    }
+
+    /** A minus sign, the other half of Add in a stepper. */
+    val Remove: ImageVector by lazy { icon("Remove", "M19,13H5v-2h14v2z") }
+
     private fun icon(name: String, pathData: String): ImageVector =
         ImageVector.Builder(name = name, defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f)
             .addPath(pathData = PathParser().parsePathString(pathData).toNodes(), fill = SolidColor(Color.Black))

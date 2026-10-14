@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -136,6 +137,12 @@ private enum class SetField(val decimal: Boolean) {
             MeasurementType.Reps -> listOf(Reps)
             MeasurementType.Duration -> listOf(Seconds)
             MeasurementType.DistanceDuration -> listOf(Kilometres, Minutes)
+        }
+
+        /** The fields a saved workout plans for each set: no distance, only time. */
+        fun forTarget(type: MeasurementType): List<SetField> = when (type) {
+            MeasurementType.DistanceDuration -> listOf(Minutes)
+            else -> forType(type)
         }
     }
 }
@@ -287,6 +294,55 @@ fun SetEditorRow(
                 }
             },
         )
+    }
+}
+
+/**
+ * What to aim for in each set of a saved workout: weight and reps, or a time. A blank field
+ * means no target, and the workout fills in last time's numbers instead. Distance isn't
+ * planned, so runs and rows only take a time.
+ */
+@Composable
+fun TargetInputs(
+    type: MeasurementType,
+    unit: WeightUnit,
+    values: SetValues,
+    onValuesChange: (SetValues) -> Unit,
+    exerciseName: String,
+    modifier: Modifier = Modifier,
+) {
+    val fields = SetField.forTarget(type)
+    val texts = remember(unit) {
+        mutableStateMapOf<SetField, String>().apply { fields.forEach { put(it, it.format(values, unit)) } }
+    }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm)) {
+        fields.forEach { field ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
+                Text(field.header(unit), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SetInput(
+                    value = texts[field].orEmpty(),
+                    placeholder = "–",
+                    onValueChange = { text ->
+                        if (field.accepts(text)) {
+                            texts[field] = text
+                            // Fields still showing the stored number keep it exactly, as in SetEditorRow.
+                            onValuesChange(
+                                fields.fold(values) { result, each ->
+                                    val typed = texts[each].orEmpty()
+                                    if (typed == each.format(values, unit)) result else each.applyTo(result, typed, unit)
+                                },
+                            )
+                        }
+                    },
+                    keyboardType = field.keyboardType,
+                    isError = false,
+                    isCompleted = false,
+                    onFocusChange = {},
+                    description = "$exerciseName target ${field.spokenName}",
+                    modifier = Modifier.width(68.dp),
+                )
+            }
+        }
     }
 }
 

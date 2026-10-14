@@ -177,7 +177,55 @@ class WorkoutRepository(
     suspend fun startWorkout(name: String): String = withContext(io) {
         db.transactionWithResult {
             queries.activeWorkoutId().executeAsOneOrNull()
-                ?: Ids.newId().also { id -> queries.insertWorkout(id = id, name = name, startedAt = now()) }
+                ?: Ids.newId().also { id -> queries.insertWorkout(id = id, name = name, routineId = null, startedAt = now()) }
+        }
+    }
+
+    /** What happened when asked to start a workout from a saved one. */
+    sealed interface StartResult {
+        data class Started(val workoutId: String) : StartResult
+
+        /** Another workout is still in progress; finish or discard it first. */
+        data class AlreadyInProgress(val workoutId: String) : StartResult
+
+        /** The saved workout is gone. */
+        data object NotFound : StartResult
+    }
+
+    /**
+     * Starts a workout from a saved one: its name, exercises in order, the planned number of
+     * sets, and its rest times. Each set comes filled with the planned numbers where there
+     * are any; the rest are left for the user, with last time's numbers as hints.
+     */
+    suspend fun startFromRoutine(routineId: String): StartResult = withContext(io) {
+        db.transactionWithResult {
+            queries.activeWorkoutId().executeAsOneOrNull()?.let { return@transactionWithResult StartResult.AlreadyInProgress(it) }
+            val routine = db.routineQueries.routineById(routineId).executeAsOneOrNull()
+                ?: return@transactionWithResult StartResult.NotFound
+            val now = now()
+            val workoutId = Ids.newId()
+            queries.insertWorkout(id = workoutId, name = routine.name, routineId = routineId, startedAt = now)
+            db.routineQueries.routineExercises(routineId).executeAsList().forEachIndexed { position, planned ->
+                val workoutExerciseId = Ids.newId()
+                queries.insertWorkoutExercise(
+                    id = workoutExerciseId,
+                    workoutId = workoutId,
+                    exerciseId = planned.exercise_id,
+                    position = position.toLong(),
+                    restS = planned.rest_s ?: queries.lastRestForExercise(planned.exercise_id).executeAsOneOrNull(),
+                    now = now,
+                )
+                val type = MeasurementType.fromKey(planned.measurement_type)
+                val values = SetValues(
+                    reps = planned.target_reps?.toInt(),
+                    weightKg = planned.target_weight_kg,
+                    durationS = planned.target_duration_s?.toInt(),
+                ).keepOnly(type)
+                repeat(planned.target_sets.toInt().coerceAtLeast(1)) { index ->
+                    insertSet(workoutExerciseId = workoutExerciseId, position = index, isWarmup = false, now = now, values = values)
+                }
+            }
+            StartResult.Started(workoutId)
         }
     }
 
@@ -209,11 +257,10 @@ class WorkoutRepository(
                 val previous = previousSets(exerciseId, workoutId)
                 val count = previous.size.coerceIn(SetRules.MIN_INITIAL_SETS, SetRules.MAX_INITIAL_SETS)
                 repeat(count) { index ->
-                    queries.insertSet(
-                        id = Ids.newId(),
+                    insertSet(
                         workoutExerciseId = workoutExerciseId,
-                        position = index.toLong(),
-                        isWarmup = if (previous.getOrNull(index)?.isWarmup == true) 1L else 0L,
+                        position = index,
+                        isWarmup = previous.getOrNull(index)?.isWarmup == true,
                         now = now,
                     )
                 }
@@ -224,13 +271,7 @@ class WorkoutRepository(
     suspend fun addSet(workoutExerciseId: String) = withContext(io) {
         db.transaction {
             val position = queries.setIdsOfWorkoutExercise(workoutExerciseId).executeAsList().size
-            queries.insertSet(
-                id = Ids.newId(),
-                workoutExerciseId = workoutExerciseId,
-                position = position.toLong(),
-                isWarmup = 0L,
-                now = now(),
-            )
+            insertSet(workoutExerciseId = workoutExerciseId, position = position, isWarmup = false, now = now())
         }
     }
 
@@ -362,6 +403,20 @@ class WorkoutRepository(
             queries.softDeleteAllExercisesOfWorkout(now = now, workoutId = workoutId)
             queries.softDeleteWorkout(now = now, id = workoutId)
         }
+    }
+
+    private fun insertSet(workoutExerciseId: String, position: Int, isWarmup: Boolean, now: Long, values: SetValues = SetValues()) {
+        queries.insertSet(
+            id = Ids.newId(),
+            workoutExerciseId = workoutExerciseId,
+            position = position.toLong(),
+            reps = values.reps?.toLong(),
+            weightKg = values.weightKg?.let(SetRules::roundKg),
+            durationS = values.durationS?.toLong(),
+            distanceM = values.distanceM,
+            isWarmup = if (isWarmup) 1L else 0L,
+            now = now,
+        )
     }
 
     private fun renumberExercises(workoutId: String, now: Long) {

@@ -1,0 +1,118 @@
+-- Saved workouts to start from (the app calls them workouts; the server calls them
+-- routines, and so does the code to keep them apart from logged workouts). Mirrors the
+-- server's routines and routine_exercises tables, plus the ready-made ones bundled with the
+-- app, which have created_by 'kinzo' and are never synced. (A workout started from one keeps
+-- its ID in workout.routine_id; sync must leave that out, as the server has no such routine.)
+--
+-- Like workouts, rows are soft-deleted and positions kept contiguous from 0.
+
+CREATE TABLE routine (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    notes               TEXT,
+    -- 'user', 'kinzo' (bundled), or later 'ai' and 'coach'.
+    created_by          TEXT NOT NULL,
+    -- For bundled workouts this is their place in the bundle, which keeps them in order.
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE routine_exercise (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    routine_id          TEXT NOT NULL,
+    exercise_id         TEXT NOT NULL,
+    position            INTEGER NOT NULL,
+    target_sets         INTEGER NOT NULL,
+    target_reps         INTEGER,
+    target_weight_kg    REAL,
+    target_duration_s   INTEGER,
+    -- Seconds of rest after each set; 0 turns the timer off. NULL uses the default.
+    rest_s              INTEGER,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+CREATE INDEX routine_exercise_routine ON routine_exercise(routine_id, position);
+
+routines:
+SELECT
+    r.id,
+    r.name,
+    r.notes,
+    r.created_by,
+    r.created_at,
+    r.updated_at,
+    (SELECT MAX(w.started_at) FROM workout w WHERE w.routine_id = r.id AND w.deleted_at IS NULL) AS last_used_at
+FROM routine r
+WHERE r.deleted_at IS NULL;
+
+-- Every saved workout's exercise names in order, to summarise each one in a list.
+routineExerciseNames:
+SELECT re.routine_id, e.name
+FROM routine_exercise re
+JOIN routine r ON r.id = re.routine_id
+JOIN exercise e ON e.id = re.exercise_id
+WHERE re.deleted_at IS NULL AND r.deleted_at IS NULL
+ORDER BY re.routine_id, re.position;
+
+routineById:
+SELECT id, name, notes, created_by
+FROM routine
+WHERE id = :id AND deleted_at IS NULL;
+
+routineExercises:
+SELECT
+    re.id,
+    re.exercise_id,
+    re.position,
+    re.target_sets,
+    re.target_reps,
+    re.target_weight_kg,
+    re.target_duration_s,
+    re.rest_s,
+    e.name,
+    e.measurement_type
+FROM routine_exercise re
+JOIN exercise e ON e.id = re.exercise_id
+WHERE re.routine_id = :routineId AND re.deleted_at IS NULL
+ORDER BY re.position;
+
+routineExerciseIds:
+SELECT id FROM routine_exercise
+WHERE routine_id = :routineId AND deleted_at IS NULL;
+
+upsertRoutine:
+INSERT OR REPLACE INTO routine(id, name, notes, created_by, created_at, updated_at, deleted_at)
+VALUES (:id, :name, :notes, :createdBy, :createdAt, :updatedAt, NULL);
+
+updateRoutine:
+UPDATE routine SET name = :name, notes = :notes, updated_at = :now WHERE id = :id;
+
+softDeleteRoutine:
+UPDATE routine SET deleted_at = :now, updated_at = :now WHERE id = :id;
+
+upsertRoutineExercise:
+INSERT OR REPLACE INTO routine_exercise(
+    id, routine_id, exercise_id, position, target_sets, target_reps, target_weight_kg,
+    target_duration_s, rest_s, updated_at, deleted_at
+)
+VALUES (
+    :id, :routineId, :exerciseId, :position, :targetSets, :targetReps, :targetWeightKg,
+    :targetDurationS, :restS, :now, NULL
+);
+
+softDeleteRoutineExercise:
+UPDATE routine_exercise SET deleted_at = :now, updated_at = :now WHERE id = :id;
+
+softDeleteExercisesOfRoutine:
+UPDATE routine_exercise SET deleted_at = :now, updated_at = :now
+WHERE routine_id = :routineId AND deleted_at IS NULL;
+
+-- Bundled workouts the new bundle no longer has.
+softDeleteRoutinesBy:
+UPDATE routine SET deleted_at = :now, updated_at = :now
+WHERE created_by = :createdBy AND deleted_at IS NULL;
+
+softDeleteExercisesOfRoutinesBy:
+UPDATE routine_exercise SET deleted_at = :now, updated_at = :now
+WHERE deleted_at IS NULL AND routine_id IN (SELECT id FROM routine WHERE created_by = :createdBy);

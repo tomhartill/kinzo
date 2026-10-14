@@ -3,6 +3,8 @@ package com.tomhartill.kinzo.di
 import com.tomhartill.kinzo.data.CatalogueImporter
 import com.tomhartill.kinzo.data.CatalogueRepository
 import com.tomhartill.kinzo.data.DriverFactory
+import com.tomhartill.kinzo.data.KinzoWorkoutsImporter
+import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.data.SettingsRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.data.createDatabase
@@ -13,6 +15,9 @@ import com.tomhartill.kinzo.ui.screens.exercises.ExerciseBrowserViewModel
 import com.tomhartill.kinzo.ui.screens.exercises.ExerciseDetailViewModel
 import com.tomhartill.kinzo.ui.screens.history.HistoryViewModel
 import com.tomhartill.kinzo.ui.screens.history.WorkoutDetailViewModel
+import com.tomhartill.kinzo.ui.screens.library.LibraryViewModel
+import com.tomhartill.kinzo.ui.screens.library.RoutineDetailViewModel
+import com.tomhartill.kinzo.ui.screens.library.RoutineEditorViewModel
 import com.tomhartill.kinzo.ui.screens.profile.ProfileViewModel
 import com.tomhartill.kinzo.ui.screens.today.TodayViewModel
 import com.tomhartill.kinzo.ui.screens.workout.ActiveWorkoutViewModel
@@ -34,10 +39,14 @@ internal fun dataModule(driverFactory: DriverFactory): Module = module {
     single { CatalogueRepository(get()) }
     single { SettingsRepository(get()) }
     single { WorkoutRepository(get(), get()) }
+    single { RoutineRepository(get(), get()) }
     // One rest timer for the whole app, so it keeps counting when you leave the workout.
     single { RestTimer(get(), CoroutineScope(SupervisorJob() + Dispatchers.Default)) }
     single {
         CatalogueImporter(get(), get()) { Res.readBytes(CatalogueImporter.RESOURCE_PATH).decodeToString() }
+    }
+    single {
+        KinzoWorkoutsImporter(get(), get()) { Res.readBytes(KinzoWorkoutsImporter.RESOURCE_PATH).decodeToString() }
     }
 }
 
@@ -48,8 +57,11 @@ internal val viewModelModule: Module = module {
     viewModelOf(::ExerciseBrowserViewModel)
     viewModelOf(::ProfileViewModel)
     viewModelOf(::ActiveWorkoutViewModel)
+    viewModelOf(::LibraryViewModel)
     viewModel { params -> ExerciseDetailViewModel(params.get(), get(), get(), get()) }
     viewModel { params -> WorkoutDetailViewModel(params.get(), get(), get()) }
+    viewModel { params -> RoutineDetailViewModel(params.get(), get(), get(), get()) }
+    viewModel { params -> RoutineEditorViewModel(params.get(), get(), get()) }
 }
 
 /** Called once at startup by each platform, which supplies its own SQLite driver. */

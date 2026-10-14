@@ -75,6 +75,20 @@ object Format {
         }
     }
 
+    /**
+     * A saved workout's plan for one exercise: "3 × 8 · 60 kg", "3 × 0:30", or "3 sets" when
+     * there's nothing to aim for beyond the number of sets.
+     */
+    fun target(type: MeasurementType, sets: Int, target: SetValues, unit: WeightUnit): String {
+        val each = when (type) {
+            MeasurementType.WeightReps, MeasurementType.Reps -> target.reps?.toString()
+            MeasurementType.Duration, MeasurementType.DistanceDuration -> target.durationS?.let { duration(it) }
+        }
+        val plan = if (each != null) "$sets × $each" else if (sets == 1) "1 set" else "$sets sets"
+        val weight = target.weightKg?.takeIf { type == MeasurementType.WeightReps }?.let { "${Weight.format(it, unit)} ${unit.label}" }
+        return listOfNotNull(plan, weight).joinToString(" · ")
+    }
+
     private fun Long.pad2(): String = toString().padStart(2, '0')
 }
 

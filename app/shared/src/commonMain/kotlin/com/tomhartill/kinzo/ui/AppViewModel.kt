@@ -3,6 +3,7 @@ package com.tomhartill.kinzo.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tomhartill.kinzo.data.CatalogueImporter
+import com.tomhartill.kinzo.data.KinzoWorkoutsImporter
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.domain.ActiveWorkoutInfo
 import com.tomhartill.kinzo.domain.RestTimer
@@ -17,7 +18,8 @@ import kotlinx.coroutines.launch
 class AppViewModel(
     workouts: WorkoutRepository,
     restTimer: RestTimer,
-    importer: CatalogueImporter,
+    catalogueImporter: CatalogueImporter,
+    workoutsImporter: KinzoWorkoutsImporter,
 ) : ViewModel() {
     val activeWorkout: StateFlow<ActiveWorkoutInfo?> =
         workouts.activeWorkoutInfo().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -28,17 +30,23 @@ class AppViewModel(
     val restFinished: SharedFlow<Unit> = restTimer.finished
 
     init {
-        // Fills or updates the exercise library on first launch and after app updates. If it
-        // fails (a full disk, say) the last imported library stays and the next launch retries;
-        // the transaction means nothing is half-written.
+        // Fills or updates the exercise library, then the ready-made workouts that use it, on
+        // first launch and after app updates. If either fails (a full disk, say) the last
+        // imported version stays and the next launch retries; each runs in a transaction, so
+        // nothing is half-written.
         viewModelScope.launch {
-            try {
-                importer.importIfNeeded()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                println("Kinzo: exercise library import failed: $e")
-            }
+            importSafely("exercise library") { catalogueImporter.importIfNeeded() }
+            importSafely("ready-made workouts") { workoutsImporter.importIfNeeded() }
+        }
+    }
+
+    private suspend fun importSafely(what: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            println("Kinzo: $what import failed: $e")
         }
     }
 }

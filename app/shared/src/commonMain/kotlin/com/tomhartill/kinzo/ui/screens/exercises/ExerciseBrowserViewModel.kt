@@ -31,11 +31,13 @@ data class ExerciseBrowserState(
     /** Recently used exercises, shown above the full list when nothing is being searched. */
     val recent: List<ExerciseSummary> = emptyList(),
     val results: List<ExerciseSummary> = emptyList(),
+    /** Every exercise, to look up the ones picked whatever the current search shows. */
+    val byId: Map<String, ExerciseSummary> = emptyMap(),
 ) {
     val isFiltering: Boolean get() = query.isNotBlank() || muscle != null || equipment != null
 }
 
-/** Search and filters over the exercise library, shared by the Exercises tab and the picker. */
+/** Search and filters over the exercise library, shared by the Library tab and the pickers. */
 class ExerciseBrowserViewModel(
     catalogue: CatalogueRepository,
     private val workouts: WorkoutRepository,
@@ -65,6 +67,7 @@ class ExerciseBrowserViewModel(
             equipmentOptions = library.equipment,
             recent = library.recentIds.mapNotNull { byId[it] },
             results = ExerciseSearch.filter(library.exercises, filters.query, filters.muscle, filters.equipmentId),
+            byId = byId,
         )
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseBrowserState())

@@ -2,9 +2,12 @@ package com.tomhartill.kinzo.ui.screens.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.data.SettingsRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.domain.Dates
+import com.tomhartill.kinzo.domain.RoutineSource
+import com.tomhartill.kinzo.domain.RoutineSummary
 import com.tomhartill.kinzo.domain.WeightUnit
 import com.tomhartill.kinzo.domain.WorkoutSummary
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,10 +27,17 @@ data class TodayState(
     val weekWorkouts: Int = 0,
     val weekVolumeKg: Double = 0.0,
     val unit: WeightUnit = WeightUnit.Kilograms,
-)
+    /** The user's most recently used workouts, or a few ready-made ones until they have some. */
+    val routines: List<RoutineSummary> = emptyList(),
+) {
+    val hasOwnRoutines: Boolean get() = routines.any { it.source == RoutineSource.User }
+}
+
+private const val ROUTINES_SHOWN = 3
 
 class TodayViewModel(
     private val workouts: WorkoutRepository,
+    routines: RoutineRepository,
     settings: SettingsRepository,
     private val clock: Clock,
 ) : ViewModel() {
@@ -38,7 +48,8 @@ class TodayViewModel(
         workouts.activeWorkoutInfo().map { it != null }.distinctUntilChanged(),
         workouts.history(),
         settings.settings(),
-    ) { hasActive, history, settingsValue ->
+        routines.routines(),
+    ) { hasActive, history, settingsValue, saved ->
         val weekStart = Dates.startOfWeek(clock.now().toEpochMilliseconds(), zone)
         val thisWeek = history.filter { it.startedAt >= weekStart }
         TodayState(
@@ -48,6 +59,7 @@ class TodayViewModel(
             weekWorkouts = thisWeek.size,
             weekVolumeKg = thisWeek.sumOf { it.volumeKg },
             unit = settingsValue.weightUnit,
+            routines = saved.filter { it.source == RoutineSource.User }.ifEmpty { saved }.take(ROUTINES_SHOWN),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayState())
 

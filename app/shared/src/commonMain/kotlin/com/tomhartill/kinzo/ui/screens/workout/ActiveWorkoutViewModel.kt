@@ -74,9 +74,20 @@ class ActiveWorkoutViewModel(
         val previous = exercise.previous.getOrNull(index)?.values
         val values = SetRules.resolveForCompletion(exercise.measurementType, entered, previous) ?: return false
         viewModelScope.launch { workouts.completeSet(set.id, values) }
-        restTimer.start(state.value.settings.restSeconds)
+        restTimer.start(restFor(exercise))
         return true
     }
+
+    /** The rest after each set of [exercise], in seconds; 0 when its timer is off. */
+    fun restFor(exercise: WorkoutExercise): Int = exercise.rest(state.value.settings.restSeconds)
+
+    /** Sets the rest after each set of one exercise, 0 for none. It's remembered for next time. */
+    fun setRest(exercise: WorkoutExercise, seconds: Int) {
+        viewModelScope.launch { workouts.setExerciseRest(exercise.id, seconds) }
+    }
+
+    /** Starts a rest by hand, between exercises for example. */
+    fun startRest(seconds: Int) = restTimer.start(seconds)
 
     fun toggleWarmup(set: LoggedSet) {
         viewModelScope.launch { workouts.setWarmup(set.id, !set.isWarmup) }
@@ -86,12 +97,19 @@ class ActiveWorkoutViewModel(
         viewModelScope.launch { workouts.removeSet(set.id) }
     }
 
+    /** Undoes [removeSet]. */
+    fun restoreSet(set: LoggedSet) {
+        viewModelScope.launch { workouts.restoreSet(set.id) }
+    }
+
     fun removeExercise(exercise: WorkoutExercise) {
         viewModelScope.launch { workouts.removeExercise(exercise.id) }
     }
 
-    fun moveExercise(exercise: WorkoutExercise, offset: Int) {
-        viewModelScope.launch { workouts.moveExercise(exercise.id, offset) }
+    /** Saves a new order for the exercises, given as their IDs. */
+    fun reorderExercises(orderedIds: List<String>) {
+        val id = workoutId ?: return
+        viewModelScope.launch { workouts.reorderExercises(id, orderedIds) }
     }
 
     fun adjustRest(seconds: Int) = restTimer.adjust(seconds)

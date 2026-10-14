@@ -193,4 +193,69 @@ class WorkoutRepositoryTest {
         workouts.renameWorkout(id, "   ")
         assertEquals("Chest day", active().name)
     }
+
+    @Test
+    fun aDeletedSetCanBePutBack() = runTest {
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-bench"))
+        val bench = active().exercises.single()
+        workouts.addSet(bench.id)
+        workouts.addSet(bench.id)
+        val sets = active().exercises.single().sets
+        sets.forEachIndexed { index, set -> workouts.updateSet(set.id, SetValues(reps = index + 1)) }
+
+        workouts.removeSet(sets[1].id)
+        assertEquals(listOf(1, 3), active().exercises.single().sets.map { it.values.reps })
+        workouts.restoreSet(sets[1].id)
+        assertEquals(listOf(1, 2, 3), active().exercises.single().sets.map { it.values.reps })
+        // Restoring twice changes nothing.
+        workouts.restoreSet(sets[1].id)
+        assertEquals(listOf(1, 2, 3), active().exercises.single().sets.map { it.values.reps })
+
+        // Back at the end when the sets after it are gone too.
+        workouts.removeSet(sets[1].id)
+        workouts.removeSet(sets[2].id)
+        workouts.restoreSet(sets[1].id)
+        assertEquals(listOf(1, 2), active().exercises.single().sets.map { it.values.reps })
+    }
+
+    @Test
+    fun exercisesCanBeReordered() = runTest {
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-bench", "ex-plank", "ex-curl"))
+        val ids = active().exercises.map { it.id }
+        workouts.reorderExercises(id, listOf(ids[2], ids[0], ids[1]))
+        assertEquals(listOf("Barbell Curl", "Bench Press", "Plank"), active().exercises.map { it.name })
+        // Unknown IDs are ignored and missing ones keep their order at the end.
+        workouts.reorderExercises(id, listOf("nope", ids[1]))
+        assertEquals(listOf("Plank", "Barbell Curl", "Bench Press"), active().exercises.map { it.name })
+    }
+
+    @Test
+    fun restTimesAreRememberedPerExercise() = runTest {
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-bench", "ex-plank"))
+        assertEquals(listOf(null, null), active().exercises.map { it.restSeconds })
+        assertEquals(listOf(90, 90), active().exercises.map { it.rest(defaultSeconds = 90) })
+
+        val bench = active().exercises.first()
+        workouts.setExerciseRest(bench.id, 150)
+        workouts.setExerciseRest(active().exercises[1].id, 0)
+        assertEquals(listOf(150, 0), active().exercises.map { it.restSeconds })
+        workouts.completeSet(bench.sets.single().id, SetValues(weightKg = 60.0, reps = 5))
+        assertTrue(workouts.finishWorkout(id))
+
+        clock.advance(24 * 60 * 60 * 1000)
+        val next = workouts.startWorkout("Push again")
+        workouts.addExercises(next, listOf("ex-plank", "ex-bench", "ex-curl"))
+        // The plank was dropped from the finished workout (no sets ticked), so its "off" is forgotten.
+        assertEquals(listOf(null, 150, null), active().exercises.map { it.restSeconds })
+
+        // Too long is capped, and null goes back to the default.
+        val curl = active().exercises.last()
+        workouts.setExerciseRest(curl.id, 10_000)
+        assertEquals(600, active().exercises.last().restSeconds)
+        workouts.setExerciseRest(curl.id, null)
+        assertNull(active().exercises.last().restSeconds)
+    }
 }

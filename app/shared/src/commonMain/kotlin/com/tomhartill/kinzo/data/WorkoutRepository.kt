@@ -13,6 +13,7 @@ import com.tomhartill.kinzo.domain.MeasurementType
 import com.tomhartill.kinzo.domain.PreviousSet
 import com.tomhartill.kinzo.domain.SetRules
 import com.tomhartill.kinzo.domain.SetValues
+import com.tomhartill.kinzo.domain.Settings
 import com.tomhartill.kinzo.domain.Workout
 import com.tomhartill.kinzo.domain.WorkoutExercise
 import com.tomhartill.kinzo.domain.WorkoutSummary
@@ -101,6 +102,7 @@ class WorkoutRepository(
                             } else {
                                 emptyList()
                             },
+                            restSeconds = exercise.rest_s?.toInt(),
                         )
                     },
                 )
@@ -186,7 +188,8 @@ class WorkoutRepository(
 
     /**
      * Appends exercises to a workout. Each starts with as many sets as it had last time
-     * (at least one), with last time's warm-ups marked, so the user only fills in numbers.
+     * (at least one), with last time's warm-ups marked, so the user only fills in numbers,
+     * and with the rest time last chosen for it.
      */
     suspend fun addExercises(workoutId: String, exerciseIds: List<String>) = withContext(io) {
         db.transaction {
@@ -199,6 +202,7 @@ class WorkoutRepository(
                     workoutId = workoutId,
                     exerciseId = exerciseId,
                     position = position.toLong(),
+                    restS = queries.lastRestForExercise(exerciseId).executeAsOneOrNull(),
                     now = now,
                 )
                 position++
@@ -270,6 +274,30 @@ class WorkoutRepository(
         }
     }
 
+    /** Puts back a set deleted by [removeSet], in the place it was. */
+    suspend fun restoreSet(setId: String) = withContext(io) {
+        db.transaction {
+            val set = queries.anySetById(setId).executeAsOneOrNull() ?: return@transaction
+            if (set.deleted_at == null) return@transaction
+            // Nothing to go back to if its exercise was removed in the meantime.
+            queries.workoutExerciseById(set.workout_exercise_id).executeAsOneOrNull() ?: return@transaction
+            val ids = queries.setIdsOfWorkoutExercise(set.workout_exercise_id).executeAsList().toMutableList()
+            ids.add(set.position.toInt().coerceIn(0, ids.size), setId)
+            val now = now()
+            queries.undeleteSet(now = now, id = setId)
+            ids.forEachIndexed { index, id -> queries.setSetPosition(position = index.toLong(), now = now, id = id) }
+        }
+    }
+
+    /** Sets the rest after each set of one exercise: seconds, 0 for none, or null for the default. */
+    suspend fun setExerciseRest(workoutExerciseId: String, seconds: Int?) = withContext(io) {
+        queries.setWorkoutExerciseRest(
+            restS = seconds?.coerceIn(0, Settings.MAX_REST_SECONDS)?.toLong(),
+            now = now(),
+            id = workoutExerciseId,
+        )
+    }
+
     suspend fun removeExercise(workoutExerciseId: String) = withContext(io) {
         db.transaction {
             val exercise = queries.workoutExerciseById(workoutExerciseId).executeAsOneOrNull() ?: return@transaction
@@ -291,6 +319,21 @@ class WorkoutRepository(
             ids.add(to, ids.removeAt(from))
             val now = now()
             ids.forEachIndexed { index, id -> queries.setWorkoutExercisePosition(position = index.toLong(), now = now, id = id) }
+        }
+    }
+
+    /**
+     * Puts a workout's exercises in the given order. IDs it doesn't know are ignored, and any
+     * exercise left out keeps its place after the ones given.
+     */
+    suspend fun reorderExercises(workoutId: String, orderedIds: List<String>) = withContext(io) {
+        db.transaction {
+            val current = queries.workoutExerciseIds(workoutId).executeAsList()
+            val wanted = orderedIds.distinct().filter { it in current }
+            val order = wanted + current.filterNot { it in wanted }
+            if (order == current) return@transaction
+            val now = now()
+            order.forEachIndexed { index, id -> queries.setWorkoutExercisePosition(position = index.toLong(), now = now, id = id) }
         }
     }
 

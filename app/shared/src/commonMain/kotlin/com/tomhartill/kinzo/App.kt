@@ -225,6 +225,7 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
         Destination.ActiveWorkout -> ActiveWorkoutScreen(
             onMinimise = back,
             onAddExercises = { ifCurrent { navigator.push(Destination.AddExercises) } },
+            onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
             onFinished = { id -> ifCurrent { navigator.replace(Destination.WorkoutDetail(id, justFinished = true)) } },
             onClosed = back,
         )

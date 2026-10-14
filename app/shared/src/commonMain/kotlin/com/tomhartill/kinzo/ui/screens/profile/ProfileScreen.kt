@@ -50,8 +50,8 @@ fun ProfileScreen(
 
             SectionHeader("Workouts")
             MenuSettingRow(
-                title = "Rest timer",
-                description = "Starts when you tick a set",
+                title = "Default rest",
+                description = "Starts when you tick a set. Change it for one exercise from the workout screen.",
                 options = Settings.REST_OPTIONS,
                 selected = current.restSeconds,
                 optionLabel = { if (it == 0) "Off" else Format.duration(it) },

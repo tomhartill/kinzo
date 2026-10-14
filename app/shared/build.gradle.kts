@@ -60,6 +60,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.navigationevent.compose)
+            implementation(libs.reorderable)
 
             implementation(libs.koin.core)
             implementation(libs.koin.compose.viewmodel)

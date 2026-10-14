@@ -23,6 +23,8 @@ CREATE TABLE workout_exercise (
     workout_id          TEXT NOT NULL,
     exercise_id         TEXT NOT NULL,
     position            INTEGER NOT NULL,
+    -- Seconds of rest after each set; 0 turns the timer off. NULL uses the default setting.
+    rest_s              INTEGER,
     updated_at          INTEGER NOT NULL,
     deleted_at          INTEGER
 );
@@ -111,7 +113,7 @@ WHERE we.workout_id = :workoutId AND we.deleted_at IS NULL
 -- Exercises within a workout
 
 workoutExercises:
-SELECT we.id, we.exercise_id, we.position, e.name, e.measurement_type
+SELECT we.id, we.exercise_id, we.position, we.rest_s, e.name, e.measurement_type
 FROM workout_exercise we
 JOIN exercise e ON e.id = we.exercise_id
 WHERE we.workout_id = :workoutId AND we.deleted_at IS NULL
@@ -128,8 +130,21 @@ FROM workout_exercise
 WHERE id = :id AND deleted_at IS NULL;
 
 insertWorkoutExercise:
-INSERT INTO workout_exercise(id, workout_id, exercise_id, position, updated_at, deleted_at)
-VALUES (:id, :workoutId, :exerciseId, :position, :now, NULL);
+INSERT INTO workout_exercise(id, workout_id, exercise_id, position, rest_s, updated_at, deleted_at)
+VALUES (:id, :workoutId, :exerciseId, :position, :restS, :now, NULL);
+
+setWorkoutExerciseRest:
+UPDATE workout_exercise SET rest_s = :restS, updated_at = :now WHERE id = :id;
+
+-- The rest last chosen for this exercise, so a new workout starts with it.
+lastRestForExercise:
+SELECT we.rest_s
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.exercise_id = :exerciseId AND we.rest_s IS NOT NULL
+  AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+ORDER BY w.started_at DESC, we.updated_at DESC
+LIMIT 1;
 
 setWorkoutExercisePosition:
 UPDATE workout_exercise SET position = :position, updated_at = :now WHERE id = :id;
@@ -165,6 +180,12 @@ SELECT id, workout_exercise_id, position, is_warmup, completed_at
 FROM workout_set
 WHERE id = :id AND deleted_at IS NULL;
 
+-- A set even after it was deleted, to undo the delete.
+anySetById:
+SELECT id, workout_exercise_id, position, deleted_at
+FROM workout_set
+WHERE id = :id;
+
 insertSet:
 INSERT INTO workout_set(id, workout_exercise_id, position, reps, weight_kg, duration_s, distance_m, rpe, pain_score, is_warmup, note, completed_at, updated_at, deleted_at)
 VALUES (:id, :workoutExerciseId, :position, NULL, NULL, NULL, NULL, NULL, NULL, :isWarmup, NULL, NULL, :now, NULL);
@@ -191,6 +212,9 @@ UPDATE workout_set SET position = :position, updated_at = :now WHERE id = :id;
 
 softDeleteSet:
 UPDATE workout_set SET deleted_at = :now, updated_at = :now WHERE id = :id;
+
+undeleteSet:
+UPDATE workout_set SET deleted_at = NULL, updated_at = :now WHERE id = :id;
 
 softDeleteSetsOfWorkoutExercise:
 UPDATE workout_set SET deleted_at = :now, updated_at = :now

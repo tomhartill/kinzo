@@ -112,7 +112,12 @@ data class WorkoutExercise(
     val sets: List<LoggedSet>,
     /** The completed sets from the last finished workout with this exercise, in order. */
     val previous: List<PreviousSet>,
-)
+    /** Rest after each set in seconds, 0 for none, or null to use the default setting. */
+    val restSeconds: Int? = null,
+) {
+    /** The rest that applies, given the default from settings. */
+    fun rest(defaultSeconds: Int): Int = restSeconds ?: defaultSeconds
+}
 
 data class Workout(
     val id: String,
@@ -159,6 +164,9 @@ data class Settings(
 ) {
     companion object {
         const val DEFAULT_REST_SECONDS = 90
-        val REST_OPTIONS = listOf(0, 30, 60, 90, 120, 180, 240, 300)
+        const val MAX_REST_SECONDS = 600
+
+        /** The rest times offered in menus; 0 is off. */
+        val REST_OPTIONS = listOf(0, 15, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300)
     }
 }

@@ -1,7 +1,9 @@
 package com.tomhartill.kinzo.domain
 
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
+import kotlinx.datetime.plus
 import kotlinx.serialization.Serializable
 
 /** How an exercise is logged, which decides the numbers each of its sets records. */
@@ -246,7 +248,35 @@ data class Mesocycle(
     companion object {
         /** A new mesocycle runs this long unless the user picks other dates. */
         const val DEFAULT_WEEKS = 12
+
+        /**
+         * Where the next mesocycle starts unless the user picks another day: today, or tomorrow
+         * when [latest] started today. After one planned for later, the day after it ends, so
+         * it isn't cut short.
+         */
+        fun nextStart(latest: Mesocycle?, today: LocalDate): LocalDate = when {
+            latest == null || latest.start < today -> today
+            latest.start == today -> today.plus(1, DateTimeUnit.DAY)
+            else -> latest.end.plus(1, DateTimeUnit.DAY)
+        }
     }
+}
+
+/**
+ * The mesocycle under way on [today]: the latest that has started, or the first coming up when
+ * none has. The list is in the order the repository gives, latest start first.
+ */
+fun List<Mesocycle>.currentOn(today: LocalDate): Mesocycle? = firstOrNull { it.start <= today } ?: lastOrNull()
+
+/**
+ * The mesocycles [mesocycle]'s start has to stay between to keep starts in order: after the
+ * first one's start and before the second one's. Either is null at the ends. The list is latest
+ * start first.
+ */
+fun List<Mesocycle>.startBounds(mesocycle: Mesocycle): Pair<Mesocycle?, Mesocycle?> {
+    val index = indexOfFirst { it.id == mesocycle.id }
+    if (index < 0) return null to null
+    return getOrNull(index + 1) to getOrNull(index - 1)
 }
 
 /** A saved workout as listed in the library. */

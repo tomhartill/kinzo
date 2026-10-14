@@ -15,6 +15,7 @@ import com.tomhartill.kinzo.domain.Dates
 import com.tomhartill.kinzo.domain.Mesocycle
 import com.tomhartill.kinzo.domain.Split
 import com.tomhartill.kinzo.domain.WorkoutType
+import com.tomhartill.kinzo.domain.currentOn
 import com.tomhartill.kinzo.ui.components.DropdownChoice
 import com.tomhartill.kinzo.ui.components.DropdownField
 import kotlinx.datetime.LocalDate
@@ -95,7 +96,7 @@ internal fun MesocycleField(
     onChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val current = mesocycles.firstOrNull()
+    val current = mesocycles.currentOn(today)
     val selected = mesocycles.firstOrNull { it.id == selectedId } ?: current ?: return
     DropdownField(
         label = "Mesocycle",

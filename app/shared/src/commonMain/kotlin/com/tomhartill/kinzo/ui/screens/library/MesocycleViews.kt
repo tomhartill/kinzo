@@ -38,7 +38,9 @@ import com.tomhartill.kinzo.ui.components.PrimaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.components.kinzoTextFieldColors
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
 
 /** "Week 3 of 12", "Starts 20 Oct" or "Ended 5 Jan". */
 internal fun mesocycleStatus(mesocycle: Mesocycle, today: LocalDate): String = when {
@@ -47,7 +49,17 @@ internal fun mesocycleStatus(mesocycle: Mesocycle, today: LocalDate): String = w
     else -> "Ended ${Dates.dateLabel(mesocycle.end, today)}"
 }
 
-/** The Mesocycles half of the Library tab: the current block, the next one, and the past ones. */
+/** "1 week" or "12 weeks". */
+internal fun weeksLabel(weeks: Int): String = if (weeks == 1) "1 week" else "$weeks weeks"
+
+/**
+ * What to say about how far along a mesocycle is: the week for the current one, the start for
+ * one coming up, or its length once it's over.
+ */
+internal fun mesocycleProgress(mesocycle: Mesocycle, isCurrent: Boolean, today: LocalDate): String =
+    if (isCurrent || today < mesocycle.start) mesocycleStatus(mesocycle, today) else weeksLabel(mesocycle.weeks)
+
+/** The Mesocycles part of the Library tab: any coming up, the current block, and earlier ones. */
 @Composable
 internal fun MesocycleList(
     state: LibraryState,
@@ -71,25 +83,38 @@ internal fun MesocycleList(
             )
         }
         item(key = "start-next") { PrimaryButton(text = "Start next mesocycle", onClick = onStartNext) }
-        val current = state.mesocycles.firstOrNull()
-        if (current != null) {
-            item(key = "current-header") { SectionHeader("Current", Modifier.padding(top = spacing.md)) }
-            item(key = current.mesocycle.id) {
-                MesocycleCard(current, isCurrent = true, today = today, onClick = { onOpenMesocycle(current.mesocycle.id) })
-            }
-        }
-        val past = state.mesocycles.drop(1)
-        if (past.isNotEmpty()) {
-            item(key = "past-header") { SectionHeader("Earlier", Modifier.padding(top = spacing.md)) }
-            items(past, key = { it.mesocycle.id }) { block ->
-                MesocycleCard(block, isCurrent = false, today = today, onClick = { onOpenMesocycle(block.mesocycle.id) })
+        val sections = listOf(
+            "Up next" to state.upcoming,
+            "Current" to state.mesocycles.filter { it.mesocycle == state.current },
+            "Earlier" to state.earlier,
+        )
+        sections.forEach { (title, blocks) ->
+            if (blocks.isNotEmpty()) {
+                item(key = "header-$title") { SectionHeader(title, Modifier.padding(top = spacing.md)) }
+                items(blocks, key = { it.mesocycle.id }) { block ->
+                    val isCurrent = block.mesocycle == state.current
+                    MesocycleCard(
+                        block,
+                        isCurrent = isCurrent,
+                        upNext = if (isCurrent) state.upNext?.mesocycle else null,
+                        today = today,
+                        onClick = { onOpenMesocycle(block.mesocycle.id) },
+                    )
+                }
             }
         }
     }
 }
 
+/** [upNext] is the one planned to take over from the current one, if there is one yet. */
 @Composable
-private fun MesocycleCard(block: MesocycleWorkouts, isCurrent: Boolean, today: LocalDate, onClick: () -> Unit) {
+private fun MesocycleCard(
+    block: MesocycleWorkouts,
+    isCurrent: Boolean,
+    upNext: Mesocycle?,
+    today: LocalDate,
+    onClick: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     val mesocycle = block.mesocycle
     val count = block.workouts.size
@@ -120,8 +145,7 @@ private fun MesocycleCard(block: MesocycleWorkouts, isCurrent: Boolean, today: L
             )
         }
         val workouts = if (count == 1) "1 workout" else "$count workouts"
-        val status = if (isCurrent) mesocycleStatus(mesocycle, today) else "${mesocycle.weeks} weeks"
-        Text("$status · $workouts", style = MaterialTheme.typography.bodyMedium)
+        Text("${mesocycleProgress(mesocycle, isCurrent, today)} · $workouts", style = MaterialTheme.typography.bodyMedium)
         if (isCurrent) {
             val week = mesocycle.weekOf(today)
             if (week != null && today <= mesocycle.end) {
@@ -134,7 +158,11 @@ private fun MesocycleCard(block: MesocycleWorkouts, isCurrent: Boolean, today: L
                 )
             } else if (today > mesocycle.end) {
                 Text(
-                    "Time for a change: start the next mesocycle with new exercises.",
+                    if (upNext != null) {
+                        "${upNext.name} starts ${Dates.dateLabel(upNext.start, today)}."
+                    } else {
+                        "Time for a change: start the next mesocycle with new exercises."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
                 )
@@ -144,9 +172,10 @@ private fun MesocycleCard(block: MesocycleWorkouts, isCurrent: Boolean, today: L
 }
 
 /**
- * The name and dates of a mesocycle, to start the next one or change one. When starting the
- * next, [startAfter] is the current one, which it must start after, and [copyCount] is how many
- * workouts it has to copy across.
+ * The name and dates of a mesocycle, to start the next one or change one. Its start has to stay
+ * after [startAfter]'s and before [startBefore]'s, which keeps the mesocycles in order. When
+ * [startingNext], [startAfter] is the latest mesocycle: the form says when it will end if the
+ * new one cuts it short, and offers to copy its [copyCount] workouts across.
  */
 @Composable
 internal fun MesocycleFormDialog(
@@ -158,19 +187,25 @@ internal fun MesocycleFormDialog(
     onConfirm: (MesocycleDraft, copyWorkouts: Boolean) -> Unit,
     onDismiss: () -> Unit,
     startAfter: Mesocycle? = null,
+    startBefore: Mesocycle? = null,
     copyCount: Int = 0,
+    startingNext: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     var name by remember { mutableStateOf(initial.name) }
     var start by remember { mutableStateOf(initial.start) }
     var end by remember { mutableStateOf(initial.end) }
     var copyWorkouts by remember { mutableStateOf(true) }
-    val problem = when {
-        end < start -> "It ends before it starts."
+    val startProblem = when {
         startAfter != null && start <= startAfter.start ->
             "It has to start after ${startAfter.name} does (${Dates.dateLabel(startAfter.start, today)})."
+        startBefore != null && start >= startBefore.start ->
+            "It has to start before ${startBefore.name} does (${Dates.dateLabel(startBefore.start, today)})."
         else -> null
     }
+    val problem = if (end < start) "It ends before it starts." else startProblem
+    // Starting the next one ends the latest the day before, when it would otherwise overlap.
+    val cutShort = startAfter?.takeIf { startingNext && problem == null && start <= it.end }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
@@ -195,7 +230,7 @@ internal fun MesocycleFormDialog(
                         if (end == defaultEnd(start)) end = defaultEnd(picked)
                         start = picked
                     },
-                    isError = startAfter != null && start <= startAfter.start,
+                    isError = startProblem != null,
                 )
                 DateField(
                     label = "Ends",
@@ -205,11 +240,18 @@ internal fun MesocycleFormDialog(
                     isError = end < start,
                 )
                 Text(
-                    problem ?: Mesocycle("", "", start, end).weeks.let { if (it == 1) "1 week" else "$it weeks" },
+                    problem ?: weeksLabel(Mesocycle("", "", start, end).weeks),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (problem != null) colors.error else colors.onSurfaceVariant,
                 )
-                if (startAfter != null && copyCount > 0) {
+                if (cutShort != null) {
+                    Text(
+                        "${cutShort.name} will end on ${Dates.dateLabel(start.minus(1, DateTimeUnit.DAY), today)}.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                if (startingNext && startAfter != null && copyCount > 0) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text("Copy my workouts", style = MaterialTheme.typography.bodyLarge)

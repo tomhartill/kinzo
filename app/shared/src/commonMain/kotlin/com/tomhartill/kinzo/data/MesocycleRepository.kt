@@ -6,6 +6,8 @@ import com.tomhartill.kinzo.db.KinzoDatabase
 import com.tomhartill.kinzo.domain.Ids
 import com.tomhartill.kinzo.domain.Mesocycle
 import com.tomhartill.kinzo.domain.RoutineSource
+import com.tomhartill.kinzo.domain.currentOn
+import com.tomhartill.kinzo.domain.startBounds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
@@ -20,10 +22,12 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Mesocycles, the blocks of training the user's own workouts belong to. There's always a
- * current one once [ensureCurrent] has run: the one that started last.
+ * current one once [ensureCurrent] has run: the latest that has started by today, or the first
+ * coming up when none has. Their starts stay in order, each after the one before.
  */
 class MesocycleRepository(
     private val db: KinzoDatabase,
@@ -33,12 +37,12 @@ class MesocycleRepository(
 ) {
     private val queries get() = db.mesocycleQueries
 
-    /** Every mesocycle, the current one first. */
+    /** Every mesocycle, the latest start first. [currentOn] picks out the current one. */
     fun mesocycles(): Flow<List<Mesocycle>> =
         queries.mesocycles(::toMesocycle).asFlow().mapToList(io).distinctUntilChanged()
 
     /** The current mesocycle, or null before [ensureCurrent] has made the first one. */
-    fun current(): Flow<Mesocycle?> = mesocycles().map { it.firstOrNull() }.distinctUntilChanged()
+    fun current(): Flow<Mesocycle?> = mesocycles().map { it.currentOn(today()) }.distinctUntilChanged()
 
     /** Today in the phone's time zone. */
     fun today(): LocalDate = clock.now().toLocalDateTime(zone()).date
@@ -48,16 +52,27 @@ class MesocycleRepository(
         start.plus(Mesocycle.DEFAULT_WEEKS * 7 - 1, DateTimeUnit.DAY)
 
     /**
-     * Makes sure there's a current mesocycle, starting "Mesocycle 1" today if there's none, and
-     * puts any of the user's workouts that don't belong to one into it. Runs at every launch.
+     * Makes sure there's a current mesocycle, and puts any of the user's workouts that don't
+     * belong to one into it. Runs at every launch. When there's none, "Mesocycle 1" starts on
+     * the day the user first trained or saved a workout in the app, or today for a new user.
      */
     suspend fun ensureCurrent(): Mesocycle = withContext(io) {
         db.transactionWithResult {
-            val current = queries.currentMesocycle(::toMesocycle).executeAsOneOrNull()
-                ?: today().let { insert(name = nameFor(1), start = it, end = defaultEnd(it)) }
+            val today = today()
+            val current = queries.currentMesocycle(today.toString(), ::toMesocycle).executeAsOneOrNull()
+                ?: firstTrainingDay(today).let { insert(name = nameFor(1), start = it, end = defaultEnd(it)) }
             db.routineQueries.assignMesocycle(mesocycleId = current.id)
             current
         }
+    }
+
+    // The earliest day with a logged workout or one of the user's own saved, up to today.
+    private fun firstTrainingDay(today: LocalDate): LocalDate {
+        val first = listOfNotNull(
+            queries.firstWorkoutStartedAt().executeAsOne().first,
+            queries.firstOwnRoutineCreatedAt().executeAsOne().first,
+        ).minOrNull() ?: return today
+        return minOf(Instant.fromEpochMilliseconds(first).toLocalDateTime(zone()).date, today)
     }
 
     /** "Mesocycle 2" when there's one already, and so on. */
@@ -67,12 +82,17 @@ class MesocycleRepository(
 
     /**
      * Renames a mesocycle or moves its dates. Returns false and changes nothing when [end] is
-     * before [start] or the mesocycle is gone. A blank name keeps the old one.
+     * before [start], the mesocycle is gone, or [start] would move it past a neighbour's start
+     * (see [startBounds]). A blank name keeps the old one.
      */
     suspend fun update(id: String, name: String, start: LocalDate, end: LocalDate): Boolean = withContext(io) {
         if (end < start) return@withContext false
         db.transactionWithResult {
-            val existing = queries.mesocycleById(id, ::toMesocycle).executeAsOneOrNull() ?: return@transactionWithResult false
+            val all = queries.mesocycles(::toMesocycle).executeAsList()
+            val existing = all.firstOrNull { it.id == id } ?: return@transactionWithResult false
+            val (after, before) = all.startBounds(existing)
+            if (after != null && start <= after.start) return@transactionWithResult false
+            if (before != null && start >= before.start) return@transactionWithResult false
             queries.updateMesocycle(
                 name = name.trim().ifEmpty { existing.name },
                 startDate = start.toString(),
@@ -85,16 +105,17 @@ class MesocycleRepository(
     }
 
     /**
-     * Starts the next mesocycle on [start], which becomes the current one. The one before ends
-     * the day before if it would otherwise overlap. With [copyWorkouts], the current workouts
-     * are copied into the new one, ready to change; without, it starts empty. Returns null and
-     * changes nothing when [end] is before [start], or [start] isn't after the current one's start.
+     * Adds the next mesocycle from [start]. It becomes the current one on that day; until then
+     * the one before carries on, and it ends the day before if it would otherwise overlap. With
+     * [copyWorkouts], the workouts of the one before are copied into the new one, ready to
+     * change; without, it starts empty. Returns null and changes nothing when [end] is before
+     * [start], or [start] isn't after the latest mesocycle's start.
      */
     suspend fun startNext(name: String, start: LocalDate, end: LocalDate, copyWorkouts: Boolean): Mesocycle? =
         withContext(io) {
             if (end < start) return@withContext null
             db.transactionWithResult {
-                val previous = queries.currentMesocycle(::toMesocycle).executeAsOneOrNull()
+                val previous = queries.latestMesocycle(::toMesocycle).executeAsOneOrNull()
                 if (previous != null && start <= previous.start) return@transactionWithResult null
                 if (previous != null && previous.end >= start) {
                     queries.updateMesocycle(

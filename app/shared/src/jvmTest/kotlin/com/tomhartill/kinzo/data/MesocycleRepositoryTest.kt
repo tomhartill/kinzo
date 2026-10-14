@@ -25,7 +25,9 @@ class MesocycleRepositoryTest {
     // 2025-10-09 in UTC.
     private val clock = FakeClock()
     private val mesocycles = MesocycleRepository(db, clock, Dispatchers.Unconfined) { TimeZone.UTC }
-    private val routines = RoutineRepository(db, clock, Dispatchers.Unconfined)
+    private val routines = RoutineRepository(db, clock, Dispatchers.Unconfined) { TimeZone.UTC }
+    private val workouts = WorkoutRepository(db, clock, Dispatchers.Unconfined)
+    private val day = 86_400_000L
 
     private val bench = RoutineExercise(
         id = "re-bench",
@@ -63,10 +65,20 @@ class MesocycleRepositoryTest {
         assertNull(assertNotNull(routines.routine("kz-push").first()).mesocycleId)
 
         // Running again changes nothing.
-        clock.advance(86_400_000L * 30)
+        clock.advance(day * 30)
         assertEquals(first, mesocycles.ensureCurrent())
         assertEquals(listOf(first), mesocycles.mesocycles().first())
         assertEquals("Mesocycle 2", mesocycles.nextName())
+    }
+
+    @Test
+    fun theFirstMesocycleStartsWhenTheUserFirstTrained() = runTest {
+        clock.advance(-day * 20)
+        val workout = workouts.startWorkout("Legs")
+        workouts.finishWorkout(workout)
+        clock.advance(day * 20)
+        assertEquals(LocalDate(2025, 9, 19), mesocycles.ensureCurrent().start)
+        assertEquals("Week 3", "Week ${mesocycles.current().first()?.weekOf(mesocycles.today())}")
     }
 
     @Test
@@ -88,10 +100,18 @@ class MesocycleRepositoryTest {
         val start = LocalDate(2025, 11, 1)
         val second = assertNotNull(mesocycles.startNext(" ", start, LocalDate(2026, 1, 31), copyWorkouts = true))
         assertEquals("Mesocycle 2", second.name)
-        assertEquals(listOf(second, first.copy(end = LocalDate(2025, 10, 31))), mesocycles.mesocycles().first())
+        val trimmed = first.copy(end = LocalDate(2025, 10, 31))
+        assertEquals(listOf(second, trimmed), mesocycles.mesocycles().first())
+        // The first carries on until the second starts.
+        assertEquals(trimmed, mesocycles.current().first())
+        routines.save(Routine("later", "Legs", null, RoutineSource.User, emptyList()))
+        assertEquals(first.id, assertNotNull(routines.routine("later").first()).mesocycleId)
+        clock.advance(day * 23)
+        assertEquals(second, mesocycles.current().first())
+        assertEquals(second, mesocycles.ensureCurrent())
 
         val copies = routines.routines().first().filter { it.mesocycleId == second.id }
-        assertEquals(listOf("Chest", "Back"), copies.map { it.name })
+        assertEquals(listOf("Chest", "Back"), copies.map { it.name }.filter { it != "Legs" })
         val copy = assertNotNull(routines.routine(copies.first().id).first())
         assertEquals("Heavy.", copy.notes)
         assertEquals("split-push", copy.splitId)
@@ -126,5 +146,13 @@ class MesocycleRepositoryTest {
         assertEquals(first.copy(start = LocalDate(2025, 10, 6), end = LocalDate(2025, 12, 28)), mesocycles.current().first())
         assertTrue(mesocycles.update(first.id, "Base", LocalDate(2025, 10, 6), LocalDate(2025, 12, 28)))
         assertEquals("Base", mesocycles.current().first()?.name)
+
+        // Moving a start past a neighbour's would reorder them, so it's refused.
+        val second = assertNotNull(mesocycles.startNext("Build", LocalDate(2025, 11, 1), LocalDate(2025, 12, 31), copyWorkouts = false))
+        assertFalse(mesocycles.update(first.id, "Base", LocalDate(2025, 11, 1), LocalDate(2025, 12, 31)))
+        assertFalse(mesocycles.update(second.id, "Build", LocalDate(2025, 10, 6), LocalDate(2025, 12, 31)))
+        assertTrue(mesocycles.update(second.id, "Build", LocalDate(2025, 10, 7), LocalDate(2025, 12, 31)))
+        // It has started now, so it's the current one.
+        assertEquals("Build", mesocycles.current().first()?.name)
     }
 }

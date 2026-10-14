@@ -7,14 +7,13 @@ import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.domain.Mesocycle
 import com.tomhartill.kinzo.domain.RoutineSource
 import com.tomhartill.kinzo.domain.RoutineSummary
+import com.tomhartill.kinzo.domain.currentOn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.plus
 
 /** A mesocycle and the user's workouts in it. */
 data class MesocycleWorkouts(val mesocycle: Mesocycle, val workouts: List<RoutineSummary>)
@@ -27,11 +26,25 @@ data class LibraryState(
     val generated: List<RoutineSummary> = emptyList(),
     /** Bundled with the app. */
     val readyMade: List<RoutineSummary> = emptyList(),
-    /** Every mesocycle, the current one first. */
+    /** Every mesocycle, the latest start first. */
     val mesocycles: List<MesocycleWorkouts> = emptyList(),
+    /** The one under way today (see [currentOn]). */
+    val current: Mesocycle? = null,
     val today: LocalDate? = null,
 ) {
-    val current: Mesocycle? get() = mesocycles.firstOrNull()?.mesocycle
+    /** The one with the latest start, which the next has to start after. */
+    val latest: MesocycleWorkouts? get() = mesocycles.firstOrNull()
+
+    private val currentIndex: Int get() = mesocycles.indexOfFirst { it.mesocycle == current }
+
+    /** Planned to start after the current one, the latest start first. */
+    val upcoming: List<MesocycleWorkouts> get() = if (currentIndex < 0) emptyList() else mesocycles.take(currentIndex)
+
+    /** Started before the current one, the latest start first. */
+    val earlier: List<MesocycleWorkouts> get() = if (currentIndex < 0) emptyList() else mesocycles.drop(currentIndex + 1)
+
+    /** The one that takes over from the current one, if it's planned already. */
+    val upNext: MesocycleWorkouts? get() = upcoming.lastOrNull()
 }
 
 /** The saved workouts in the Library tab, grouped by who made them, and the mesocycles. */
@@ -44,7 +57,8 @@ class LibraryViewModel(
     val state: StateFlow<LibraryState> = combine(routines.routines(), mesocycles.mesocycles()) { all, blocks ->
         val bySource = all.groupBy { it.source }
         val own = bySource[RoutineSource.User].orEmpty()
-        val current = blocks.firstOrNull()
+        val today = mesocycles.today()
+        val current = blocks.currentOn(today)
         LibraryState(
             loading = false,
             // Before the first mesocycle exists, everything of the user's own is current.
@@ -52,17 +66,14 @@ class LibraryViewModel(
             generated = bySource[RoutineSource.Ai].orEmpty(),
             readyMade = bySource[RoutineSource.Kinzo].orEmpty(),
             mesocycles = blocks.map { block -> MesocycleWorkouts(block, own.filter { it.mesocycleId == block.id }) },
-            today = mesocycles.today(),
+            current = current,
+            today = today,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryState())
 
     /** What the form for the next mesocycle starts with: the next name, and dates from today. */
     fun nextDraft(): MesocycleDraft {
-        val current = state.value.current
-        // It has to start after the current one does, so a block begun today makes it tomorrow.
-        val start = mesocycles.today().let { today ->
-            if (current != null && today <= current.start) current.start.plus(1, DateTimeUnit.DAY) else today
-        }
+        val start = Mesocycle.nextStart(state.value.latest?.mesocycle, mesocycles.today())
         return MesocycleDraft(
             name = "Mesocycle ${state.value.mesocycles.size + 1}",
             start = start,

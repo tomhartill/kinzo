@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
 
@@ -30,6 +32,7 @@ class RoutineRepository(
     private val db: KinzoDatabase,
     private val clock: Clock,
     private val io: CoroutineContext = Dispatchers.IO,
+    private val zone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) {
     private val queries get() = db.routineQueries
 
@@ -106,7 +109,8 @@ class RoutineRepository(
             val now = now()
             val name = routine.name.trim().ifEmpty { UNTITLED }
             val notes = routine.notes?.trim()?.ifEmpty { null }
-            val mesocycleId = routine.mesocycleId ?: db.mesocycleQueries.currentMesocycle().executeAsOneOrNull()?.id
+            val today = clock.now().toLocalDateTime(zone()).date.toString()
+            val mesocycleId = routine.mesocycleId ?: db.mesocycleQueries.currentMesocycle(today).executeAsOneOrNull()?.id
             val existing = queries.routineById(routine.id).executeAsOneOrNull()
             when {
                 existing == null -> queries.upsertRoutine(

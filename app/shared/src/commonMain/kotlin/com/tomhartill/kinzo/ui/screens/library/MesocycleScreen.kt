@@ -81,10 +81,7 @@ fun MesocycleScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = colors.onSurfaceVariant,
                         )
-                        Text(
-                            if (state.isCurrent) mesocycleStatus(mesocycle, today) else "${mesocycle.weeks} weeks",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        Text(mesocycleProgress(mesocycle, state.isCurrent, today), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 item(key = "workouts-header") { SectionHeader("Workouts", Modifier.padding(top = spacing.md)) }
@@ -118,6 +115,8 @@ fun MesocycleScreen(
             initial = MesocycleDraft(mesocycle.name, mesocycle.start, mesocycle.end),
             today = today,
             defaultEnd = viewModel::defaultEnd,
+            startAfter = state.startAfter,
+            startBefore = state.startBefore,
             onConfirm = { draft, _ ->
                 editing = false
                 viewModel.update(draft)

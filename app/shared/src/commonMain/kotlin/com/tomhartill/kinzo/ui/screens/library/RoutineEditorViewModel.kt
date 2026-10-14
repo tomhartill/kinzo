@@ -75,7 +75,7 @@ class RoutineEditorViewModel(
     /** Today, to say which mesocycle is under way. */
     fun today(): LocalDate = mesocycleRepository.today()
 
-    /** Every mesocycle, the current one first. */
+    /** Every mesocycle, the latest start first. */
     val mesocycles: StateFlow<List<Mesocycle>> =
         mesocycleRepository.mesocycles().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

@@ -70,7 +70,7 @@ fun LibraryScreen(
     exercises: ExerciseBrowserViewModel = koinViewModel(),
 ) {
     val spacing = KinzoTheme.spacing
-    var startingNext by remember { mutableStateOf<MesocycleDraft?>(null) }
+    var nextMesocycle by remember { mutableStateOf<MesocycleDraft?>(null) }
 
     // The exercise list stops at the keyboard so its last results stay reachable.
     Column(modifier.fillMaxSize().imePadding()) {
@@ -101,11 +101,11 @@ fun LibraryScreen(
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 MesocycleList(
                     state = state,
-                    onStartNext = { startingNext = viewModel.nextDraft() },
+                    onStartNext = { nextMesocycle = viewModel.nextDraft() },
                     onOpenMesocycle = onOpenMesocycle,
                     modifier = Modifier.weight(1f),
                 )
-                val draft = startingNext
+                val draft = nextMesocycle
                 val today = state.today
                 if (draft != null && today != null) {
                     MesocycleFormDialog(
@@ -114,13 +114,14 @@ fun LibraryScreen(
                         initial = draft,
                         today = today,
                         defaultEnd = viewModel::defaultEnd,
-                        startAfter = state.current,
-                        copyCount = state.mesocycles.firstOrNull()?.workouts?.size ?: 0,
+                        startAfter = state.latest?.mesocycle,
+                        copyCount = state.latest?.workouts?.size ?: 0,
+                        startingNext = true,
                         onConfirm = { next, copy ->
-                            startingNext = null
+                            nextMesocycle = null
                             viewModel.startNext(next, copy, onStarted = { onOpenMesocycle(it.id) })
                         },
-                        onDismiss = { startingNext = null },
+                        onDismiss = { nextMesocycle = null },
                     )
                 }
             }
@@ -176,10 +177,28 @@ private fun WorkoutList(
         if (state.mine.isEmpty()) {
             if (!state.loading) {
                 item(key = "mine-empty") {
-                    EmptyState(
-                        title = "No workouts of your own yet",
-                        body = "Create one from scratch, or open a ready-made workout below and copy it to make it yours.",
-                    )
+                    // A fresh mesocycle is empty, but the user's earlier workouts are still there, and
+                    // ones made for a mesocycle planned for later show once it starts.
+                    val hasEarlier = state.earlier.any { it.workouts.isNotEmpty() }
+                    val planned = state.upcoming.lastOrNull { it.workouts.isNotEmpty() }?.mesocycle
+                    if (current != null && hasEarlier) {
+                        EmptyState(
+                            title = "No workouts in ${current.name} yet",
+                            body = "Create the workouts for this block of training. Your earlier ones are under Mesocycles, " +
+                                "where you can open one and duplicate it to bring it into this block.",
+                        )
+                    } else if (current != null && today != null && planned != null) {
+                        EmptyState(
+                            title = "No workouts in ${current.name}",
+                            body = "Your workouts for ${planned.name} show here from ${Dates.dateLabel(planned.start, today)}. " +
+                                "Until then, create one for this block or use a ready-made workout below.",
+                        )
+                    } else {
+                        EmptyState(
+                            title = "No workouts of your own yet",
+                            body = "Create one from scratch, or open a ready-made workout below and copy it to make it yours.",
+                        )
+                    }
                 }
             }
         } else {

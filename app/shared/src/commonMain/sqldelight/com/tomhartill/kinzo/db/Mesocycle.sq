@@ -1,7 +1,8 @@
 -- Mesocycles: blocks of training, usually a few months long, each with its own workouts. Once
 -- the body has got used to a routine, the user starts the next mesocycle and changes the
--- exercises. Each of the user's own workouts belongs to one (routine.mesocycle_id); the
--- current mesocycle is the one that started last.
+-- exercises. Each of the user's own workouts belongs to one (routine.mesocycle_id). The
+-- current mesocycle is the latest that has started by today; one planned for later waits its
+-- turn. Starts are kept in order: each starts after the one before.
 --
 -- Dates are local calendar dates as yyyy-mm-dd, and both ends are included.
 
@@ -15,19 +16,40 @@ CREATE TABLE mesocycle (
     deleted_at          INTEGER
 );
 
--- The current one first.
+-- The latest start first.
 mesocycles:
 SELECT id, name, start_date, end_date
 FROM mesocycle
 WHERE deleted_at IS NULL
 ORDER BY start_date DESC, created_at DESC;
 
+-- The latest that has started by :today, or the first coming up when none has.
 currentMesocycle:
+SELECT id, name, start_date, end_date
+FROM mesocycle
+WHERE deleted_at IS NULL
+ORDER BY
+    start_date <= :today DESC,
+    CASE WHEN start_date <= :today THEN start_date END DESC,
+    start_date,
+    created_at DESC
+LIMIT 1;
+
+-- The one with the latest start, which the next has to start after.
+latestMesocycle:
 SELECT id, name, start_date, end_date
 FROM mesocycle
 WHERE deleted_at IS NULL
 ORDER BY start_date DESC, created_at DESC
 LIMIT 1;
+
+-- When the user first trained or saved a workout, in epoch milliseconds, for the first
+-- mesocycle's start.
+firstWorkoutStartedAt:
+SELECT MIN(started_at) AS first FROM workout WHERE deleted_at IS NULL;
+
+firstOwnRoutineCreatedAt:
+SELECT MIN(created_at) AS first FROM routine WHERE created_by = 'user' AND deleted_at IS NULL;
 
 mesocycleById:
 SELECT id, name, start_date, end_date

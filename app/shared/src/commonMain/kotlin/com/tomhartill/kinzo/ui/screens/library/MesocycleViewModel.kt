@@ -7,6 +7,8 @@ import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.domain.Mesocycle
 import com.tomhartill.kinzo.domain.RoutineSource
 import com.tomhartill.kinzo.domain.RoutineSummary
+import com.tomhartill.kinzo.domain.currentOn
+import com.tomhartill.kinzo.domain.startBounds
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -19,6 +21,10 @@ data class MesocycleState(
     /** Null once loaded means it's gone. */
     val mesocycle: Mesocycle? = null,
     val isCurrent: Boolean = false,
+    /** Its start has to stay after this one's start, to keep the mesocycles in order. */
+    val startAfter: Mesocycle? = null,
+    /** And before this one's. */
+    val startBefore: Mesocycle? = null,
     /** The user's workouts in it, most recently used first. */
     val workouts: List<RoutineSummary> = emptyList(),
     val today: LocalDate? = null,
@@ -30,12 +36,17 @@ class MesocycleViewModel(
     private val mesocycles: MesocycleRepository,
 ) : ViewModel() {
     val state: StateFlow<MesocycleState> = combine(mesocycles.mesocycles(), routines.routines()) { blocks, all ->
+        val today = mesocycles.today()
+        val mesocycle = blocks.firstOrNull { it.id == mesocycleId }
+        val (after, before) = if (mesocycle != null) blocks.startBounds(mesocycle) else null to null
         MesocycleState(
             loading = false,
-            mesocycle = blocks.firstOrNull { it.id == mesocycleId },
-            isCurrent = blocks.firstOrNull()?.id == mesocycleId,
+            mesocycle = mesocycle,
+            isCurrent = mesocycle != null && blocks.currentOn(today) == mesocycle,
+            startAfter = after,
+            startBefore = before,
             workouts = all.filter { it.source == RoutineSource.User && it.mesocycleId == mesocycleId },
-            today = mesocycles.today(),
+            today = today,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MesocycleState())
 

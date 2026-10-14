@@ -65,6 +65,38 @@ class RoutineTest {
         assertEquals(13, block.weekOf(LocalDate(2027, 1, 6)))
     }
 
+    @Test
+    fun theCurrentMesocycleIsTheLatestThatHasStarted() {
+        val first = Mesocycle("1", "Mesocycle 1", LocalDate(2026, 7, 1), LocalDate(2026, 9, 30))
+        val second = Mesocycle("2", "Mesocycle 2", LocalDate(2026, 10, 1), LocalDate(2026, 12, 23))
+        val third = Mesocycle("3", "Mesocycle 3", LocalDate(2027, 1, 4), LocalDate(2027, 3, 28))
+        val all = listOf(third, second, first)
+        assertEquals(second, all.currentOn(LocalDate(2026, 10, 14)))
+        // Still the second over Christmas, after it ends and before the third starts.
+        assertEquals(second, all.currentOn(LocalDate(2026, 12, 28)))
+        assertEquals(third, all.currentOn(LocalDate(2027, 1, 4)))
+        // Before any has started, the first coming up.
+        assertEquals(first, all.currentOn(LocalDate(2026, 6, 1)))
+        assertNull(emptyList<Mesocycle>().currentOn(LocalDate(2026, 6, 1)))
+
+        assertEquals(first to third, all.startBounds(second))
+        assertEquals(second to null, all.startBounds(third))
+        assertEquals(null to second, all.startBounds(first))
+    }
+
+    @Test
+    fun theNextMesocycleStartsTodayUnlessThatWouldCutOneShort() {
+        val today = LocalDate(2026, 10, 14)
+        val block = Mesocycle("1", "Mesocycle 1", LocalDate(2026, 7, 1), LocalDate(2026, 9, 22))
+        assertEquals(today, Mesocycle.nextStart(latest = null, today = today))
+        assertEquals(today, Mesocycle.nextStart(block, today))
+        // It has to start after the latest one does.
+        assertEquals(LocalDate(2026, 10, 15), Mesocycle.nextStart(block.copy(start = today), today))
+        // One planned for later keeps all its weeks.
+        val planned = block.copy(start = LocalDate(2026, 10, 20), end = LocalDate(2027, 1, 11))
+        assertEquals(LocalDate(2027, 1, 12), Mesocycle.nextStart(planned, today))
+    }
+
     // The editor keeps an unsaved workout as JSON while the app is in the background.
     @Test
     fun aDraftSurvivesJson() {

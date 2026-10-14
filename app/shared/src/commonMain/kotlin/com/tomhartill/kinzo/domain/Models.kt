@@ -1,0 +1,164 @@
+package com.tomhartill.kinzo.domain
+
+/** How an exercise is logged, which decides the numbers each of its sets records. */
+enum class MeasurementType(val key: String) {
+    /** Weight and reps, for example a bench press. */
+    WeightReps("weight_reps"),
+
+    /** Reps only, for example a push-up. */
+    Reps("reps"),
+
+    /** A held or timed effort, for example a plank or a stretch. */
+    Duration("duration"),
+
+    /** Distance and time, for example a run or a row. */
+    DistanceDuration("distance_duration");
+
+    companion object {
+        fun fromKey(key: String): MeasurementType = entries.firstOrNull { it.key == key } ?: WeightReps
+    }
+}
+
+enum class Muscle(val key: String, val label: String) {
+    Abdominals("abdominals", "Abs"),
+    Abductors("abductors", "Abductors"),
+    Adductors("adductors", "Adductors"),
+    Biceps("biceps", "Biceps"),
+    Calves("calves", "Calves"),
+    Chest("chest", "Chest"),
+    Forearms("forearms", "Forearms"),
+    Glutes("glutes", "Glutes"),
+    Hamstrings("hamstrings", "Hamstrings"),
+    Lats("lats", "Lats"),
+    LowerBack("lower_back", "Lower back"),
+    MiddleBack("middle_back", "Middle back"),
+    Neck("neck", "Neck"),
+    Quadriceps("quadriceps", "Quads"),
+    Shoulders("shoulders", "Shoulders"),
+    Traps("traps", "Traps"),
+    Triceps("triceps", "Triceps");
+
+    companion object {
+        fun fromKey(key: String): Muscle? = entries.firstOrNull { it.key == key }
+
+        /** Parses a comma-separated list of muscle keys, skipping any it doesn't know. */
+        fun parseList(keys: String?): List<Muscle> =
+            keys?.split(',')?.mapNotNull { fromKey(it.trim()) }.orEmpty()
+    }
+}
+
+data class Equipment(val id: String, val name: String, val type: String)
+
+data class ExerciseSummary(
+    val id: String,
+    val name: String,
+    val measurementType: MeasurementType,
+    val equipmentId: String?,
+    val equipmentName: String?,
+    val primaryMuscles: List<Muscle>,
+    val secondaryMuscles: List<Muscle>,
+)
+
+data class ExerciseDetail(
+    val id: String,
+    val name: String,
+    val description: String?,
+    val instructions: List<String>,
+    val measurementType: MeasurementType,
+    val equipmentName: String?,
+    val primaryMuscles: List<Muscle>,
+    val secondaryMuscles: List<Muscle>,
+)
+
+/**
+ * The numbers recorded for one set, in storage units: kilograms, seconds and metres.
+ * Which of them matter depends on the exercise's [MeasurementType].
+ */
+data class SetValues(
+    val reps: Int? = null,
+    val weightKg: Double? = null,
+    val durationS: Int? = null,
+    val distanceM: Double? = null,
+) {
+    /** The same values with anything this measurement type doesn't record cleared. */
+    fun keepOnly(type: MeasurementType): SetValues = when (type) {
+        MeasurementType.WeightReps -> SetValues(reps = reps, weightKg = weightKg)
+        MeasurementType.Reps -> SetValues(reps = reps)
+        MeasurementType.Duration -> SetValues(durationS = durationS)
+        MeasurementType.DistanceDuration -> SetValues(durationS = durationS, distanceM = distanceM)
+    }
+
+    /** Weight times reps, or zero when either is missing. */
+    val volumeKg: Double get() = if (reps != null && weightKg != null) reps * weightKg else 0.0
+}
+
+data class LoggedSet(
+    val id: String,
+    val values: SetValues,
+    val isWarmup: Boolean,
+    val completedAt: Long?,
+) {
+    val isCompleted: Boolean get() = completedAt != null
+}
+
+/** A completed set from an earlier workout, shown as "previous" or in an exercise's history. */
+data class PreviousSet(val values: SetValues, val isWarmup: Boolean)
+
+data class WorkoutExercise(
+    val id: String,
+    val exerciseId: String,
+    val name: String,
+    val measurementType: MeasurementType,
+    val sets: List<LoggedSet>,
+    /** The completed sets from the last finished workout with this exercise, in order. */
+    val previous: List<PreviousSet>,
+)
+
+data class Workout(
+    val id: String,
+    val name: String,
+    val startedAt: Long,
+    val endedAt: Long?,
+    val exercises: List<WorkoutExercise>,
+) {
+    val completedSetCount: Int get() = exercises.sumOf { exercise -> exercise.sets.count { it.isCompleted } }
+
+    /** Total weight lifted in completed working sets. Warm-ups don't count. */
+    val volumeKg: Double
+        get() = exercises.sumOf { exercise ->
+            exercise.sets.filter { it.isCompleted && !it.isWarmup }.sumOf { it.values.volumeKg }
+        }
+}
+
+/** Just enough about the workout in progress to show it above the tabs. */
+data class ActiveWorkoutInfo(val id: String, val name: String, val startedAt: Long)
+
+data class ExerciseLine(val name: String, val setCount: Int)
+
+data class WorkoutSummary(
+    val id: String,
+    val name: String,
+    val startedAt: Long,
+    val endedAt: Long,
+    val setCount: Int,
+    val volumeKg: Double,
+    val exercises: List<ExerciseLine>,
+)
+
+/** One workout's sets for a single exercise, for that exercise's history. */
+data class ExerciseSession(
+    val workoutId: String,
+    val workoutName: String,
+    val startedAt: Long,
+    val sets: List<PreviousSet>,
+)
+
+data class Settings(
+    val weightUnit: WeightUnit = WeightUnit.Kilograms,
+    val restSeconds: Int = DEFAULT_REST_SECONDS,
+) {
+    companion object {
+        const val DEFAULT_REST_SECONDS = 90
+        val REST_OPTIONS = listOf(0, 30, 60, 90, 120, 180, 240, 300)
+    }
+}

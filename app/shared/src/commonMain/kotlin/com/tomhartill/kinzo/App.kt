@@ -1,81 +1,240 @@
 package com.tomhartill.kinzo
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tomhartill.kinzo.domain.ActiveWorkoutInfo
+import com.tomhartill.kinzo.domain.RestTimer
+import com.tomhartill.kinzo.ui.AppViewModel
+import com.tomhartill.kinzo.ui.components.ActiveWorkoutBanner
+import com.tomhartill.kinzo.ui.components.BottomBarItem
+import com.tomhartill.kinzo.ui.components.KinzoBottomBar
+import com.tomhartill.kinzo.ui.navigation.BackStackEntry
+import com.tomhartill.kinzo.ui.navigation.Destination
+import com.tomhartill.kinzo.ui.navigation.Navigator
+import com.tomhartill.kinzo.ui.navigation.ProvideScreenStores
+import com.tomhartill.kinzo.ui.navigation.ProvideViewModelStore
+import com.tomhartill.kinzo.ui.navigation.ScreenStores
 import com.tomhartill.kinzo.ui.navigation.SystemBackHandler
+import com.tomhartill.kinzo.ui.navigation.Tab
+import com.tomhartill.kinzo.ui.navigation.rememberNavigator
 import com.tomhartill.kinzo.ui.screens.DesignSystemScreen
-import com.tomhartill.kinzo.ui.screens.ExercisesScreen
-import com.tomhartill.kinzo.ui.screens.HistoryScreen
-import com.tomhartill.kinzo.ui.screens.ProfileScreen
-import com.tomhartill.kinzo.ui.screens.TodayScreen
+import com.tomhartill.kinzo.ui.screens.exercises.ExerciseDetailScreen
+import com.tomhartill.kinzo.ui.screens.exercises.ExercisePickerScreen
+import com.tomhartill.kinzo.ui.screens.exercises.ExercisesScreen
+import com.tomhartill.kinzo.ui.screens.history.HistoryScreen
+import com.tomhartill.kinzo.ui.screens.history.WorkoutDetailScreen
+import com.tomhartill.kinzo.ui.screens.profile.ProfileScreen
+import com.tomhartill.kinzo.ui.screens.today.TodayScreen
+import com.tomhartill.kinzo.ui.screens.workout.ActiveWorkoutScreen
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
+import org.koin.compose.viewmodel.koinViewModel
 
-// The AI coach gets its own tab here in phase 2.
-private enum class Tab(val label: String, val icon: ImageVector) {
-    Today("Today", Icons.Filled.Home),
-    History("History", Icons.Filled.DateRange),
-    Exercises("Exercises", Icons.Filled.Search),
-    Profile("Profile", Icons.Filled.Person),
-}
+// In the same order as Tab. The AI coach gets its own tab here in phase 2.
+private val TabItems = listOf(
+    BottomBarItem("Today", Icons.Outlined.Home, Icons.Filled.Home),
+    BottomBarItem("History", Icons.Outlined.DateRange, Icons.Filled.DateRange),
+    BottomBarItem("Exercises", Icons.Outlined.Search, Icons.Filled.Search),
+    BottomBarItem("Profile", Icons.Outlined.Person, Icons.Filled.Person),
+)
+
+private const val TRANSITION_MILLIS = 300
 
 @Composable
 fun App() {
     KinzoTheme {
-        var tab by rememberSaveable { mutableStateOf(Tab.Today) }
-        var showDesignSystem by rememberSaveable { mutableStateOf(false) }
-        SystemBackHandler(enabled = showDesignSystem) { showDesignSystem = false }
+        val navigator = rememberNavigator()
+        ProvideScreenStores { stores ->
+            AppContent(navigator, stores)
+        }
+    }
+}
 
-        Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
-            bottomBar = {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                    Tab.entries.forEach { item ->
-                        NavigationBarItem(
-                            selected = tab == item,
-                            onClick = {
-                                tab = item
-                                showDesignSystem = false
-                            },
-                            icon = { Icon(item.icon, contentDescription = null) },
-                            label = { Text(item.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                indicatorColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        )
+@Composable
+private fun AppContent(navigator: Navigator, stores: ScreenStores, viewModel: AppViewModel = koinViewModel()) {
+    val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
+    val rest by viewModel.rest.collectAsStateWithLifecycle()
+    val haptics = LocalHapticFeedback.current
+    val screenStates = rememberSaveableStateHolder()
+
+    // A buzz when rest is over, whichever screen is showing.
+    LaunchedEffect(viewModel) {
+        viewModel.restFinished.collect { haptics.performHapticFeedback(HapticFeedbackType.LongPress) }
+    }
+
+    // Back closes the top screen, then returns to Today, then leaves the app.
+    SystemBackHandler(enabled = navigator.stack.isNotEmpty() || navigator.tab != Tab.Today) {
+        if (!navigator.pop()) navigator.selectTab(Tab.Today)
+    }
+
+    AnimatedContent(
+        targetState = navigator.current,
+        transitionSpec = { screenTransition() },
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        label = "screens",
+    ) { entry ->
+        if (entry == null) {
+            screenStates.SaveableStateProvider("tabs") {
+                Tabs(navigator, activeWorkout, rest)
+            }
+        } else {
+            val key = "entry-${entry.id}"
+            // Left and right safe areas (landscape navigation bar, notch); the tabs' Scaffold
+            // handles its own.
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+                screenStates.SaveableStateProvider(key) {
+                    ProvideViewModelStore(stores.storeFor(entry)) {
+                        Screen(entry, navigator)
                     }
                 }
-            },
-        ) { padding ->
-            val modifier = Modifier.padding(padding)
-            when {
-                showDesignSystem -> DesignSystemScreen(onBack = { showDesignSystem = false }, modifier = modifier)
-                tab == Tab.Today -> TodayScreen(modifier)
-                tab == Tab.History -> HistoryScreen(modifier)
-                tab == Tab.Exercises -> ExercisesScreen(modifier)
-                tab == Tab.Profile -> ProfileScreen(onOpenDesignSystem = { showDesignSystem = true }, modifier = modifier)
+            }
+            // Once a popped screen has animated away, its view models and saved state go too.
+            DisposableEffect(entry.id) {
+                onDispose {
+                    if (!navigator.isOnStack(entry)) {
+                        stores.clear(entry)
+                        screenStates.removeState(key)
+                    }
+                }
             }
         }
+    }
+}
+
+/**
+ * The workout slides up like a sheet and back down; every other screen pushes in from the
+ * right. Newer screens always draw on top, so a closing screen slides away over the one
+ * underneath.
+ */
+private fun AnimatedContentTransitionScope<BackStackEntry?>.screenTransition(): ContentTransform {
+    val from = initialState
+    val to = targetState
+    val forward = from == null || (to != null && to.id > from.id)
+    val spec = tween<Float>(TRANSITION_MILLIS)
+    val offsetSpec = tween<IntOffset>(TRANSITION_MILLIS)
+    val transform = when {
+        forward && to?.destination == Destination.ActiveWorkout ->
+            slideInVertically(offsetSpec) { it } togetherWith fadeOut(spec, targetAlpha = 0.6f)
+        !forward && from.destination == Destination.ActiveWorkout ->
+            fadeIn(spec, initialAlpha = 0.6f) togetherWith slideOutVertically(offsetSpec) { it }
+        forward ->
+            slideInHorizontally(offsetSpec) { it } togetherWith
+                (slideOutHorizontally(offsetSpec) { -it / 4 } + fadeOut(spec, targetAlpha = 0.6f))
+        else ->
+            (slideInHorizontally(offsetSpec) { -it / 4 } + fadeIn(spec, initialAlpha = 0.6f)) togetherWith
+                slideOutHorizontally(offsetSpec) { it }
+    }
+    transform.targetContentZIndex = to?.id?.toFloat() ?: -1f
+    return transform
+}
+
+@Composable
+private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: RestTimer.State?) {
+    val tabStates = rememberSaveableStateHolder()
+    // Taps on the tabs while they slide away under a new screen are ignored.
+    fun open(destination: Destination) {
+        if (navigator.current == null) navigator.push(destination)
+    }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            Column(Modifier.background(MaterialTheme.colorScheme.background)) {
+                if (activeWorkout != null) {
+                    ActiveWorkoutBanner(
+                        name = activeWorkout.name,
+                        startedAt = activeWorkout.startedAt,
+                        rest = rest,
+                        onClick = { open(Destination.ActiveWorkout) },
+                    )
+                }
+                KinzoBottomBar(
+                    items = TabItems,
+                    selectedIndex = navigator.tab.ordinal,
+                    onSelect = { navigator.selectTab(Tab.entries[it]) },
+                )
+            }
+        },
+    ) { padding ->
+        val modifier = Modifier.padding(padding).consumeWindowInsets(padding)
+        tabStates.SaveableStateProvider(navigator.tab.name) {
+            when (navigator.tab) {
+                Tab.Today -> TodayScreen(
+                    onOpenWorkout = { open(Destination.ActiveWorkout) },
+                    onOpenFinishedWorkout = { open(Destination.WorkoutDetail(it)) },
+                    modifier = modifier,
+                )
+                Tab.History -> HistoryScreen(onOpenWorkout = { open(Destination.WorkoutDetail(it)) }, modifier = modifier)
+                Tab.Exercises -> ExercisesScreen(onOpenExercise = { open(Destination.ExerciseDetail(it)) }, modifier = modifier)
+                Tab.Profile -> ProfileScreen(onOpenDesignSystem = { open(Destination.DesignSystem) }, modifier = modifier)
+            }
+        }
+    }
+}
+
+/** A screen pushed over the tabs. */
+@Composable
+private fun Screen(entry: BackStackEntry, navigator: Navigator) {
+    // A screen that is already on its way out (mid-animation) can't navigate any more.
+    fun ifCurrent(action: () -> Unit) {
+        if (navigator.current?.id == entry.id) action()
+    }
+    val back = { ifCurrent { navigator.pop() } }
+
+    when (val destination = entry.destination) {
+        Destination.ActiveWorkout -> ActiveWorkoutScreen(
+            onMinimise = back,
+            onAddExercises = { ifCurrent { navigator.push(Destination.AddExercises) } },
+            onFinished = { id -> ifCurrent { navigator.replace(Destination.WorkoutDetail(id, justFinished = true)) } },
+            onClosed = back,
+        )
+        Destination.AddExercises -> ExercisePickerScreen(onClose = back, onAdded = back)
+        is Destination.ExerciseDetail -> ExerciseDetailScreen(exerciseId = destination.exerciseId, onBack = back)
+        is Destination.WorkoutDetail -> WorkoutDetailScreen(
+            workoutId = destination.workoutId,
+            justFinished = destination.justFinished,
+            onClose = back,
+        )
+        Destination.DesignSystem -> DesignSystemScreen(onBack = back)
     }
 }

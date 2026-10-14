@@ -1,0 +1,105 @@
+-- The exercise and equipment catalogue. Rows from the bundled catalogue have source
+-- 'free-exercise-db'; user-created custom rows arrive in milestone 3 with source 'custom'.
+-- Columns mirror the server schema so sync can map them one to one. Times are epoch
+-- milliseconds.
+
+CREATE TABLE equipment (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    type                TEXT NOT NULL,
+    description         TEXT,
+    setup_instructions  TEXT,
+    source              TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE exercise (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    description         TEXT,
+    -- One step per line.
+    instructions        TEXT NOT NULL,
+    equipment_id        TEXT,
+    measurement_type    TEXT NOT NULL,
+    source              TEXT NOT NULL,
+    source_ref          TEXT,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE exercise_muscle (
+    exercise_id         TEXT NOT NULL,
+    muscle              TEXT NOT NULL,
+    is_primary          INTEGER NOT NULL,
+    PRIMARY KEY (exercise_id, muscle)
+);
+
+upsertEquipment:
+INSERT OR REPLACE INTO equipment(id, name, type, description, setup_instructions, source, updated_at, deleted_at)
+VALUES (:id, :name, :type, NULL, NULL, :source, :updatedAt, NULL);
+
+upsertExercise:
+INSERT OR REPLACE INTO exercise(id, name, description, instructions, equipment_id, measurement_type, source, source_ref, updated_at, deleted_at)
+VALUES (:id, :name, NULL, :instructions, :equipmentId, :measurementType, :source, :sourceRef, :updatedAt, NULL);
+
+insertMuscle:
+INSERT OR REPLACE INTO exercise_muscle(exercise_id, muscle, is_primary)
+VALUES (:exerciseId, :muscle, :isPrimary);
+
+softDeleteExercisesFromSource:
+UPDATE exercise SET deleted_at = :now, updated_at = :now
+WHERE source = :source AND deleted_at IS NULL;
+
+softDeleteEquipmentFromSource:
+UPDATE equipment SET deleted_at = :now, updated_at = :now
+WHERE source = :source AND deleted_at IS NULL;
+
+deleteMusclesFromSource:
+DELETE FROM exercise_muscle
+WHERE exercise_id IN (SELECT id FROM exercise WHERE source = :source);
+
+exerciseList:
+SELECT
+    e.id,
+    e.name,
+    e.measurement_type,
+    e.equipment_id,
+    eq.name AS equipment_name,
+    COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 1), '') AS primary_muscles,
+    COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 0), '') AS secondary_muscles
+FROM exercise e
+LEFT JOIN equipment eq ON eq.id = e.equipment_id
+WHERE e.deleted_at IS NULL
+ORDER BY e.name COLLATE NOCASE;
+
+-- Deleted rows are still returned: past workouts can reference an exercise that has since
+-- left the catalogue.
+exerciseById:
+SELECT
+    e.id,
+    e.name,
+    e.description,
+    e.instructions,
+    e.measurement_type,
+    e.equipment_id,
+    eq.name AS equipment_name,
+    e.source
+FROM exercise e
+LEFT JOIN equipment eq ON eq.id = e.equipment_id
+WHERE e.id = :id;
+
+musclesForExercise:
+SELECT muscle, is_primary
+FROM exercise_muscle
+WHERE exercise_id = :exerciseId
+ORDER BY is_primary DESC, muscle;
+
+equipmentList:
+SELECT id, name, type
+FROM equipment
+WHERE deleted_at IS NULL
+ORDER BY name COLLATE NOCASE;
+
+countActiveExercises:
+SELECT COUNT(*) FROM exercise WHERE deleted_at IS NULL;

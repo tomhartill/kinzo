@@ -29,19 +29,25 @@ internal fun TitledScreen(
             .padding(horizontal = spacing.screen, vertical = spacing.xl),
         verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-            Text(title, style = MaterialTheme.typography.headlineLarge)
-            if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        ScreenTitle(title, subtitle)
         content()
     }
 }
 
+/** The large title and optional subtitle at the top of a tab. */
 @Composable
-internal fun EmptyState(title: String, body: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
+internal fun ScreenTitle(title: String, subtitle: String? = null, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
+        Text(title, style = MaterialTheme.typography.headlineLarge)
+        if (subtitle != null) {
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+internal fun EmptyState(title: String, body: String, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
         Text(title, style = MaterialTheme.typography.titleMedium)
         Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

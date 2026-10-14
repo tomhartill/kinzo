@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <path d="M18 24.5L17.63 14.01M17.63 14.01L24.61 13.4L31.08 12.83M18 24.5L18.25 33L18.5 41.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M34.51 9.76Q30.09 12.92 34.99 15.26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M13.92 8.01A3.5 3.5 0 1 1 20.92 8.01A3.5 3.5 0 1 1 13.92 8.01ZM33.06 12.31A4 4 0 1 1 41.06 12.31A4 4 0 1 1 33.06 12.31Z" fill="currentColor"/>
+  <path d="M17 24.5L16.08 14.04M16.08 14.04L23.02 13.07L28.76 12.26M17 24.5L17.5 33L18 41.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32.72 8.92Q28.46 12.3 33.49 14.38" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21.52 34.32A21 21 0 0 0 35.12 22.91M35.76 25.33L35.12 22.91L32.85 23.97" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12.06 8.06A3.5 3.5 0 1 1 19.06 8.06A3.5 3.5 0 1 1 12.06 8.06ZM31.4 11.33A4 4 0 1 1 39.4 11.33A4 4 0 1 1 31.4 11.33Z" fill="currentColor"/>
 </svg>

@@ -405,6 +405,14 @@ def arrow(icon, start, end, head=2.5, width=THIN):
     icon.line(polar(end, a + 140, head), end, polar(end, a - 140, head), width=width)
 
 
+def swing_arc(icon, center, r, start, end, width=THIN):
+    """A motion arc around center from angle start to angle end, with an arrow head."""
+    p0, p1 = polar(center, start, r), polar(center, end, r)
+    icon.arc(p0, p1, r, sweep=1 if end > start else 0, width=width)
+    tangent = end + (90 if end > start else -90)
+    icon.line(polar(p1, tangent + 140, 2.5), p1, polar(p1, tangent - 140, 2.5), width=width)
+
+
 # ---------------------------------------------------------------- pictograms
 
 ICONS = {}
@@ -417,129 +425,151 @@ def icon(fn):
 
 @icon
 def squat(i):
-    f = Figure(i, (20.5, 31.5), torso=-56, head=-74)
-    barbell(i, (26.5, 23.5), half=13)
-    f.arm(to=(21.5, 23.5), bend="down")
-    f.leg(to=(27, FOOT_Y), bend="right")
+    """Back squat at depth, bar across the shoulders."""
+    f = Figure(i, (19, 32.5), torso=-50, head=-66)
+    f.leg(to=(23.5, FOOT_Y), bend="right")
+    s = f.shoulder
+    barbell(i, (s[0] - 1.5, s[1] + 0.8), half=13)
 
 
 @icon
 def leg_press(i):
-    hip = (18.5, 34)
-    f = Figure(i, hip, torso=-128, head=-112)
-    # Backrest behind the torso, and the frame under the seat.
-    back = polar(hip, -128 + 90, 3.4)
-    i.line(polar(back, -128, 11.5), polar(back, -128, -1.5), (21, 43))
-    f.arm(to=(21.5, 32.5), bend="down")
-    knee, foot = f.leg(to=(29.5, 25), bend="up")
+    """Reclined on the seat, feet pushing the sled's foot plate up and away."""
+    i.ground()
+    hip = (17.5, 35)
+    f = Figure(i, hip, torso=-132, head=-115)
+    back = polar(hip, 138, 4.2)
+    i.line(polar(back, -132, 11), polar(back, -132, -1), polar(polar(back, -132, -1), 0, 4))
+    i.line(polar(polar(back, -132, -1), 0, 2), (polar(back, -132, -1)[0] + 2, 43))
+    foot = (29, 25)
     push = angle_of(hip, foot)
-    plate = polar(foot, push, 2.6)
-    pad(i, plate, 2.6, 11, push)
-    i.line(polar(plate, push, 2), polar(plate, push, 10), width=THIN)
+    f.leg(to=foot, bend="up")
+    plate = polar(foot, push, 2.8)
+    pad(i, plate, 3, 12, push)
+    i.line(polar(plate, push, 1.5), polar(plate, push, 13), width=THIN)
 
 
 @icon
 def lunge(i):
+    """Split stance, back knee near the floor, hands on hips."""
     i.ground()
-    f = Figure(i, (23, 32), torso=-90)
-    f.arm(to=(21.5, 30), bend="left")
-    f.leg(to=(32.5, FOOT_Y), bend="up")
+    f = Figure(i, (22.5, 32), torso=-90)
+    f.leg(to=(32, FOOT_Y), bend="up")
     f.leg(to=(9.5, FOOT_Y), bend="down")
+    f.arm(to=(f.shoulder[0] - 1.5, 29.5), bend="left")
 
 
 @icon
 def deadlift(i):
+    """Hinged over a barbell at shin height, arms straight."""
     i.ground()
-    f = Figure(i, (12, 27.5), torso=-18, head=-14)
+    f = Figure(i, (16, 26), torso=-20, head=-8)
     elbow, hand = f.arm(angles=(90, 90))
-    barbell(i, hand, half=8, plate=(3, 9))
-    f.leg(to=(18.5, FOOT_Y), bend="right")
+    barbell(i, hand, half=15, plate=(3.2, 10), front=False)
+    mark = i.mark()
+    f.leg(to=(19, FOOT_Y), bend="right")
+    i.in_front(mark)
 
 
 @icon
 def hip_thrust(i):
+    """Shoulders on a bench, hips driven up under a barbell, knees bent."""
     i.ground()
-    bench(i, 4, 13, 37, legs=(6, 11))
-    f = Figure(i, (24, 30.5), torso=165, head=188)
-    barbell(i, (23.5, 24.5), half=8, plate=(3, 8))
-    f.arm(to=(22, 24.5), bend="up")
-    f.leg(to=(33, FOOT_Y), bend="up")
+    bench(i, 4, 13.5, 36.5, legs=(6.5, 11))
+    f = Figure(i, (22.7, 30), torso=166, head=205)
+    f.leg(to=(32, FOOT_Y), bend="up")
+    f.arm(to=(20.5, 24), bend="up")
+    barbell(i, (22.7, 24), half=9.5, plate=(3, 8), sleeve=2.5, front=False)
 
 
 @icon
 def kettlebell_swing(i):
-    f = Figure(i, (18, 24.5), torso=-92)
-    elbow, hand = f.arm(angles=(-5, -5))
-    kettlebell(i, hand, angle=-5)
-    f.leg(to=(18.5, FOOT_Y), bend="right")
+    """Top of the swing, arms out front, with the bell's arc."""
+    f = Figure(i, (17, 24.5), torso=-95)
+    elbow, hand = f.arm(angles=(-8, -8))
+    kettlebell(i, hand, angle=-8)
+    f.leg(to=(18, FOOT_Y), bend="right")
+    swing_arc(i, f.shoulder, 21, 75, 25)
 
 
 @icon
 def olympic_lift(i):
-    f = Figure(i, (24, 32), torso=-90)
-    elbow, hand = f.arm(angles=(-90, -90))
-    barbell(i, hand, half=13)
-    f.leg(to=(33.5, FOOT_Y), bend="up")
-    f.leg(to=(12, FOOT_Y), bend="down")
+    """Front view: barbell locked out overhead in a deep, wide squat."""
+    f = Figure(i, (24, 29.5), torso=-90, shoulders=3)
+    for side, k in ((0, -1), (1, 1)):
+        f.arm(to=(24 + k * 9, 7), bend="left" if k < 0 else "right", side=side)
+    f.leg(to=(14.5, FOOT_Y), bend="left")
+    f.leg(to=(33.5, FOOT_Y), bend="right")
+    barbell(i, (24, 7), half=18, plate=(3, 9), sleeve=2.5)
 
 
 @icon
 def bench_press(i):
+    """Lying on a flat bench, barbell pressed up over the chest."""
     i.ground()
-    bench(i, 6, 30, 35.5, legs=(9, 27))
-    f = Figure(i, (25, 31.5), torso=180, head=182)
+    bench(i, 6, 30, 36.5, legs=(9, 27))
+    f = Figure(i, (25.5, 32), torso=180, head=195)
     elbow, hand = f.arm(angles=(-90, -90))
-    barbell(i, hand, half=10)
-    f.leg(to=(37, FOOT_Y), bend="up")
+    f.leg(to=(36, FOOT_Y), bend="up")
+    barbell(i, hand, half=10.5)
 
 
 @icon
 def overhead_press(i):
+    """Front view: dumbbells pressed overhead from the shoulders."""
     f = Figure(i, (24, 25.5), torso=-90, shoulders=3)
     for side, k in ((0, -1), (1, 1)):
         elbow, hand = f.arm(angles=(90 - k * 90 - k * 10, -90), side=side)
-        dumbbell(i, hand)
+        dumbbell(i, hand, half=3.2)
     f.leg(to=(19.5, FOOT_Y), bend="left")
     f.leg(to=(28.5, FOOT_Y), bend="right")
 
 
 @icon
 def push_up(i):
+    """Top of a push-up: straight body, straight arms."""
     i.ground()
-    a = -27
-    hip = (22.5, 33.5)
-    f = Figure(i, hip, torso=a)
-    f.arm(to=(f.shoulder[0], FOOT_Y + 0.5), bend="left")
+    shoulder_y = FOOT_Y + 0.5 - UPPER_ARM - FOREARM
+    a = -math.degrees(math.asin((FOOT_Y - shoulder_y) / (THIGH + SHIN + TORSO)))
+    ankle = (7.5, FOOT_Y)
+    f = Figure(i, polar(ankle, a, THIGH + SHIN), torso=a, head=a + 8)
+    f.arm(angles=(90, 90))
     f.leg(angles=(a + 180, a + 180))
 
 
 @icon
 def dip(i):
+    """Bench dip: hands on a bench behind, elbows bent back, heels on the floor."""
     i.ground()
-    f = Figure(i, (22, 30), torso=-72, head=-78)
-    f.arm(to=(20, 27.5), bend="up")
-    f.leg(angles=(82, 195))
-    i.line((6, 27.5), (17, 27.5))
-    i.line((25, 27.5), (41, 27.5))
-    i.line((9, 27.5), (9, 43))
-    i.line((38, 27.5), (38, 43))
+    i.line((4, 29.5), (13.5, 29.5))
+    i.line((6, 29.5), (6, 43))
+    i.line((11.5, 29.5), (11.5, 43))
+    s = (19.5, 23)
+    f = Figure(i, polar(s, 95, TORSO), torso=-85, head=-80)
+    f.leg(to=(33, FOOT_Y), bend="up")
+    elbow = polar(s, 180, UPPER_ARM)
+    i.line(s, elbow, polar(elbow, 90, FOREARM))
 
 
 @icon
 def chest_fly(i):
-    f = Figure(i, (24, 26), torso=-90, shoulders=3)
-    for side, k in ((0, -1), (1, 1)):
-        elbow, hand = f.arm(to=(24 + k * 2.5, 22), bend="left" if k < 0 else "right", side=side)
-        pulley(i, (24 + k * 19, 40), hand)
+    """Front view: arms open wide with dumbbells, arcs showing them sweep together."""
+    f = Figure(i, (24, 25.5), torso=-90, shoulders=3)
     f.leg(to=(20, FOOT_Y), bend="left")
     f.leg(to=(28, FOOT_Y), bend="right")
+    for side, k in ((0, -1), (1, 1)):
+        elbow, hand = f.arm(angles=(90 - k * 90 - k * 5, 90 - k * 90 - k * 40), side=side)
+        dumbbell(i, hand, angle=90, half=3, plate=(2.6, 6))
+    i.arc((10, 7), (20, 4), 12, sweep=1, width=THIN)
+    i.arc((38, 7), (28, 4), 12, sweep=0, width=THIN)
 
 
 @icon
 def lateral_raise(i):
+    """Front view: arms raised out to the sides, dumbbells in hand."""
     f = Figure(i, (24, 25.5), torso=-90, shoulders=3)
     for side, k in ((0, -1), (1, 1)):
-        elbow, hand = f.arm(angles=(90 - k * 90 + k * 4, 90 - k * 90 + k * 4), side=side)
+        elbow, hand = f.arm(angles=(90 - k * 90 + k * 3, 90 - k * 90 + k * 3), side=side)
         dumbbell(i, hand, angle=90, half=3, plate=(2.6, 6))
     f.leg(to=(20, FOOT_Y), bend="left")
     f.leg(to=(28, FOOT_Y), bend="right")
@@ -547,15 +577,22 @@ def lateral_raise(i):
 
 @icon
 def row(i):
+    """Seated cable row: handle pulled to the waist, elbows back."""
     i.ground()
-    f = Figure(i, (12.5, 25.5), torso=-25, head=-18)
-    elbow, hand = f.arm(to=(21, 31), bend="up")
-    barbell(i, hand, half=7.5, plate=(3, 8))
-    f.leg(to=(16, FOOT_Y), bend="right")
+    i.line((7, 36.5), (17, 36.5))
+    i.line((12, 36.5), (12, 43))
+    f = Figure(i, (12, 33), torso=-95, head=-88)
+    hand = (f.shoulder[0] + 1.2, 28)
+    f.arm(to=hand, bend="left")
+    f.leg(to=(28, 36), bend="up")
+    pad(i, (30.5, 36), 2.6, 7)
+    pulley(i, (38.5, 28), hand)
+    i.line((41.5, 10), (41.5, 43))
 
 
 @icon
 def pull_up(i):
+    """Front view: hanging from an overhead bar."""
     pull_bar(i, 6, 42, 5)
     f = Figure(i, (24, 27.5), torso=-90)
     s = f.shoulder
@@ -569,115 +606,126 @@ def pull_up(i):
 
 @icon
 def pulldown(i):
+    """Seated at a lat pulldown, reaching up to the bar on its cable."""
     i.ground()
-    f = Figure(i, (16, 33), torso=-96)
-    elbow, hand = f.arm(to=(19.5, 10.5), bend="left")
-    i.line((13, 10.5), (26, 10.5))
+    i.line((10, 36.5), (20, 36.5))
+    i.line((15, 36.5), (15, 43))
+    f = Figure(i, (15, 33), torso=-92)
+    f.leg(to=(24, FOOT_Y), bend="up")
+    pad(i, (22, 29.8), 5, 3)
+    f.arm(to=(19.5, 10.5), bend="left")
+    i.line((13.5, 10.5), (25.5, 10.5))
     i.line((19.5, 10.5), (19.5, 5), (38, 5), (38, 43), width=THIN)
-    i.line((11, 36.5), (21, 36.5))
-    i.line((16, 36.5), (16, 43))
-    pad(i, (25, 29.5), 5, 3.2)
-    f.leg(to=(25.5, FOOT_Y), bend="up")
 
 
 @icon
 def shrug(i):
+    """Front view: shoulders hiked up towards the ears, dumbbells at the sides."""
     f = Figure(i, (24, 26), torso=-90)
     s = f.shoulder
     for k in (-1, 1):
         tip = (s[0] + k * 3.5, s[1] - 2)
         i.line(s, tip)
-        elbow, hand = f.arm(angles=(90 + k * -8, 90 + k * -4), root=tip)
-        dumbbell(i, (hand[0], hand[1] + 1), half=3.2)
-        arrow(i, (s[0] + k * 6.5, s[1] - 3), (s[0] + k * 6.5, s[1] - 9))
-    f.leg(to=(20, FOOT_Y), bend="left")
-    f.leg(to=(28, FOOT_Y), bend="right")
+        elbow, hand = f.arm(angles=(90 - k * 14, 90 - k * 12), root=tip)
+        dumbbell(i, (hand[0], hand[1] + 0.5), angle=90, half=3, plate=(2.6, 6))
+        arrow(i, (s[0] + k * 8, s[1] - 2.5), (s[0] + k * 8, s[1] - 9))
+    f.leg(to=(20.5, FOOT_Y), bend="left")
+    f.leg(to=(27.5, FOOT_Y), bend="right")
 
 
 @icon
 def curl(i):
+    """Standing curl: elbow at the side, dumbbell curled up."""
     f = Figure(i, (20, 25), torso=-90)
-    elbow, hand = f.arm(angles=(92, -40))
-    dumbbell(i, hand, angle=-40 + 90, half=3.2)
     f.leg(to=(18.5, FOOT_Y), bend="right")
     f.leg(to=(21.5, FOOT_Y), bend="right")
+    elbow, hand = f.arm(angles=(78, -28))
+    dumbbell(i, hand, half=3.2)
 
 
 @icon
 def triceps_extension(i):
-    f = Figure(i, (19, 25.5), torso=-86)
-    elbow, hand = f.arm(angles=(95, 45))
-    pulley(i, (30, 5), hand)
-    i.line((27, hand[1]), (hand[0] + 1.5, hand[1] + 1.5))
-    i.line((30, 5), (37, 5), (37, 43), width=THIN)
-    f.leg(to=(18, FOOT_Y), bend="right")
-    f.leg(to=(21, FOOT_Y), bend="right")
+    """Cable pushdown: elbows pinned at the sides, forearms pressing the handle down."""
+    i.ground()
+    f = Figure(i, (16.5, 25.5), torso=-80, head=-75)
+    f.leg(to=(15, FOOT_Y), bend="right")
+    f.leg(to=(18.5, FOOT_Y), bend="right")
+    elbow, hand = f.arm(angles=(98, 32))
+    pulley(i, (33.5, 6), hand)
+    i.line((33.5, 3.8), (38, 3.8), (38, 43))
+    i.line(polar(hand, 122, 2), polar(hand, -58, 2))
 
 
 @icon
 def leg_extension(i):
-    i.line((11, 16), (11, 35), (24, 35))
-    i.line((17, 35), (17, 43))
-    f = Figure(i, (15, 31.5), torso=-90)
-    f.arm(to=(18.5, 32.5), bend="down")
-    knee, ankle = f.leg(angles=(0, -12))
-    pad(i, polar(ankle, -12 - 90, 3.3), 4.5, 3.3, -12)
+    """Seated leg extension, shin straightened against the roller pad."""
+    i.line((10.5, 16), (10.5, 35.5), (24, 35.5))
+    i.line((17, 35.5), (17, 43))
+    f = Figure(i, (14.5, 32), torso=-90)
+    knee, ankle = f.leg(angles=(0, -10))
+    pad(i, polar(polar(ankle, -10, -1), -100, 3.3), 4.5, 3.3, -10)
+    f.arm(to=(18.5, 33.5), bend="right")
 
 
 @icon
 def leg_curl(i):
-    bench(i, 7, 38, 35, legs=(10, 35))
-    f = Figure(i, (18, 31.5), torso=0, head=-3)
-    f.arm(to=(36, 31.5), bend="down")
+    """Lying face down, heels curled up against the roller pad."""
+    bench(i, 6, 37, 36, legs=(9, 34))
+    f = Figure(i, (17.5, 32), torso=0, head=-20)
     knee, ankle = f.leg(angles=(180, -75))
-    pad(i, polar(ankle, 15, 3.2), 3.3, 4.5, 15)
+    pad(i, polar(polar(ankle, -75, -1), 15, 3.3), 3.3, 4.5, 15)
+    f.arm(to=(35.5, 38.5), bend="right")
 
 
 @icon
 def calf_raise(i):
+    """Standing up on the toes, heel lifted, hands on hips."""
     i.ground()
-    f = Figure(i, (22, 22.5), torso=-90)
-    elbow, hand = f.arm(angles=(95, 95))
-    dumbbell(i, (hand[0], hand[1] + 1), half=3)
-    f.leg(to=(22, 39.5), bend="right", foot=62)
-    arrow(i, (14, 40), (14, 33))
+    ankle = (22, 40)
+    f = Figure(i, (22, 40 - THIGH - SHIN), torso=-90)
+    f.leg(to=ankle, bend="right", foot=55)
+    f.arm(to=(f.shoulder[0] - 1.5, 22), bend="left")
+    arrow(i, (15, 41), (15, 33.5))
 
 
 @icon
 def crunch(i):
+    """Lying on the back, knees up, shoulders curled off the floor."""
     i.ground()
-    f = Figure(i, (22, 40.5), torso=-148, head=-140)
-    f.arm(to=polar(f.head, 160, 2), bend="up")
-    f.leg(to=(36, FOOT_Y), bend="up")
+    f = Figure(i, (23, 40.5), torso=-150, head=-140)
+    f.leg(to=(36.5, FOOT_Y), bend="up")
+    f.arm(to=polar(f.head, 165, 1.5), bend="up")
 
 
 @icon
 def leg_raise(i):
+    """Lying on the back, straight legs raised."""
     i.ground()
-    f = Figure(i, (25, 40.5), torso=180, head=190)
-    f.arm(angles=(0, 0))
+    f = Figure(i, (25, 40.5), torso=180, head=192)
     f.leg(angles=(-72, -72))
+    f.arm(angles=(2, 2))
 
 
 @icon
 def plank(i):
+    """Forearm plank: body straight, elbows under the shoulders."""
     i.ground()
-    elbow = (33, FOOT_Y)
-    shoulder = (33, FOOT_Y - UPPER_ARM)
-    a = -math.degrees(math.asin((FOOT_Y - shoulder[1]) / (THIGH + SHIN + TORSO)))
-    hip = polar(shoulder, a + 180, TORSO)
-    f = Figure(i, hip, torso=a)
+    shoulder_y = FOOT_Y - UPPER_ARM
+    a = -math.degrees(math.asin((FOOT_Y - shoulder_y) / (THIGH + SHIN + TORSO)))
+    ankle = (6.5, FOOT_Y)
+    f = Figure(i, polar(ankle, a, THIGH + SHIN), torso=a, head=a + 6)
     f.arm(angles=(90, 0))
     f.leg(angles=(a + 180, a + 180))
 
 
 @icon
 def side_plank(i):
+    """Side plank on one forearm, top arm reaching up."""
     i.ground()
-    shoulder = (33, FOOT_Y - UPPER_ARM)
-    a = -math.degrees(math.asin((FOOT_Y - shoulder[1]) / (THIGH + SHIN + TORSO)))
-    hip = polar(shoulder, a + 180, TORSO)
-    f = Figure(i, hip, torso=a)
+    shoulder_y = FOOT_Y - UPPER_ARM
+    a = -math.degrees(math.asin((FOOT_Y - shoulder_y) / (THIGH + SHIN + TORSO)))
+    ankle = (6.5, FOOT_Y)
+    f = Figure(i, polar(ankle, a, THIGH + SHIN), torso=a, head=a + 6)
     f.arm(angles=(90, 0))
     f.arm(angles=(-90, -90))
     f.leg(angles=(a + 180, a + 180))
@@ -685,60 +733,68 @@ def side_plank(i):
 
 @icon
 def twist(i):
-    i.ground()
-    f = Figure(i, (17, 40.5), torso=-118, head=-104)
-    elbow, hand = f.arm(to=(23, 31), bend="down")
-    ball(i, (25.5, 30))
-    f.leg(to=(33, 36), bend="up")
-    i.arc((6, 18), (18, 16), 8, sweep=1, width=THIN)
+    """Front view: arms out, a ring round the waist showing the torso rotate."""
+    f = Figure(i, (24, 25.5), torso=-90, shoulders=3)
+    f.leg(to=(20, FOOT_Y), bend="left")
+    f.leg(to=(28, FOOT_Y), bend="right")
+    for side, k in ((0, -1), (1, 1)):
+        f.arm(angles=(90 - k * 90, 90 - k * 90), side=side)
+    i.stroke(f"M{P((12, 22))}A12 4 0 0 0 {P((36, 22))}", THIN)
+    i.line(polar((36, 22), -150, 2.5), (36, 22), polar((36, 22), 120, 2.5), width=THIN)
 
 
 @icon
 def back_extension(i):
-    a = -33
-    ankle = (9, 38)
+    """45 degree back extension: hips on the pad, body straight from heels to head."""
+    i.ground()
+    a = -32
+    ankle = (7, 36)
     hip = polar(ankle, a, THIGH + SHIN)
-    f = Figure(i, hip, torso=a)
-    f.arm(to=polar(f.head, 200, 1), bend="up")
+    f = Figure(i, hip, torso=a, head=a - 5)
     f.leg(angles=(a + 180, a + 180))
-    hp = polar(hip, a + 90, 3.3)
-    pad(i, hp, 6.5, 3.2, a)
-    fp = polar(ankle, a - 90, 3.2)
-    pad(i, fp, 4, 3.2, a)
-    i.line(hp, (hp[0] + 2, 43), (8, 43), fp)
+    hp = polar(polar(hip, a, -2.5), a + 90, 4.2)
+    pad(i, hp, 7.5, 3.4, a)
+    fp = polar(polar(ankle, a, 2.5), a - 90, 4)
+    i.dot(fp, 1.8)
+    base = polar(hp, a + 90, 1.7)
+    i.line(polar(fp, a + 90, 2.5), base, (base[0] + 2, 43))
 
 
 @icon
 def carry(i):
-    f = Figure(i, (22, 26.5), torso=-88)
-    elbow, hand = f.arm(angles=(84, 86))
-    kettlebell(i, hand)
-    f.leg(to=(28, FOOT_Y), bend="right")
-    f.leg(to=(15.5, FOOT_Y), bend="right")
+    """Walking with a heavy box held in front."""
+    f = Figure(i, (20, 26.5), torso=-88)
+    f.leg(to=(26, FOOT_Y), bend="right")
+    f.leg(to=(13.5, FOOT_Y), bend="right")
+    box(i, 24.5, 15.5, 34.5, 25.5)
+    f.arm(to=(27, 25.5), bend="down")
 
 
 @icon
 def throw(i):
-    f = Figure(i, (18, 27), torso=-80, head=-80)
-    elbow, hand = f.arm(angles=(-25, -20))
-    ball(i, (36, 9.5))
-    f.leg(to=(26, FOOT_Y), bend="right")
-    f.leg(to=(10, FOOT_Y), bend="right")
-    i.line((24, 6), (29, 5.5), width=THIN)
-    i.line((25, 11.5), (29.5, 10.5), width=THIN)
+    """Overhead medicine ball throw, wound up with the ball behind the head."""
+    f = Figure(i, (22, 27), torso=-100, head=-95)
+    f.leg(to=(30, FOOT_Y), bend="right")
+    f.leg(to=(14, FOOT_Y), bend="right")
+    elbow, hand = f.arm(angles=(-115, -170))
+    ball(i, polar(hand, -150, 2.5), 3.5)
 
 
 @icon
 def jump(i):
+    """Tuck jump: in the air, knees up, arms flung up."""
     i.ground()
-    box(i, 28, 30, 42, 43)
-    f = Figure(i, (15, 23.5), torso=-72)
-    f.arm(angles=(-60, -50))
-    f.leg(angles=(15, 115))
+    f = Figure(i, (22, 27), torso=-82)
+    f.leg(angles=(-10, 95))
+    f.arm(angles=(-55, -70))
+    f.arm(angles=(-125, -110))
+    for x, y in ((17, 38), (22, 37), (27, 38)):
+        i.line((x, y), (x, 41), width=THIN)
 
 
 @icon
 def run(i):
+    """Running stride."""
     f = Figure(i, (22, 25), torso=-78)
     f.arm(angles=(65, -15))
     f.arm(angles=(125, 165))
@@ -748,29 +804,35 @@ def run(i):
 
 @icon
 def bike(i):
-    i.ground()
-    crank = (22, 35)
-    i.ring((33, 35.5), 5.5 - LINE / 2)
-    i.line((16, 26), crank, (33, 35.5), (31, 18), (35, 18))
-    i.line((12, 43), (38, 43), width=THIN)
-    f = Figure(i, (16, 24.5), torso=-38, head=-45)
-    f.arm(to=(33, 18.5), bend="down")
-    f.leg(to=polar(crank, 60, 3.5), bend="right")
-    f.leg(to=polar(crank, -120, 3.5), bend="up")
+    """Cycling: rider leaning to the bars, two wheels."""
+    r = 5.5
+    rear, front = (11, 43 - r - 1.5), (37, 43 - r - 1.5)
+    i.ring(rear, r)
+    i.ring(front, r)
+    crank = (21, rear[1])
+    stem = (32.5, 24)
+    i.line(rear, crank, stem, front)
+    i.line(crank, (17.5, 25.5))
+    i.line(polar(stem, -120, 2.5), stem)
+    f = Figure(i, (17.5, 23.5), torso=-35, head=-40)
+    f.arm(to=(31.5, 22), bend="down")
+    f.leg(to=polar(crank, 60, 3), bend="right")
 
 
 @icon
 def rowing_machine(i):
-    i.line((5, 41), (36, 41))
-    i.ring((38, 35), 5 - LINE / 2)
-    f = Figure(i, (12, 37.5), torso=-62, head=-70)
-    elbow, hand = f.arm(angles=(-12, -10))
-    i.line(hand, (36, 33), width=THIN)
-    f.leg(to=(27, 39.5), bend="up")
+    """Rowing machine at the catch: knees up, arms reaching to the handle."""
+    i.line((5, 42), (34, 42), cut=False)
+    i.ring((37.5, 37), 5 - LINE / 2)
+    f = Figure(i, (13, 38), torso=-68, head=-74)
+    f.leg(to=(28, 39), bend="up")
+    elbow, hand = f.arm(angles=(5, 5))
+    i.line(hand, (34, 35), width=THIN)
 
 
 @icon
 def jump_rope(i):
+    """Front view: skipping, the rope looping under the feet."""
     f = Figure(i, (24, 24), torso=-90, shoulders=3)
     hands = []
     for side, k in ((0, -1), (1, 1)):
@@ -783,32 +845,40 @@ def jump_rope(i):
 
 @icon
 def stretch_standing(i):
-    f = Figure(i, (22, 24.5), torso=-90)
-    f.arm(angles=(-25, -30))
-    knee, ankle = f.leg(angles=(95, 250))
-    f.arm(to=ankle, bend="down")
-    f.leg(to=(22, FOOT_Y), bend="right")
+    """Front view side bend: one arm arched over the head, other hand on the hip."""
+    a = -68
+    f = Figure(i, (21, 25.5), torso=a)
+    s = f.shoulder
+    left, right = polar(s, a - 90, 3.5), polar(s, a + 90, 3.5)
+    i.line(left, right)
+    f.leg(to=(16, FOOT_Y), bend="left")
+    f.leg(to=(26, FOOT_Y), bend="right")
+    f.arm(angles=(-95, -28), root=left)
+    f.arm(to=(f.hip[0] + 4, f.hip[1] - 2.5), bend="right", root=right)
 
 
 @icon
 def stretch_floor(i):
+    """Seated forward fold, arms reaching along the legs to the toes."""
     i.ground()
-    f = Figure(i, (12, 40.5), torso=-32, head=-25)
-    f.arm(angles=(10, 12))
+    f = Figure(i, (10, 40.5), torso=-48, head=-40)
     f.leg(angles=(0, 0))
+    f.arm(angles=(8, 8))
 
 
 @icon
 def foam_roll(i):
+    """Rolling the backs of the legs on a foam roller, hands behind."""
     i.ground()
-    foam_roller(i, (29, 39))
     f = Figure(i, (17, 36), torso=-150, head=-120)
     f.arm(to=(6.5, FOOT_Y), bend="up")
     f.leg(angles=(8, 5))
+    foam_roller(i, (29, 39))
 
 
 @icon
 def generic(i):
+    """A plain dumbbell, for anything that fits no other pattern."""
     i.line((12, 24), (36, 24))
     for x, h in ((10, 16), (14, 12), (34, 12), (38, 16)):
         i.block((x, 24), 3.4, h, 1.4)

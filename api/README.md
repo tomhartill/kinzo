@@ -27,6 +27,17 @@ Add a new numbered file for every schema change; never edit one that has shipped
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | empty (Facebook off) | The Facebook app |
 | `FACEBOOK_GRAPH_VERSION` | `v24.0` | Graph API version |
 
+Planned for email and phone code sign-in
+([spec](../docs/specs/email-and-phone-sign-in.md)), not read yet:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `KINZO_OTP_PROVIDER` | `log` | `twilio` sends real codes; `log` prints them to the API log |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | empty | Twilio account |
+| `TWILIO_VERIFY_SERVICE_SID` | empty | The Verify service that sends SMS and WhatsApp codes |
+| `KINZO_PHONE_COUNTRIES` | `GB` | Countries codes can be sent to, comma separated |
+| `KINZO_OTP_TEST_NUMBERS` | empty | `+447700900123:123456,...`: numbers that always accept that code and get no message |
+
 Setting these up is a one-off; [`docs/sign-in.md`](../docs/sign-in.md) walks through it.
 
 ## Checks
@@ -44,7 +55,7 @@ KINZO_TEST_DATABASE_URL="postgres://kinzo:kinzo@localhost:5432/kinzo?sslmode=dis
 | --- | --- |
 | `cmd/kinzo-api` | `main`: config, database, HTTP server, graceful shutdown |
 | `internal/server` | Routes and handlers |
-| `internal/auth` | Google and Facebook sign-in, token helpers |
+| `internal/auth` | Google and Facebook sign-in, token helpers (phone codes will go here too) |
 | `internal/store` | Database queries: accounts, sessions, friends |
 | `internal/database` | Connection pool and migrations |
 | `internal/config` | Environment settings |

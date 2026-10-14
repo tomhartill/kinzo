@@ -1,6 +1,7 @@
 # Setting up sign-in
 
-Kinzo signs people in with Google or Facebook. The app never sees a password: it opens the
+Kinzo signs people in with Google or Facebook, and soon with an email and a code sent by text
+or WhatsApp ([spec](specs/email-and-phone-sign-in.md); its Twilio setup is at the end). The app never sees a password: it opens the
 provider's page, the provider sends the person back to the Kinzo API, and the API hands the
 app its own session. On Android, Google sign-in uses the phone's own account sheet instead of a
 web page when it can.
@@ -98,6 +99,30 @@ The app reads two values at build time:
 - An email that both Google and Facebook have verified signs in to the same account.
 - Invite links are `PUBLIC_URL/i/CODE`. Opened on a phone, the page offers to open Kinzo
   (`kinzo://invite/CODE`).
+
+## 5. Phone codes (once the API supports them)
+
+Not needed until email and phone code sign-in is built.
+
+1. Create a [Twilio](https://www.twilio.com/) account and add billing. Set a monthly spending
+   alert under **Billing**.
+2. **Verify > Services > Create new**, named Kinzo, code length 6. Turn on the **SMS** channel,
+   and **WhatsApp** if Twilio lets you without extra approval (it may ask for Kinzo's own
+   WhatsApp sender first; SMS alone is fine to start).
+3. Under the service's **Geo permissions**, allow only the countries in `KINZO_PHONE_COUNTRIES`.
+   Turn on **Fraud Guard**.
+4. Add to the API's `.env`:
+
+   ```sh
+   KINZO_OTP_PROVIDER=twilio
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   TWILIO_VERIFY_SERVICE_SID=VA...
+   KINZO_PHONE_COUNTRIES=GB
+   KINZO_OTP_TEST_NUMBERS=+447700900123:123456
+   ```
+
+The test number signs in with that code and sends nothing; give it to app store reviewers.
 
 ## Before the App Store
 

@@ -22,6 +22,11 @@ info:
        `/v1/auth/{provider}/callback`.
     3. The API redirects to `redirect_uri` with `?code=...`, or `?error=cancelled|failed`.
     4. The app posts the code and its `code_verifier` to `/v1/auth/exchange` for a session token.
+
+    Email and phone code sign-in (paths tagged `planned`, not built yet; see
+    docs/specs/email-and-phone-sign-in.md): the app posts the email to `/v1/auth/phone/start`,
+    adds a phone number if the email is new, then posts the texted or WhatsApped code to
+    `/v1/auth/phone/verify` for the same `SignedIn` response.
 servers:
   - url: http://localhost:8080
     description: Local development (docker compose up)
@@ -64,8 +69,12 @@ paths:
                 properties:
                   providers:
                     type: array
-                    items: { type: string, enum: [google, facebook] }
+                    items: { type: string, enum: [google, facebook, phone] }
                   google_id_tokens: { type: boolean }
+                  phone_channels:
+                    type: array
+                    description: Planned. How codes can be sent, when `phone` is on.
+                    items: { $ref: "#/components/schemas/CodeChannel" }
   /v1/auth/{provider}/start:
     get:
       summary: Start a browser sign-in
@@ -119,6 +128,67 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/SignedIn" }
         "401": { $ref: "#/components/responses/Error" }
+  /v1/auth/phone/start:
+    post:
+      tags: [planned]
+      summary: Start an email and phone code sign-in, or resend the code
+      description: |
+        Send the email alone first. A known email with a phone gets a code at once (`phone` is
+        ignored); a new email answers `next: phone`, and the app calls again with the number; an
+        email whose account signs in only with Google or Facebook answers `next: provider`.
+        Calling again resends, optionally on the other channel.
+      operationId: startPhoneSignIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, channel]
+              properties:
+                email: { type: string, format: email }
+                phone: { type: string, description: "As typed, with a country code (+44...)." }
+                channel: { $ref: "#/components/schemas/CodeChannel" }
+      responses:
+        "200":
+          description: What the app shows next.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [next]
+                properties:
+                  next: { type: string, enum: [code, phone, provider] }
+                  challenge: { $ref: "#/components/schemas/CodeChallenge" }
+                  providers:
+                    type: array
+                    description: With `next = provider`, the ways this account signs in.
+                    items: { type: string, enum: [google, facebook] }
+              examples:
+                codeSent:
+                  value:
+                    next: code
+                    challenge: { challenge_id: 0199e3a1-7c2b-7d3e-9f00-123456789abc, phone_hint: "•••• 123", channel: sms, expires_in: 600, resend_in: 30 }
+                newEmail: { value: { next: phone } }
+                googleOnly: { value: { next: provider, providers: [google] } }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+  /v1/auth/phone/verify:
+    post:
+      tags: [planned]
+      summary: Finish an email and phone code sign-in
+      operationId: verifyPhoneSignIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CodeAttempt" }
+      responses:
+        "200": { $ref: "#/components/responses/SignedIn" }
+        "400": { $ref: "#/components/responses/CodeError" }
+        "410": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
   /v1/auth/sign-out:
     post:
       summary: End this device's session
@@ -165,6 +235,66 @@ paths:
       security: [{ session: [] }]
       responses:
         "204": { description: Deleted. }
+  /v1/me/phone:
+    delete:
+      tags: [planned]
+      summary: Remove the account's phone number
+      description: Refused with `last_sign_in_method` when the phone is the only way in.
+      operationId: deleteMyPhone
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The updated account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/me/phone/start:
+    post:
+      tags: [planned]
+      summary: Send a code to add or change the account's phone number
+      operationId: startAddPhone
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, channel]
+              properties:
+                phone: { type: string }
+                channel: { $ref: "#/components/schemas/CodeChannel" }
+      responses:
+        "200":
+          description: Code sent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodeChallenge" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+  /v1/me/phone/verify:
+    post:
+      tags: [planned]
+      summary: Confirm the code and save the phone number on the account
+      operationId: verifyAddPhone
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CodeAttempt" }
+      responses:
+        "200":
+          description: The updated account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/CodeError" }
+        "410": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
   /v1/usernames/{username}:
     get:
       summary: Whether a username is free
@@ -404,6 +534,16 @@ components:
               token: { type: string, description: Session token. Send it as a bearer token. }
               user: { $ref: "#/components/schemas/User" }
               new_user: { type: boolean, description: True on a first sign-in. }
+    CodeError:
+      description: Wrong code (`wrong_code`), with the tries left on this code.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Error"
+              - type: object
+                properties:
+                  attempts_left: { type: integer }
   schemas:
     Error:
       type: object
@@ -424,7 +564,35 @@ components:
         display_name: { type: string }
         avatar_url: { type: string }
         email: { type: string }
+        email_verified:
+          type: boolean
+          description: Planned. False for an email typed at a phone sign-up.
+        phone:
+          type: string
+          description: Planned. The person's own number in E.164, if they added one.
+        sign_in_methods:
+          type: array
+          description: Planned.
+          items: { type: string, enum: [google, facebook, apple, phone] }
         created_at: { type: string, format: date-time }
+    CodeChannel:
+      type: string
+      enum: [sms, whatsapp]
+    CodeChallenge:
+      type: object
+      required: [challenge_id, phone_hint, channel, expires_in, resend_in]
+      properties:
+        challenge_id: { type: string, format: uuid }
+        phone_hint: { type: string, description: "Last three digits only, e.g. •••• 123." }
+        channel: { $ref: "#/components/schemas/CodeChannel" }
+        expires_in: { type: integer, description: Seconds until the code expires. }
+        resend_in: { type: integer, description: Seconds until another code can be sent. }
+    CodeAttempt:
+      type: object
+      required: [challenge_id, code]
+      properties:
+        challenge_id: { type: string, format: uuid }
+        code: { type: string, pattern: "^[0-9]{6}$" }
     PublicUser:
       type: object
       required: [id, username, display_name]

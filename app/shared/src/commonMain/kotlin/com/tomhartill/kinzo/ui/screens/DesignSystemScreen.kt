@@ -31,6 +31,7 @@ import com.tomhartill.kinzo.domain.Format
 import com.tomhartill.kinzo.domain.LoggedSet
 import com.tomhartill.kinzo.domain.MeasurementType
 import com.tomhartill.kinzo.domain.PreviousSet
+import com.tomhartill.kinzo.domain.ProgressPoint
 import com.tomhartill.kinzo.domain.SetRules
 import com.tomhartill.kinzo.domain.SetValues
 import com.tomhartill.kinzo.domain.WeightUnit
@@ -38,6 +39,7 @@ import com.tomhartill.kinzo.ui.components.ChoiceRow
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
 import com.tomhartill.kinzo.ui.components.PrimaryButton
+import com.tomhartill.kinzo.ui.components.ProgressChart
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.components.SetEditorRow
@@ -90,11 +92,24 @@ fun DesignSystemScreen(onBack: () -> Unit) {
                 }
             }
 
+            SectionHeader("Progress chart")
+            KinzoCard {
+                Text("Bench press · est. 1RM", style = MaterialTheme.typography.titleMedium)
+                ProgressChart(points = SamplePoints, formatValue = { Format.decimal(it, maxDecimals = 1) }, unit = "kg")
+            }
+
             SectionHeader("Logging")
             LoggingSample(unit)
         }
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
+}
+
+/** Twenty sessions, two or three days apart, climbing with the odd bad day. */
+private val SamplePoints: List<ProgressPoint> = List(20) { session ->
+    val day = 86_400_000L
+    val wobble = listOf(0.0, 1.5, -1.0, 0.5, -2.0)[session % 5]
+    ProgressPoint(atMillis = 1_780_000_000_000L + session * (2 + session % 2) * day, value = 92.5 + session * 0.9 + wobble)
 }
 
 /** A working set table backed by local state, to try the logging controls without a workout. */

@@ -21,7 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,19 +33,25 @@ import com.tomhartill.kinzo.domain.ExerciseDetail
 import com.tomhartill.kinzo.domain.ExerciseSession
 import com.tomhartill.kinzo.domain.Format
 import com.tomhartill.kinzo.domain.MeasurementType
+import com.tomhartill.kinzo.domain.ProgressMetric
+import com.tomhartill.kinzo.domain.ProgressPoint
+import com.tomhartill.kinzo.domain.Progression
 import com.tomhartill.kinzo.domain.SetRules
 import com.tomhartill.kinzo.domain.SetValues
 import com.tomhartill.kinzo.domain.Weight
 import com.tomhartill.kinzo.domain.WeightUnit
+import com.tomhartill.kinzo.ui.components.ChoiceRow
 import com.tomhartill.kinzo.ui.components.ExerciseIcon
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
+import com.tomhartill.kinzo.ui.components.ProgressChart
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.components.SetSummaryRow
 import com.tomhartill.kinzo.ui.components.StatTile
 import com.tomhartill.kinzo.ui.components.rememberNow
 import com.tomhartill.kinzo.ui.screens.EmptyState
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
+import kotlin.math.roundToLong
 import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -88,6 +96,9 @@ fun ExerciseDetailScreen(
                     val best = state.best
                     if (best != null) {
                         item(key = "stats") { Stats(exercise.measurementType, best, state.sessions.size, state.unit) }
+                    }
+                    if (state.sessions.size >= 2) {
+                        item(key = "progress") { Progress(exercise.measurementType, state.sessions, state.unit) }
                     }
                     if (exercise.instructions.isNotEmpty()) {
                         item(key = "how-to-header") { SectionHeader("How to", Modifier.padding(top = spacing.sm)) }
@@ -161,6 +172,46 @@ private fun bestSetTile(type: MeasurementType, best: SetValues, unit: WeightUnit
         Triple(Format.kilometres(best.distanceM), "km", listOfNotNull("Furthest", best.durationS?.let { Format.duration(it) }).joinToString(" · "))
     } else {
         Triple(best.durationS?.let { Format.duration(it) } ?: "–", null, "Longest")
+    }
+}
+
+/** How this exercise has gone over time, with a choice of what to plot when there's more than one. */
+@Composable
+private fun Progress(type: MeasurementType, sessions: List<ExerciseSession>, unit: WeightUnit) {
+    val metrics = remember(type) { ProgressMetric.forType(type) }
+    var metric by remember(type) { mutableStateOf(metrics.first()) }
+    val chart = remember(metric, sessions, unit) { progressChart(metric, sessions, unit) }
+    Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md)) {
+        SectionHeader("Progress", Modifier.padding(top = KinzoTheme.spacing.sm))
+        if (metrics.size > 1) {
+            ChoiceRow(options = metrics, selected = metric, optionLabel = { it.label }, onSelect = { metric = it })
+        }
+        if (chart.points.size >= 2) {
+            ProgressChart(points = chart.points, formatValue = chart.format, unit = chart.unit)
+        } else {
+            Text(
+                "Log this in another workout to see a trend.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private class ProgressChartData(val points: List<ProgressPoint>, val format: (Double) -> String, val unit: String?)
+
+/** A metric's points in the units the user reads them in, with how to write them. */
+private fun progressChart(metric: ProgressMetric, sessions: List<ExerciseSession>, unit: WeightUnit): ProgressChartData {
+    val points = Progression.series(metric, sessions)
+    fun converted(convert: (Double) -> Double) = points.map { it.copy(value = convert(it.value)) }
+    return when (metric) {
+        ProgressMetric.EstimatedOneRepMax, ProgressMetric.Heaviest ->
+            ProgressChartData(converted { Weight.fromKg(it, unit) }, { Format.decimal(it, maxDecimals = 1) }, unit.label)
+        ProgressMetric.Volume ->
+            ProgressChartData(converted { Weight.fromKg(it, unit) }, { Format.thousands(it.roundToLong()) }, unit.label)
+        ProgressMetric.Reps -> ProgressChartData(points, { it.roundToLong().toString() }, "reps")
+        ProgressMetric.Duration -> ProgressChartData(points, { Format.duration(it.roundToLong()) }, null)
+        ProgressMetric.Distance -> ProgressChartData(converted { it / 1000.0 }, { Format.decimal(it, maxDecimals = 2) }, "km")
     }
 }
 

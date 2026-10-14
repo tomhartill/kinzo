@@ -39,7 +39,7 @@ Code layout inside `app/shared/src/commonMain/kotlin/com/tomhartill/kinzo/`:
 | Package | Contents |
 | --- | --- |
 | `ui/theme` | Design tokens: colour, type, spacing, shapes. Rebranding happens here. |
-| `ui/components` | Reusable components: buttons, cards, stat tiles, set rows |
+| `ui/components` | Reusable components: buttons, cards, stat tiles, set rows, progress charts (Vico) |
 | `ui/screens` | Screens, one per tab, plus a design system gallery (Profile > Design system) |
 | `domain` | Plain Kotlin logic such as unit conversion, tested in `commonTest` |
 | `di` | Koin dependency injection setup |

@@ -61,6 +61,12 @@ object Dates {
         return "${monthLong(date)} ${date.year}"
     }
 
+    /** "14 Oct", for tight spaces such as chart axes. */
+    fun shortDayLabel(epochMillis: Long, zone: TimeZone): String {
+        val date = localDateTime(epochMillis, zone).date
+        return "${date.day} ${monthShort(date)}"
+    }
+
     /** "18:05". */
     fun timeLabel(epochMillis: Long, zone: TimeZone): String {
         val time = localDateTime(epochMillis, zone)

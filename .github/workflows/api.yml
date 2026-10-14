@@ -1,0 +1,52 @@
+name: API
+
+on:
+  push:
+    branches: [main]
+    paths: ["api/**", "openapi/**", ".github/workflows/api.yml"]
+  pull_request:
+    paths: ["api/**", "openapi/**", ".github/workflows/api.yml"]
+
+defaults:
+  run:
+    working-directory: api
+
+jobs:
+  test:
+    name: Vet, test and smoke test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: kinzo
+          POSTGRES_PASSWORD: kinzo
+          POSTGRES_DB: kinzo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U kinzo"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Migrate and serve against Postgres
+        env:
+          DATABASE_URL: postgres://kinzo:kinzo@localhost:5432/kinzo?sslmode=disable
+        run: |
+          go build -o kinzo-api ./cmd/kinzo-api
+          ./kinzo-api &
+          for i in $(seq 1 30); do
+            curl -fsS localhost:8080/healthz && exit 0
+            sleep 1
+          done
+          echo "API did not become healthy"
+          exit 1

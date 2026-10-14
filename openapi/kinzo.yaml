@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: Kinzo API
+  version: 0.1.0
+  description: |
+    The contract between the Kinzo app and the Go API. Change this file first, then the
+    server and the app. Endpoints for auth and sync arrive in milestone 5.
+
+    Conventions:
+    - IDs are UUIDs; the app generates UUIDv7 for rows it creates.
+    - Weights are kilograms, distances metres, durations seconds.
+    - Timestamps are RFC 3339 in UTC.
+servers:
+  - url: http://localhost:8080
+    description: Local development (docker compose up)
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: The API and its database are reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: ok
+                database: ok
+        "503":
+          description: The API is up but cannot reach the database.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: degraded
+                database: unreachable
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        database:
+          type: string
+          enum: [ok, unreachable]

@@ -1,0 +1,31 @@
+# Local development: `docker compose up` starts Postgres and the API on http://localhost:8080.
+# To run the API from source instead: `docker compose up db`, then see api/README.md.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: kinzo
+      POSTGRES_PASSWORD: kinzo
+      POSTGRES_DB: kinzo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kinzo"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgres://kinzo:kinzo@db:5432/kinzo?sslmode=disable
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

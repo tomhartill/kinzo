@@ -33,7 +33,10 @@ One-time installs:
   Android SDK. Then install the **Kotlin Multiplatform** plugin (Settings > Plugins).
 - JDK 21, exactly. Newer Java versions break the Android build. The project tells Gradle to use
   21 (`app/gradle/gradle-daemon-jvm.properties`), so you only need one installed: in IntelliJ,
-  **File > Project Structure > SDKs > + > Download JDK**, version 21. Or `brew install --cask zulu@21`.
+  **File > Project Structure > SDKs > + > Download JDK**, version 21. Or, without admin rights,
+  `brew install openjdk@21` and tell Gradle where it is by adding this line to
+  `~/.gradle/gradle.properties`:
+  `org.gradle.java.installations.paths=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) for the API and Postgres.
 - Xcode from the App Store, for iOS. Open it once to accept the licence and install the iOS
   simulator.

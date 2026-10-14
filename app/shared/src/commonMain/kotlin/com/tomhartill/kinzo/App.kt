@@ -1,5 +1,6 @@
 package com.tomhartill.kinzo
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
@@ -19,7 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.foundation.layout.padding
+import com.tomhartill.kinzo.ui.navigation.SystemBackHandler
 import com.tomhartill.kinzo.ui.screens.DesignSystemScreen
 import com.tomhartill.kinzo.ui.screens.ExercisesScreen
 import com.tomhartill.kinzo.ui.screens.HistoryScreen
@@ -40,6 +41,7 @@ fun App() {
     KinzoTheme {
         var tab by rememberSaveable { mutableStateOf(Tab.Today) }
         var showDesignSystem by rememberSaveable { mutableStateOf(false) }
+        SystemBackHandler(enabled = showDesignSystem) { showDesignSystem = false }
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,

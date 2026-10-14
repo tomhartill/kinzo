@@ -2,7 +2,6 @@ package com.tomhartill.kinzo.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
@@ -59,19 +61,21 @@ fun SetRow(
         )
         Text(weight, style = NumericStyle, modifier = Modifier.width(64.dp), textAlign = TextAlign.End)
         Text(reps, style = NumericStyle, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
-        DoneToggle(done = done, onClick = onToggleDone)
+        DoneToggle(setNumber = setNumber, done = done, onToggle = onToggleDone)
     }
 }
 
 @Composable
-private fun DoneToggle(done: Boolean, onClick: () -> Unit) {
+private fun DoneToggle(setNumber: Int, done: Boolean, onToggle: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(
         modifier = Modifier
             .size(36.dp)
             .background(if (done) colors.primary else colors.surface, MaterialTheme.shapes.small)
             .border(1.dp, if (done) colors.primary else colors.outline, MaterialTheme.shapes.small)
-            .clickable(role = Role.Checkbox, onClickLabel = if (done) "Mark not done" else "Mark done", onClick = onClick),
+            // toggleable exposes the checked state to TalkBack and VoiceOver.
+            .toggleable(value = done, role = Role.Checkbox, onValueChange = { onToggle() })
+            .semantics { contentDescription = "Set $setNumber done" },
         contentAlignment = Alignment.Center,
     ) {
         if (done) {

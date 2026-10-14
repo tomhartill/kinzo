@@ -6,7 +6,12 @@
 --     exist before they ever reach the server. Catalogue rows default to a random UUID.
 --   * Every synced table has updated_at and deleted_at (soft delete) so clients can pull
 --     "everything changed since my cursor".
---   * Weights are always kilograms, distances metres, durations seconds.
+--   * Weights are always kilograms, distances metres, durations seconds. Kilograms keep three
+--     decimals so pound values survive the round trip (15 lb = 6.804 kg shows as 15 again).
+--   * References to exercises, equipment and routines are DEFERRABLE INITIALLY DEFERRED and
+--     checked at commit. Deleting a user cascades through their custom exercises and their
+--     workouts in no fixed order; deferring the check lets the whole account go in one
+--     transaction, while deleting a catalogue row that someone still uses is still rejected.
 
 CREATE TABLE users (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -35,7 +40,7 @@ CREATE TABLE body_measurements (
     id                  uuid PRIMARY KEY,
     user_id             uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     measured_at         timestamptz NOT NULL,
-    weight_kg           numeric(6, 2) CHECK (weight_kg > 0),
+    weight_kg           numeric(7, 3) CHECK (weight_kg > 0),
     body_fat_pct        numeric(4, 1) CHECK (body_fat_pct >= 0 AND body_fat_pct <= 100),
     updated_at          timestamptz NOT NULL DEFAULT now(),
     deleted_at          timestamptz
@@ -64,7 +69,7 @@ CREATE TABLE exercises (
     instructions        text[] NOT NULL DEFAULT '{}',
     primary_muscles     text[] NOT NULL DEFAULT '{}',
     secondary_muscles   text[] NOT NULL DEFAULT '{}',
-    equipment_id        uuid REFERENCES equipment (id),
+    equipment_id        uuid REFERENCES equipment (id) DEFERRABLE INITIALLY DEFERRED,
     measurement_type    text NOT NULL CHECK (measurement_type IN ('weight_reps', 'reps', 'duration', 'distance_duration')),
     source              text NOT NULL DEFAULT 'kinzo',
     source_ref          text,
@@ -72,6 +77,7 @@ CREATE TABLE exercises (
     deleted_at          timestamptz
 );
 CREATE INDEX exercises_owner ON exercises (owner_user_id);
+CREATE INDEX exercises_equipment ON exercises (equipment_id);
 
 CREATE TABLE routines (
     id                  uuid PRIMARY KEY,
@@ -87,22 +93,23 @@ CREATE INDEX routines_user ON routines (user_id);
 CREATE TABLE routine_exercises (
     id                  uuid PRIMARY KEY,
     routine_id          uuid NOT NULL REFERENCES routines (id) ON DELETE CASCADE,
-    exercise_id         uuid NOT NULL REFERENCES exercises (id),
+    exercise_id         uuid NOT NULL REFERENCES exercises (id) DEFERRABLE INITIALLY DEFERRED,
     position            integer NOT NULL,
     target_sets         integer CHECK (target_sets > 0),
     target_reps         integer CHECK (target_reps > 0),
-    target_weight_kg    numeric(6, 2) CHECK (target_weight_kg >= 0),
+    target_weight_kg    numeric(7, 3) CHECK (target_weight_kg >= 0),
     target_duration_s   integer CHECK (target_duration_s > 0),
     rest_s              integer CHECK (rest_s >= 0),
     updated_at          timestamptz NOT NULL DEFAULT now(),
     deleted_at          timestamptz
 );
 CREATE INDEX routine_exercises_routine ON routine_exercises (routine_id, position);
+CREATE INDEX routine_exercises_exercise ON routine_exercises (exercise_id);
 
 CREATE TABLE workouts (
     id                  uuid PRIMARY KEY,
     user_id             uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    routine_id          uuid REFERENCES routines (id),
+    routine_id          uuid REFERENCES routines (id) DEFERRABLE INITIALLY DEFERRED,
     started_at          timestamptz NOT NULL,
     ended_at            timestamptz CHECK (ended_at IS NULL OR ended_at >= started_at),
     notes               text,
@@ -110,11 +117,12 @@ CREATE TABLE workouts (
     deleted_at          timestamptz
 );
 CREATE INDEX workouts_user_time ON workouts (user_id, started_at);
+CREATE INDEX workouts_routine ON workouts (routine_id);
 
 CREATE TABLE workout_exercises (
     id                  uuid PRIMARY KEY,
     workout_id          uuid NOT NULL REFERENCES workouts (id) ON DELETE CASCADE,
-    exercise_id         uuid NOT NULL REFERENCES exercises (id),
+    exercise_id         uuid NOT NULL REFERENCES exercises (id) DEFERRABLE INITIALLY DEFERRED,
     position            integer NOT NULL,
     updated_at          timestamptz NOT NULL DEFAULT now(),
     deleted_at          timestamptz
@@ -127,7 +135,7 @@ CREATE TABLE sets (
     workout_exercise_id uuid NOT NULL REFERENCES workout_exercises (id) ON DELETE CASCADE,
     position            integer NOT NULL,
     reps                integer CHECK (reps >= 0),
-    weight_kg           numeric(6, 2) CHECK (weight_kg >= 0),
+    weight_kg           numeric(7, 3) CHECK (weight_kg >= 0),
     duration_s          integer CHECK (duration_s >= 0),
     distance_m          numeric(9, 1) CHECK (distance_m >= 0),
     rpe                 numeric(3, 1) CHECK (rpe >= 1 AND rpe <= 10),
@@ -143,15 +151,17 @@ CREATE INDEX sets_workout_exercise ON sets (workout_exercise_id, position);
 CREATE TABLE personal_records (
     id                  uuid PRIMARY KEY,
     user_id             uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    exercise_id         uuid NOT NULL REFERENCES exercises (id),
+    exercise_id         uuid NOT NULL REFERENCES exercises (id) DEFERRABLE INITIALLY DEFERRED,
     kind                text NOT NULL CHECK (kind IN ('estimated_1rm', 'max_weight', 'max_reps', 'max_volume', 'max_duration', 'max_distance')),
-    value               numeric(10, 2) NOT NULL,
+    value               numeric(13, 3) NOT NULL,
     set_id              uuid REFERENCES sets (id) ON DELETE SET NULL,
     achieved_at         timestamptz NOT NULL,
     updated_at          timestamptz NOT NULL DEFAULT now(),
     deleted_at          timestamptz
 );
 CREATE INDEX personal_records_user_exercise ON personal_records (user_id, exercise_id, kind);
+CREATE INDEX personal_records_exercise ON personal_records (exercise_id);
+CREATE INDEX personal_records_set ON personal_records (set_id);
 
 -- +goose Down
 DROP TABLE personal_records;

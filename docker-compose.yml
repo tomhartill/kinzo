@@ -12,13 +12,15 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kinzo"]
+      # TCP probe: the temporary server during first-run init only listens on a socket.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U kinzo -d kinzo"]
       interval: 2s
       timeout: 3s
       retries: 15
 
   api:
     build: ./api
+    restart: on-failure
     environment:
       DATABASE_URL: postgres://kinzo:kinzo@db:5432/kinzo?sslmode=disable
     ports:

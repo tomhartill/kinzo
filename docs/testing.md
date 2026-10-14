@@ -13,6 +13,9 @@ at one fixed link.
    then tap **Install**. Play Protect may warn about an unknown developer; choose
    **Install anyway**.
 
+If the download sticks at 100%, Chrome's final safety check on the file is hanging. Cancel it and
+open the link in a Chrome Incognito tab instead.
+
 To get a fresh build without changing code, open
 [Actions > App](https://github.com/tomhartill/kinzo/actions/workflows/app.yml) and press
 **Run workflow** on `main`. Each run's APK is also attached to the run under **Artifacts**

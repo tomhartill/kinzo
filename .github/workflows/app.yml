@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths: ["app/**", ".github/workflows/app.yml"]
+  workflow_dispatch: {}  # "Run workflow" button on the Actions tab
   pull_request:
     paths: ["app/**", ".github/workflows/app.yml"]
 

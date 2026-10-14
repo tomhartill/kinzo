@@ -16,6 +16,9 @@ The app is offline-first: it reads and writes a local database and syncs with th
 
 ## Getting started
 
+New to mobile? [`docs/testing.md`](docs/testing.md) walks through installing the CI build on an
+Android phone, running everything on a Mac, and letting Claude's cloud sessions build Android.
+
 ### App
 
 Requirements: Android Studio (with the Kotlin Multiplatform plugin), JDK 21, and Xcode for iOS.

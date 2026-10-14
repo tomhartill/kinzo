@@ -19,9 +19,17 @@ class AccountViewModel(private val accounts: AccountRepository) : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _codeSignIn = MutableStateFlow(false)
+
+    /** True when the server can sign in with a phone code, so adding a phone is worth offering. */
+    val codeSignIn: StateFlow<Boolean> = _codeSignIn.asStateFlow()
+
     init {
         viewModelScope.launch { accounts.refresh() }
+        viewModelScope.launch { _codeSignIn.value = accounts.codeChannels().isNotEmpty() }
     }
+
+    fun removePhone() = run { accounts.removePhone() }
 
     fun signOut() = run { accounts.signOut() }
 

@@ -19,6 +19,8 @@ class SignInViewModel(private val accounts: AccountRepository) : ViewModel() {
         /** The provider whose sign-in is under way; both buttons wait while one runs. */
         val busy: SignInProvider? = null,
         val error: String? = null,
+        /** True once the server says it can sign in with an email and a code. */
+        val codeSignIn: Boolean = false,
     )
 
     private val _state = MutableStateFlow(State())
@@ -29,12 +31,19 @@ class SignInViewModel(private val accounts: AccountRepository) : ViewModel() {
     /** Fires once when sign-in succeeds. */
     val signedIn: Flow<SignInResult.SignedIn> = _signedIn.receiveAsFlow()
 
+    init {
+        viewModelScope.launch {
+            val available = accounts.codeChannels().isNotEmpty()
+            _state.update { it.copy(codeSignIn = available) }
+        }
+    }
+
     fun signIn(provider: SignInProvider) {
         if (_state.value.busy != null) return
-        _state.value = State(busy = provider)
+        _state.update { it.copy(busy = provider, error = null) }
         viewModelScope.launch {
             val result = accounts.signIn(provider)
-            _state.update { State(error = (result as? SignInResult.Failed)?.message) }
+            _state.update { it.copy(busy = null, error = (result as? SignInResult.Failed)?.message) }
             if (result is SignInResult.SignedIn) _signedIn.send(result)
         }
     }

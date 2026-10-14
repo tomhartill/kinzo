@@ -41,13 +41,16 @@ fun AccountScreen(
     onBack: () -> Unit,
     onEditUsername: () -> Unit,
     onOpenFriends: () -> Unit,
+    onAddPhone: () -> Unit,
     viewModel: AccountViewModel = koinViewModel(),
 ) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val codeSignIn by viewModel.codeSignIn.collectAsStateWithLifecycle()
     var confirmSignOut by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmRemovePhone by remember { mutableStateOf(false) }
     val back by rememberUpdatedState(onBack)
     val spacing = KinzoTheme.spacing
     val colors = MaterialTheme.colorScheme
@@ -86,6 +89,29 @@ fun AccountScreen(
                 Text("Add friends and answer requests", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
             }
 
+            val phone = current.phone
+            if (phone != null || codeSignIn) {
+                SectionHeader("Phone")
+                KinzoCard(onClick = onAddPhone) {
+                    Text(phone ?: "Add a phone", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (phone == null) "Sign in with a code by text or WhatsApp" else "Change the number your codes go to",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                // Only when there's another way in, or they'd be locked out.
+                if (phone != null && current.signInMethods.any { it != "phone" }) {
+                    TextButton(
+                        onClick = { confirmRemovePhone = true },
+                        enabled = !busy,
+                        modifier = Modifier.heightIn(min = spacing.touchTarget),
+                    ) {
+                        Text("Remove phone", style = MaterialTheme.typography.labelLarge, color = colors.error)
+                    }
+                }
+            }
+
             SectionHeader("Signed in")
             SecondaryButton(text = "Sign out", onClick = { confirmSignOut = true }, enabled = !busy)
             TextButton(
@@ -109,6 +135,19 @@ fun AccountScreen(
                 viewModel.signOut()
             },
             onDismiss = { confirmSignOut = false },
+        )
+    }
+    if (confirmRemovePhone) {
+        ConfirmDialog(
+            title = "Remove your phone?",
+            message = "You'll sign in with Google or Facebook instead. You can add a phone again any time.",
+            confirmLabel = "Remove",
+            destructive = true,
+            onConfirm = {
+                confirmRemovePhone = false
+                viewModel.removePhone()
+            },
+            onDismiss = { confirmRemovePhone = false },
         )
     }
     if (confirmDelete) {

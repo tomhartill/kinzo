@@ -39,6 +39,7 @@ fun InviteScreen(
     code: String,
     onClose: () -> Unit,
     onSignedIn: (newUser: Boolean) -> Unit,
+    onEmail: () -> Unit,
     onOpenFriends: () -> Unit,
     viewModel: InviteViewModel = koinViewModel { parametersOf(code) },
 ) {
@@ -60,7 +61,7 @@ fun InviteScreen(
             when (val current = state) {
                 InviteViewModel.State.SignedOut -> {
                     Message("You've been invited to Kinzo", "Sign in to accept the invite and become friends.")
-                    SignInPanel(onSignedIn = onSignedIn)
+                    SignInPanel(onSignedIn = onSignedIn, onEmail = onEmail)
                 }
                 InviteViewModel.State.Loading -> Box(Modifier.fillMaxWidth().padding(top = spacing.xl), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()

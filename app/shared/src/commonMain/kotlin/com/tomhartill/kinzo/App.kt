@@ -68,6 +68,7 @@ import com.tomhartill.kinzo.ui.navigation.rememberNavigator
 import com.tomhartill.kinzo.account.DeepLinks
 import com.tomhartill.kinzo.ui.screens.DesignSystemScreen
 import com.tomhartill.kinzo.ui.screens.account.AccountScreen
+import com.tomhartill.kinzo.ui.screens.account.CodeSignInScreen
 import com.tomhartill.kinzo.ui.screens.account.SignInScreen
 import com.tomhartill.kinzo.ui.screens.account.UsernameScreen
 import com.tomhartill.kinzo.ui.screens.friends.FriendsScreen
@@ -293,6 +294,7 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
     val signedInHere = { newUser: Boolean ->
         ifCurrent { if (newUser) navigator.push(Destination.Username(welcome = true)) }
     }
+    val openCodeSignIn = { ifCurrent { navigator.push(Destination.CodeSignIn()) } }
 
     when (val destination = entry.destination) {
         Destination.ActiveWorkout -> ActiveWorkoutScreen(
@@ -341,18 +343,34 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             onSignedIn = { newUser ->
                 ifCurrent { if (newUser) navigator.replace(Destination.Username(welcome = true)) else navigator.pop() }
             },
+            onEmail = openCodeSignIn,
+        )
+        is Destination.CodeSignIn -> CodeSignInScreen(
+            addPhone = destination.addPhone,
+            onClose = back,
+            onSignedIn = { newUser ->
+                ifCurrent {
+                    // Back to whatever asked for sign-in, past the sign-in screen if that's below.
+                    navigator.pop()
+                    if (navigator.current?.destination == Destination.SignIn) navigator.pop()
+                    if (newUser) navigator.push(Destination.Username(welcome = true))
+                }
+            },
+            onPhoneAdded = back,
         )
         is Destination.Username -> UsernameScreen(welcome = destination.welcome, onDone = back)
         Destination.Account -> AccountScreen(
             onBack = back,
             onEditUsername = { ifCurrent { navigator.push(Destination.Username(welcome = false)) } },
             onOpenFriends = { ifCurrent { navigator.push(Destination.Friends) } },
+            onAddPhone = { ifCurrent { navigator.push(Destination.CodeSignIn(addPhone = true)) } },
         )
-        Destination.Friends -> FriendsScreen(onBack = back, onSignedIn = signedInHere)
+        Destination.Friends -> FriendsScreen(onBack = back, onSignedIn = signedInHere, onEmail = openCodeSignIn)
         is Destination.Invite -> InviteScreen(
             code = destination.code,
             onClose = back,
             onSignedIn = signedInHere,
+            onEmail = openCodeSignIn,
             onOpenFriends = { ifCurrent { navigator.replace(Destination.Friends) } },
         )
     }

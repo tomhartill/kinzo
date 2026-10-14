@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,12 +42,14 @@ import org.koin.compose.viewmodel.koinViewModel
 /**
  * The two sign-in buttons, with any error under them. Used on the sign-in screen and anywhere
  * a feature needs an account (Friends, an invite), so signing in is always one tap away.
- * [onSignedIn] gets true on a first sign-in.
+ * [onSignedIn] gets true on a first sign-in. With [onEmail], it also offers email and a code,
+ * once the server supports it.
  */
 @Composable
 fun SignInPanel(
     onSignedIn: (newUser: Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    onEmail: (() -> Unit)? = null,
     viewModel: SignInViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -80,6 +84,19 @@ fun SignInPanel(
             enabled = state.busy == null,
             onClick = { viewModel.signIn(SignInProvider.Facebook) },
         )
+        if (onEmail != null && state.codeSignIn) {
+            ProviderButton(
+                label = "Continue with email",
+                icon = Icons.Outlined.Email,
+                iconTint = colors.onSurface,
+                container = colors.surface,
+                content = colors.onSurface,
+                border = colors.outline,
+                busy = false,
+                enabled = state.busy == null,
+                onClick = onEmail,
+            )
+        }
         val error = state.error
         if (error != null) {
             Text(
@@ -91,7 +108,7 @@ fun SignInPanel(
             )
         }
         Text(
-            "Kinzo only uses your name, email and photo, and never posts anything for you.",
+            "Kinzo only uses your name, email, photo and number, and never posts anything for you.",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
             textAlign = TextAlign.Center,

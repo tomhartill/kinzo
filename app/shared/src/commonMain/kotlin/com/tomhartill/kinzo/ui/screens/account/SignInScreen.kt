@@ -30,7 +30,7 @@ import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
 /** Sign in with Google or Facebook. Optional: "Not now" leaves everything working as before. */
 @Composable
-fun SignInScreen(onClose: () -> Unit, onSignedIn: (newUser: Boolean) -> Unit) {
+fun SignInScreen(onClose: () -> Unit, onSignedIn: (newUser: Boolean) -> Unit, onEmail: () -> Unit) {
     val spacing = KinzoTheme.spacing
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().background(colors.background)) {
@@ -62,7 +62,7 @@ fun SignInScreen(onClose: () -> Unit, onSignedIn: (newUser: Boolean) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SignInPanel(onSignedIn = onSignedIn)
+            SignInPanel(onSignedIn = onSignedIn, onEmail = onEmail)
             TextButton(onClick = onClose, modifier = Modifier.heightIn(min = spacing.touchTarget)) {
                 Text("Not now", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
             }

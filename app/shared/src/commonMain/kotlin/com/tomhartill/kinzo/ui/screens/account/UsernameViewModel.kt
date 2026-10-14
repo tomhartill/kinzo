@@ -23,6 +23,9 @@ class UsernameViewModel(private val accounts: AccountRepository) : ViewModel() {
         val text: String,
         /** Their name, for the welcome. */
         val displayName: String = "",
+        /** Phone sign-ups have no name from Google or Facebook, so they're asked for one here. */
+        val askName: Boolean = false,
+        val name: String = "",
         val check: Check = Check.Current,
         val saving: Boolean = false,
         val error: String? = null,
@@ -32,7 +35,11 @@ class UsernameViewModel(private val accounts: AccountRepository) : ViewModel() {
     }
 
     private val current: String = accounts.account.value?.username.orEmpty()
-    private val _state = MutableStateFlow(State(text = current, displayName = accounts.account.value?.displayName.orEmpty()))
+    private val _state = MutableStateFlow(
+        accounts.account.value?.displayName.orEmpty().let { name ->
+            State(text = current, displayName = name, askName = name.isBlank())
+        },
+    )
     val state: StateFlow<State> = _state.asStateFlow()
 
     private val _done = Channel<Unit>(Channel.CONFLATED)
@@ -66,10 +73,13 @@ class UsernameViewModel(private val accounts: AccountRepository) : ViewModel() {
         }
     }
 
+    fun onNameChange(name: String) = _state.update { it.copy(name = name, error = null) }
+
     fun save() {
         val state = _state.value
         val username = Usernames.normalize(state.text)
-        if (state.check == Check.Current) {
+        val name = state.name.trim().takeIf { state.askName && it.isNotEmpty() }
+        if (state.check == Check.Current && name == null) {
             _done.trySend(Unit)
             return
         }
@@ -77,7 +87,8 @@ class UsernameViewModel(private val accounts: AccountRepository) : ViewModel() {
         _state.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             try {
-                accounts.setUsername(username)
+                if (name != null) accounts.setDisplayName(name)
+                if (state.check != Check.Current) accounts.setUsername(username)
                 _done.send(Unit)
             } catch (e: ApiException) {
                 _state.update {

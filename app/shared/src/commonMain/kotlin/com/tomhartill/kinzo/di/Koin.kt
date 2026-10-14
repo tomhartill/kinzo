@@ -18,6 +18,7 @@ import com.tomhartill.kinzo.domain.RestTimer
 import com.tomhartill.kinzo.resources.Res
 import com.tomhartill.kinzo.ui.AppViewModel
 import com.tomhartill.kinzo.ui.screens.account.AccountViewModel
+import com.tomhartill.kinzo.ui.screens.account.CodeSignInViewModel
 import com.tomhartill.kinzo.ui.screens.account.SignInViewModel
 import com.tomhartill.kinzo.ui.screens.account.UsernameViewModel
 import com.tomhartill.kinzo.ui.screens.exercises.ExerciseBrowserViewModel
@@ -85,6 +86,7 @@ internal val viewModelModule: Module = module {
     viewModelOf(::AccountViewModel)
     viewModelOf(::FriendsViewModel)
     viewModel { params -> InviteViewModel(params.get(), get(), get()) }
+    viewModel { params -> CodeSignInViewModel(params.get(), get()) }
     viewModel { params -> ExerciseDetailViewModel(params.get(), get(), get(), get()) }
     viewModel { params -> WorkoutDetailViewModel(params.get(), get(), get()) }
     viewModel { params -> RoutineDetailViewModel(params.get(), get(), get(), get(), get()) }

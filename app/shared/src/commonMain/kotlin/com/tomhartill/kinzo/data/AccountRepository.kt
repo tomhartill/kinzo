@@ -9,7 +9,10 @@ import com.tomhartill.kinzo.account.NativeGoogleSignIn
 import com.tomhartill.kinzo.account.Pkce
 import com.tomhartill.kinzo.data.api.Account
 import com.tomhartill.kinzo.data.api.ApiException
+import com.tomhartill.kinzo.data.api.CodeChallenge
+import com.tomhartill.kinzo.data.api.CodeChannel
 import com.tomhartill.kinzo.data.api.KinzoApi
+import com.tomhartill.kinzo.data.api.PhoneStart
 import com.tomhartill.kinzo.data.api.SignInResponse
 import com.tomhartill.kinzo.data.api.UsernameCheck
 import com.tomhartill.kinzo.db.KinzoDatabase
@@ -135,7 +138,36 @@ class AccountRepository(
         }
     }
 
-    private suspend fun finish(response: SignInResponse): SignInResult {
+    /**
+     * How sign-in codes can be sent, or empty when this server doesn't do email and phone
+     * sign-in yet (or can't be reached).
+     */
+    suspend fun codeChannels(): List<CodeChannel> {
+        if (!api.isConfigured) return emptyList()
+        return try {
+            api.providers().let { if ("phone" in it.providers) it.phoneChannels.ifEmpty { listOf(CodeChannel.Sms) } else emptyList() }
+        } catch (e: ApiException) {
+            emptyList()
+        }
+    }
+
+    /** Sends a code for [email] (and [phone], for a new email). Throws [ApiException]. */
+    suspend fun startCodeSignIn(email: String, phone: String?, channel: CodeChannel): PhoneStart =
+        api.startPhoneSignIn(email.trim().lowercase(), phone, channel)
+
+    /** Signs in with the code. Throws [ApiException] for a wrong or expired code. */
+    suspend fun finishCodeSignIn(challengeId: String, code: String): SignInResult.SignedIn =
+        finish(api.verifyPhoneSignIn(challengeId, code))
+
+    /** Signed in: sends a code to add [phone] to the account. */
+    suspend fun startAddPhone(phone: String, channel: CodeChannel): CodeChallenge = api.startAddPhone(phone, channel)
+
+    suspend fun finishAddPhone(challengeId: String, code: String): Account =
+        api.verifyAddPhone(challengeId, code).also { session.update(it) }
+
+    suspend fun removePhone(): Account = api.removePhone().also { session.update(it) }
+
+    private suspend fun finish(response: SignInResponse): SignInResult.SignedIn {
         session.save(response.token, response.user)
         return SignInResult.SignedIn(response.user, response.newUser)
     }

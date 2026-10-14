@@ -68,6 +68,11 @@ sealed interface Destination {
         override val route = "username/${if (welcome) "welcome" else "edit"}"
     }
 
+    /** Email and a texted or WhatsApped code; with [addPhone], adding a phone to the account. */
+    data class CodeSignIn(val addPhone: Boolean = false) : Destination {
+        override val route = "code-sign-in/${if (addPhone) "add-phone" else "sign-in"}"
+    }
+
     data object Account : Destination {
         override val route = "account"
     }
@@ -95,6 +100,7 @@ sealed interface Destination {
                 route == Friends.route -> Friends
                 parts.size == 2 && parts[0] == "username" -> Username(welcome = parts[1] == "welcome")
                 parts.size == 2 && parts[0] == "invite" -> Invite(parts[1])
+                parts.size == 2 && parts[0] == "code-sign-in" -> CodeSignIn(addPhone = parts[1] == "add-phone")
                 parts.size == 2 && parts[0] == "exercise" -> ExerciseDetail(parts[1])
                 parts.size == 3 && parts[0] == "history" -> WorkoutDetail(parts[1], justFinished = parts[2] == "finished")
                 parts.size == 2 && parts[0] == "routine" -> RoutineDetail(parts[1])

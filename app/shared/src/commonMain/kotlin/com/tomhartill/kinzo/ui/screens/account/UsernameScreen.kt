@@ -71,6 +71,19 @@ fun UsernameScreen(
                     style = MaterialTheme.typography.headlineLarge,
                 )
             }
+            if (state.askName) {
+                OutlinedTextField(
+                    value = state.name,
+                    onValueChange = viewModel::onNameChange,
+                    label = { Text("Your name") },
+                    supportingText = { Text("What friends see. Optional.") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                    shape = MaterialTheme.shapes.small,
+                    colors = kinzoTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             Text(
                 "Your username is how friends find you. You can change it any time from Profile.",
                 style = MaterialTheme.typography.bodyLarge,
@@ -94,7 +107,7 @@ fun UsernameScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             val (message, isError) = when (state.check) {
-                Check.Current -> (if (welcome) "Kinzo picked this from your name." else "This is your username.") to false
+                Check.Current -> (if (welcome) "Kinzo picked this for you." else "This is your username.") to false
                 Check.Checking -> "Checking…" to false
                 Check.Available -> "That one's free." to false
                 Check.Taken -> "Someone already has that one." to true
@@ -111,7 +124,7 @@ fun UsernameScreen(
         PrimaryButton(
             text = when {
                 state.saving -> "Saving…"
-                welcome && state.check == Check.Current -> "Looks good"
+                welcome && state.check == Check.Current && state.name.isBlank() -> "Looks good"
                 else -> "Save"
             },
             onClick = viewModel::save,

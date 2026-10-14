@@ -27,6 +27,8 @@ class DestinationTest {
             Destination.Account,
             Destination.Friends,
             Destination.Invite("aB3dE5fG7h"),
+            Destination.CodeSignIn(),
+            Destination.CodeSignIn(addPhone = true),
         )
         destinations.forEach { destination ->
             assertEquals(destination, Destination.fromRoute(destination.route), destination.route)

@@ -1,8 +1,8 @@
 # Spec: sign in with email and a phone code
 
-Status: **specced, not built yet**. Google and Facebook sign-in are live in the API and app;
-this adds a third way in that needs no Google or Facebook account. The API side is next; the
-app side follows the contract in [`openapi/kinzo.yaml`](../../openapi/kinzo.yaml).
+Status: **app side built, API not built yet**. Google and Facebook sign-in are live in the API
+and app; this adds a third way in that needs no Google or Facebook account. The app shows it
+once `/v1/auth/providers` lists `phone`. The API side is next and follows the contract in [`openapi/kinzo.yaml`](../../openapi/kinzo.yaml).
 
 ## What the person sees
 
@@ -14,14 +14,14 @@ Sign-in screen: **Continue with Google**, **Continue with Facebook**, then **Con
    **WhatsApp me a code**.
    A returning person skips this step: the code goes straight to the number on their account,
    and the next screen says where ("We sent a code to •••• 821 by text").
-3. **Code.** Six boxes. iOS fills an SMS code from the keyboard by itself; Android reads it with
-   the SMS User Consent API (one tap, no permission). Under the boxes: **Resend** (after 30
+3. **Code.** One large field for six digits, marked as a one-time code so iOS and Android
+   offer a texted code above the keyboard. Six digits submit by themselves. Under it: **Resend** (after 30
    seconds), **Send by WhatsApp instead** / **Send by text instead**, and **Use a different
    email**.
 4. **New account only:** the existing "Pick a username" screen, with a "Your name" field added
    above it (phone sign-ups have no name from a provider).
 
-Wrong code: the boxes shake, clear, and say "That code isn't right. 4 tries left." Expired: "That
+Wrong code: the field clears and says "That code isn't right. 4 tries left." Expired: "That
 code has expired" with a **Send a new code** button. Errors never mention internals.
 
 ## Rules

@@ -21,8 +21,17 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 
-/** A failed API call, with the server's error code and a sentence to show the person. */
-class ApiException(val code: String, override val message: String, val status: Int = 0) : Exception(message) {
+/**
+ * A failed API call, with the server's error code and a sentence to show the person. A wrong
+ * sign-in code also says how many tries are left; a sending limit says when to try again.
+ */
+class ApiException(
+    val code: String,
+    override val message: String,
+    val status: Int = 0,
+    val attemptsLeft: Int? = null,
+    val retryIn: Int? = null,
+) : Exception(message) {
     companion object {
         const val OFFLINE = "offline"
         const val NOT_CONFIGURED = "not_configured"
@@ -74,6 +83,13 @@ class KinzoApi(
     internal suspend fun signInWithGoogleIdToken(idToken: String): SignInResponse =
         post("/v1/auth/google/id-token", IdTokenRequest(idToken), auth = false)
 
+    /** Starts an email and phone code sign-in, or resends the code. [phone] only for a new email. */
+    internal suspend fun startPhoneSignIn(email: String, phone: String?, channel: CodeChannel): PhoneStart =
+        post("/v1/auth/phone/start", PhoneStartRequest(email, phone, channel), auth = false)
+
+    internal suspend fun verifyPhoneSignIn(challengeId: String, code: String): SignInResponse =
+        post("/v1/auth/phone/verify", CodeAttempt(challengeId, code), auth = false)
+
     suspend fun signOut() = send(HttpMethod.Post, "/v1/auth/sign-out")
 
     // Account
@@ -84,6 +100,15 @@ class KinzoApi(
         call(HttpMethod.Patch, "/v1/me", encode(ProfileUpdate(username, displayName)), auth = true)
 
     suspend fun deleteAccount() = send(HttpMethod.Delete, "/v1/me")
+
+    /** Sends a code to add or change the signed-in account's phone. */
+    suspend fun startAddPhone(phone: String, channel: CodeChannel): CodeChallenge =
+        post("/v1/me/phone/start", AddPhoneRequest(phone, channel))
+
+    suspend fun verifyAddPhone(challengeId: String, code: String): Account =
+        post("/v1/me/phone/verify", CodeAttempt(challengeId, code))
+
+    suspend fun removePhone(): Account = call(HttpMethod.Delete, "/v1/me/phone", null, auth = true)
 
     suspend fun checkUsername(username: String): UsernameCheck = get("/v1/usernames/${username.encodeURLPathPart()}")
 
@@ -162,9 +187,15 @@ class KinzoApi(
         val text = response.bodyAsText()
         if (response.status.isSuccess()) return text
 
-        val error = runCatching { json.decodeFromString(ErrorBody.serializer(), text).error }.getOrNull()
-        val code = error?.code ?: "http_${response.status.value}"
+        val body = runCatching { json.decodeFromString(ErrorBody.serializer(), text) }.getOrNull()
+        val code = body?.error?.code ?: "http_${response.status.value}"
         if (auth && code == ApiException.SIGNED_OUT) onSignedOut()
-        throw ApiException(code, error?.message ?: "Something went wrong. Try again.", response.status.value)
+        throw ApiException(
+            code = code,
+            message = body?.error?.message ?: "Something went wrong. Try again.",
+            status = response.status.value,
+            attemptsLeft = body?.attemptsLeft,
+            retryIn = body?.retryIn,
+        )
     }
 }

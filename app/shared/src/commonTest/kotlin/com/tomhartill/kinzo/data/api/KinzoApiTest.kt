@@ -45,6 +45,39 @@ class KinzoApiTest {
     }
 
     @Test
+    fun aKnownEmailGetsItsCode() = runTest {
+        var body = ""
+        val engine = MockEngine { request ->
+            body = (request.body as io.ktor.http.content.TextContent).text
+            respond(
+                """{"next":"code","challenge":{"challenge_id":"c1","phone_hint":"•••• 123","channel":"whatsapp","expires_in":600,"resend_in":30}}""",
+                HttpStatusCode.OK,
+                json,
+            )
+        }
+        val api = KinzoApi("https://kinzo.test", token = { null }, onSignedOut = {}, engine = engine)
+
+        val start = api.startPhoneSignIn("sam@example.com", null, CodeChannel.WhatsApp)
+
+        assertEquals("""{"email":"sam@example.com","channel":"whatsapp"}""", body)
+        assertEquals(PhoneStart.Next.Code, start.next)
+        assertEquals(CodeChallenge("c1", "•••• 123", CodeChannel.WhatsApp, 600, 30), start.challenge)
+    }
+
+    @Test
+    fun aWrongCodeSaysHowManyTriesAreLeft() = runTest {
+        val engine = MockEngine {
+            respond("""{"error":{"code":"wrong_code","message":"That code isn't right."},"attempts_left":3}""", HttpStatusCode.BadRequest, json)
+        }
+        val api = KinzoApi("https://kinzo.test", token = { null }, onSignedOut = {}, engine = engine)
+
+        val error = assertFailsWith<ApiException> { api.verifyPhoneSignIn("c1", "123456") }
+
+        assertEquals("wrong_code", error.code)
+        assertEquals(3, error.attemptsLeft)
+    }
+
+    @Test
     fun saysWhenNotSetUp() = runTest {
         val api = KinzoApi("", token = { "kz_abc" }, onSignedOut = {}, engine = MockEngine { error("no request expected") })
         assertEquals(ApiException.NOT_CONFIGURED, assertFailsWith<ApiException> { api.friends() }.code)

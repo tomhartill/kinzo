@@ -66,6 +66,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun FriendsScreen(
     onBack: () -> Unit,
     onSignedIn: (newUser: Boolean) -> Unit,
+    onEmail: () -> Unit,
     viewModel: FriendsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -85,7 +86,7 @@ fun FriendsScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             if (!state.signedIn) {
-                signedOut(onSignedIn)
+                signedOut(onSignedIn, onEmail)
                 return@LazyColumn
             }
             item(key = "search") {
@@ -131,7 +132,7 @@ fun FriendsScreen(
 
 private data class PendingConfirm(val person: Person, val block: Boolean)
 
-private fun LazyListScope.signedOut(onSignedIn: (Boolean) -> Unit) {
+private fun LazyListScope.signedOut(onSignedIn: (Boolean) -> Unit, onEmail: () -> Unit) {
     item(key = "signed-out") {
         Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.lg), modifier = Modifier.padding(top = KinzoTheme.spacing.lg)) {
             Text("Train with friends", style = MaterialTheme.typography.headlineMedium)
@@ -140,7 +141,7 @@ private fun LazyListScope.signedOut(onSignedIn: (Boolean) -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            SignInPanel(onSignedIn = onSignedIn)
+            SignInPanel(onSignedIn = onSignedIn, onEmail = onEmail)
         }
     }
 }

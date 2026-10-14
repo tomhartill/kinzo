@@ -101,14 +101,18 @@ def two_bone(root, target, a, b, bend):
 
 
 # ---------------------------------------------------------------- shapes
+#
+# Shapes are kept as segment lists until the icon is written, so the whole drawing can be
+# centred in the viewBox first. A segment is one of ("M", p), ("L", p), ("Q", c, p),
+# ("C", c1, c2, p), ("A", r, large, sweep, p) (a circular arc), ("E", rx, ry, large, sweep, p)
+# (an elliptical arc with level axes) or ("Z",), all in absolute coordinates.
 
-def circle_d(c, r):
+def circle_segs(c, r):
     x, y = c
-    return (f"M{P((x - r, y))}A{fmt(r)} {fmt(r)} 0 1 1 {P((x + r, y))}"
-            f"A{fmt(r)} {fmt(r)} 0 1 1 {P((x - r, y))}Z")
+    return [("M", (x - r, y)), ("A", r, 1, 1, (x + r, y)), ("A", r, 1, 1, (x - r, y)), ("Z",)]
 
 
-def rrect_d(c, w, h, r, angle=0.0):
+def rrect_segs(c, w, h, r, angle=0.0):
     """Rounded rectangle centred on c, w along the angle, h across it. Clockwise."""
     r = min(r, w / 2, h / 2)
     a = math.radians(angle)
@@ -118,11 +122,93 @@ def rrect_d(c, w, h, r, angle=0.0):
         return (c[0] + x * ca - y * sa, c[1] + x * sa + y * ca)
 
     hw, hh = w / 2, h / 2
-    arc = f"A{fmt(r)} {fmt(r)} 0 0 1 "
-    return (f"M{P(T(-hw + r, -hh))}L{P(T(hw - r, -hh))}{arc}{P(T(hw, -hh + r))}"
-            f"L{P(T(hw, hh - r))}{arc}{P(T(hw - r, hh))}"
-            f"L{P(T(-hw + r, hh))}{arc}{P(T(-hw, hh - r))}"
-            f"L{P(T(-hw, -hh + r))}{arc}{P(T(-hw + r, -hh))}Z")
+    return [("M", T(-hw + r, -hh)), ("L", T(hw - r, -hh)), ("A", r, 0, 1, T(hw, -hh + r)),
+            ("L", T(hw, hh - r)), ("A", r, 0, 1, T(hw - r, hh)),
+            ("L", T(-hw + r, hh)), ("A", r, 0, 1, T(-hw, hh - r)),
+            ("L", T(-hw, -hh + r)), ("A", r, 0, 1, T(-hw + r, -hh)), ("Z",)]
+
+
+def polyline_segs(points):
+    return [("M", points[0])] + [("L", p) for p in points[1:]]
+
+
+def segs_d(segs, dx=0.0, dy=0.0):
+    """Path data for a segment list, moved by (dx, dy)."""
+    def Q(p):
+        return P((p[0] + dx, p[1] + dy))
+    out = []
+    for seg in segs:
+        kind = seg[0]
+        if kind in "ML":
+            out.append(kind + Q(seg[1]))
+        elif kind == "Q":
+            out.append(f"Q{Q(seg[1])} {Q(seg[2])}")
+        elif kind == "C":
+            out.append(f"C{Q(seg[1])} {Q(seg[2])} {Q(seg[3])}")
+        elif kind == "A":
+            out.append(f"A{fmt(seg[1])} {fmt(seg[1])} 0 {seg[2]} {seg[3]} {Q(seg[4])}")
+        elif kind == "E":
+            out.append(f"A{fmt(seg[1])} {fmt(seg[2])} 0 {seg[3]} {seg[4]} {Q(seg[5])}")
+        else:
+            out.append("Z")
+    return "".join(out)
+
+
+def arc_points(p0, r, large, sweep, p1, n=24):
+    """Points along an SVG circular arc, for measuring its extent."""
+    x1, y1 = (p0[0] - p1[0]) / 2, (p0[1] - p1[1]) / 2
+    d2 = x1 * x1 + y1 * y1
+    if d2 == 0:
+        return [p0]
+    r = max(r, math.sqrt(d2))
+    coef = math.sqrt(max(r * r - d2, 0.0) / d2) * (1 if large != sweep else -1)
+    cx, cy = coef * y1, -coef * x1
+    centre = (cx + (p0[0] + p1[0]) / 2, cy + (p0[1] + p1[1]) / 2)
+    t0 = math.atan2((y1 - cy) / r, (x1 - cx) / r)
+    t1 = math.atan2((-y1 - cy) / r, (-x1 - cx) / r)
+    sweep_angle = t1 - t0
+    if sweep and sweep_angle < 0:
+        sweep_angle += 2 * math.pi
+    if not sweep and sweep_angle > 0:
+        sweep_angle -= 2 * math.pi
+    return [(centre[0] + r * math.cos(t0 + sweep_angle * k / n),
+             centre[1] + r * math.sin(t0 + sweep_angle * k / n)) for k in range(n + 1)]
+
+
+def segs_points(segs):
+    """Points along a segment list, close enough to measure its bounding box."""
+    pts, cur, start = [], (0.0, 0.0), (0.0, 0.0)
+    for seg in segs:
+        kind = seg[0]
+        if kind == "M":
+            cur = start = seg[1]
+            pts.append(cur)
+        elif kind == "L":
+            cur = seg[1]
+            pts.append(cur)
+        elif kind == "Q":
+            c, p = seg[1], seg[2]
+            pts += [((1 - t) ** 2 * cur[0] + 2 * (1 - t) * t * c[0] + t * t * p[0],
+                     (1 - t) ** 2 * cur[1] + 2 * (1 - t) * t * c[1] + t * t * p[1])
+                    for t in (k / 16 for k in range(17))]
+            cur = p
+        elif kind == "C":
+            c1, c2, p = seg[1], seg[2], seg[3]
+            pts += [((1 - t) ** 3 * cur[0] + 3 * (1 - t) ** 2 * t * c1[0] + 3 * (1 - t) * t * t * c2[0] + t ** 3 * p[0],
+                     (1 - t) ** 3 * cur[1] + 3 * (1 - t) ** 2 * t * c1[1] + 3 * (1 - t) * t * t * c2[1] + t ** 3 * p[1])
+                    for t in (k / 24 for k in range(25))]
+            cur = p
+        elif kind == "A":
+            pts += arc_points(cur, seg[1], seg[2], seg[3], seg[4])
+            cur = seg[4]
+        elif kind == "E":
+            rx, ry, p = seg[1], seg[2], seg[5]
+            k = rx / ry
+            pts += [(x, y / k) for x, y in arc_points((cur[0], cur[1] * k), rx, seg[3], seg[4], (p[0], p[1] * k))]
+            cur = p
+        else:
+            cur = start
+    return pts
 
 
 # Signed distance functions: negative inside a shape, positive outside. They let a shape
@@ -198,73 +284,99 @@ def clip_polyline(points, visible):
     return out
 
 
-GAP = 1.2   # clear space between a shape and a line passing behind it
+GAP = 1.2       # clear space between a shape and a line passing behind it
+PADDING = 3.0   # least space between the drawing and the edge of the viewBox
 
 
 class Icon:
     """Collects strokes and fills in drawing order, then writes them as SVG paths.
 
     Straight lines can be cut: in_front(mark) makes everything drawn since mark leave a gap
-    in the straight lines drawn before it.
+    in the straight lines drawn before it. The finished drawing is centred in the viewBox.
     """
 
     def __init__(self):
-        self.items = []   # [kind, width, data, sd]: kind is "lines", "path" or "fill"
+        # Each item is [kind, width, data, sd]. kind "lines": data is a list of polylines
+        # (cuttable). kind "stroke" or "fill": data is a segment list. width is None for fills.
+        self.items = []
 
     def mark(self):
         return len(self.items)
 
-    def _add(self, kind, width, data, sd=None):
-        self.items.append([kind, width, data, sd])
-
     def line(self, *points, width=LINE, cut=True):
         """A polyline. cut=False keeps it whole when something is drawn in front of it."""
         caps = [sd_segment(a, b, width / 2) for a, b in zip(points, points[1:])]
-        self._add("lines" if cut else "path", width,
-                  [list(points)] if cut else "M" + "L".join(P(p) for p in points),
-                  lambda p: min(c(p) for c in caps))
+        sd = lambda p: min(c(p) for c in caps)
+        if cut:
+            self.items.append(["lines", width, [list(points)], sd])
+        else:
+            self.items.append(["stroke", width, polyline_segs(points), sd])
 
-    def stroke(self, d, width=LINE, sd=None):
-        self._add("path", width, d, sd)
+    def stroke(self, segs, width=LINE, sd=None):
+        self.items.append(["stroke", width, segs, sd])
 
     def arc(self, start, end, r, large=0, sweep=1, width=LINE):
-        self.stroke(f"M{P(start)}A{fmt(r)} {fmt(r)} 0 {large} {sweep} {P(end)}", width)
+        self.stroke([("M", start), ("A", r, large, sweep, end)], width)
 
     def curve(self, start, control, end, width=LINE):
-        self.stroke(f"M{P(start)}Q{P(control)} {P(end)}", width)
+        self.stroke([("M", start), ("Q", control, end)], width)
 
     def ring(self, c, r, width=LINE):
-        self.stroke(circle_d(c, r), width, sd_circle(c, r + width / 2))
+        self.stroke(circle_segs(c, r), width, sd_circle(c, r + width / 2))
 
     def dot(self, c, r):
-        self._add("fill", None, circle_d(c, r), sd_circle(c, r))
+        self.items.append(["fill", None, circle_segs(c, r), sd_circle(c, r)])
 
     def block(self, c, w, h, r=1.0, angle=0.0):
-        self._add("fill", None, rrect_d(c, w, h, r, angle), sd_box(c, w, h, r, angle))
+        self.items.append(["fill", None, rrect_segs(c, w, h, r, angle), sd_box(c, w, h, r, angle)])
 
     def ground(self, x0=4, x1=44, y=GROUND_Y):
         self.line((x0, y), (x1, y), width=THIN, cut=False)
 
-    def in_front(self, mark, gap=GAP):
-        """Puts everything drawn since mark in front of the straight lines drawn before it."""
+    def in_front(self, mark, gap=GAP, since=0):
+        """Puts everything drawn since mark in front of the straight lines drawn before it.
+
+        since: only lines drawn from this mark on are cut, so a limb can pass in front of a
+        bar without also cutting the body it joins.
+        """
         shapes = [it[3] for it in self.items[mark:] if it[3] is not None]
         if not shapes:
             return
-        for it in self.items[:mark]:
+        for it in self.items[since:mark]:
             if it[0] == "lines":
                 clear = gap + it[1] / 2
                 visible = lambda p: min(sd(p) for sd in shapes) >= clear
                 it[2] = [piece for pts in it[2] for piece in clip_polyline(pts, visible)]
 
-    def svg(self):
-        strokes, fills = {}, []
+    def paths(self):
+        """(kind, width, segment list) for every visible piece."""
         for kind, width, data, _ in self.items:
             if kind == "lines":
-                strokes.setdefault(width, []).extend("M" + "L".join(P(p) for p in pts) for pts in data)
-            elif kind == "path":
-                strokes.setdefault(width, []).append(data)
+                for pts in data:
+                    yield "stroke", width, polyline_segs(pts)
             else:
-                fills.append(data)
+                yield kind, width, data
+
+    def bounds(self):
+        x0 = y0 = math.inf
+        x1 = y1 = -math.inf
+        for kind, width, segs in self.paths():
+            pad = 0 if width is None else width / 2
+            for x, y in segs_points(segs):
+                x0, y0, x1, y1 = min(x0, x - pad), min(y0, y - pad), max(x1, x + pad), max(y1, y + pad)
+        return x0, y0, x1, y1
+
+    def svg(self):
+        x0, y0, x1, y1 = self.bounds()
+        if x1 - x0 > VIEWPORT - 2 * PADDING + 0.5 or y1 - y0 > VIEWPORT - 2 * PADDING + 0.5:
+            raise ValueError(f"drawing is {x1 - x0:.1f} x {y1 - y0:.1f}, more than fits inside the padding")
+        dx, dy = VIEWPORT / 2 - (x0 + x1) / 2, VIEWPORT / 2 - (y0 + y1) / 2
+        strokes, fills = {}, []
+        for kind, width, segs in self.paths():
+            if kind == "fill":
+                fills.append(segs_d(segs, dx, dy))
+            else:
+                strokes.setdefault(width, []).append(segs_d(segs, dx, dy))
         lines = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {VIEWPORT} {VIEWPORT}" '
                  f'width="{VIEWPORT}" height="{VIEWPORT}">']
         for width in sorted(strokes, reverse=True):
@@ -356,7 +468,7 @@ def kettlebell(icon, handle, angle=90.0, r=4.0, front=True):
         icon.in_front(mark)
     left = polar(body, angle - 180 + 50, r * 0.9)
     right = polar(body, angle - 180 - 50, r * 0.9)
-    icon.stroke(f"M{P(left)}Q{P(polar(handle, angle, -1.0))} {P(right)}", 2.5)
+    icon.curve(left, polar(handle, angle, -1.0), right, width=2.5)
 
 
 def bench(icon, x0, x1, y, legs=None, floor=GROUND_Y - 1):
@@ -382,12 +494,10 @@ def pad(icon, center, w=5.0, h=3.5, angle=0.0):
 
 
 def box(icon, x0, y0, x1, y1, r=1.5):
-    """A plyo box or step, drawn as an outline."""
-    icon.stroke(
-        f"M{P((x0 + r, y0))}L{P((x1 - r, y0))}A{fmt(r)} {fmt(r)} 0 0 1 {P((x1, y0 + r))}"
-        f"L{P((x1, y1 - r))}A{fmt(r)} {fmt(r)} 0 0 1 {P((x1 - r, y1))}"
-        f"L{P((x0 + r, y1))}A{fmt(r)} {fmt(r)} 0 0 1 {P((x0, y1 - r))}"
-        f"L{P((x0, y0 + r))}A{fmt(r)} {fmt(r)} 0 0 1 {P((x0 + r, y0))}Z")
+    """A plyo box, step or crate, drawn as an outline."""
+    w, h = x1 - x0, y1 - y0
+    icon.stroke(rrect_segs(((x0 + x1) / 2, (y0 + y1) / 2), w, h, r), LINE,
+                sd_box(((x0 + x1) / 2, (y0 + y1) / 2), w + LINE, h + LINE, r))
 
 
 def ball(icon, center, r=4.0):
@@ -425,28 +535,28 @@ def icon(fn):
 
 @icon
 def squat(i):
-    """Back squat at depth, bar across the shoulders."""
-    f = Figure(i, (19, 32.5), torso=-50, head=-66)
-    f.leg(to=(23.5, FOOT_Y), bend="right")
-    s = f.shoulder
-    barbell(i, (s[0] - 1.5, s[1] + 0.8), half=13)
+    """Squat at depth: hips back, thighs level, arms out front for balance."""
+    f = Figure(i, (17, 32.5), torso=-55, head=-70)
+    f.leg(to=(22.5, FOOT_Y), bend="right")
+    f.arm(angles=(-3, -3))
 
 
 @icon
 def leg_press(i):
-    """Reclined on the seat, feet pushing the sled's foot plate up and away."""
+    """Reclined in the seat, feet driving the loaded foot plate up and away."""
     i.ground()
     hip = (17.5, 35)
     f = Figure(i, hip, torso=-132, head=-115)
     back = polar(hip, 138, 4.2)
-    i.line(polar(back, -132, 11), polar(back, -132, -1), polar(polar(back, -132, -1), 0, 4))
-    i.line(polar(polar(back, -132, -1), 0, 2), (polar(back, -132, -1)[0] + 2, 43))
+    base = polar(back, -132, -1)
+    i.line(polar(back, -132, 11), base, polar(base, 0, 4))
+    i.line(polar(base, 0, 2), (base[0] + 2, 43))
     foot = (29, 25)
     push = angle_of(hip, foot)
     f.leg(to=foot, bend="up")
     plate = polar(foot, push, 2.8)
     pad(i, plate, 3, 12, push)
-    i.line(polar(plate, push, 1.5), polar(plate, push, 13), width=THIN)
+    i.block(polar(plate, push, 4.5), 5, 8, 1.2, push)
 
 
 @icon
@@ -465,18 +575,19 @@ def deadlift(i):
     i.ground()
     f = Figure(i, (16, 26), torso=-20, head=-8)
     elbow, hand = f.arm(angles=(90, 90))
+    bar = i.mark()
     barbell(i, hand, half=15, plate=(3.2, 10), front=False)
     mark = i.mark()
     f.leg(to=(19, FOOT_Y), bend="right")
-    i.in_front(mark)
+    i.in_front(mark, since=bar)   # the shin passes in front of the bar
 
 
 @icon
 def hip_thrust(i):
     """Shoulders on a bench, hips driven up under a barbell, knees bent."""
     i.ground()
-    bench(i, 4, 13.5, 36.5, legs=(6.5, 11))
-    f = Figure(i, (22.7, 30), torso=166, head=205)
+    bench(i, 4.5, 13.5, 36.5, legs=(6.5, 11))
+    f = Figure(i, (22.7, 30), torso=166, head=212)
     f.leg(to=(32, FOOT_Y), bend="up")
     f.arm(to=(20.5, 24), bend="up")
     barbell(i, (22.7, 24), half=9.5, plate=(3, 8), sleeve=2.5, front=False)
@@ -484,12 +595,14 @@ def hip_thrust(i):
 
 @icon
 def kettlebell_swing(i):
-    """Top of the swing, arms out front, with the bell's arc."""
-    f = Figure(i, (17, 24.5), torso=-95)
-    elbow, hand = f.arm(angles=(-8, -8))
-    kettlebell(i, hand, angle=-8)
-    f.leg(to=(18, FOOT_Y), bend="right")
-    swing_arc(i, f.shoulder, 21, 75, 25)
+    """Top of the swing: standing, arms straight out front, with the bell's rising arc."""
+    i.ground()
+    f = Figure(i, (16, 26), torso=-100)
+    elbow, hand = f.arm(angles=(-5, -5))
+    kettlebell(i, hand, angle=-5)
+    f.leg(to=(12.5, FOOT_Y), bend="right")
+    f.leg(to=(20.5, FOOT_Y), bend="right")
+    swing_arc(i, f.shoulder, 20, 58, 12)
 
 
 @icon
@@ -541,8 +654,8 @@ def push_up(i):
 def dip(i):
     """Bench dip: hands on a bench behind, elbows bent back, heels on the floor."""
     i.ground()
-    i.line((4, 29.5), (13.5, 29.5))
-    i.line((6, 29.5), (6, 43))
+    i.line((4.5, 29.5), (13.5, 29.5))
+    i.line((6.5, 29.5), (6.5, 43))
     i.line((11.5, 29.5), (11.5, 43))
     s = (19.5, 23)
     f = Figure(i, polar(s, 95, TORSO), torso=-85, head=-80)
@@ -553,15 +666,16 @@ def dip(i):
 
 @icon
 def chest_fly(i):
-    """Front view: arms open wide with dumbbells, arcs showing them sweep together."""
+    """Front view: arms open wide with dumbbells, arrows sweeping them in to the chest."""
     f = Figure(i, (24, 25.5), torso=-90, shoulders=3)
     f.leg(to=(20, FOOT_Y), bend="left")
     f.leg(to=(28, FOOT_Y), bend="right")
     for side, k in ((0, -1), (1, 1)):
-        elbow, hand = f.arm(angles=(90 - k * 90 - k * 5, 90 - k * 90 - k * 40), side=side)
+        elbow, hand = f.arm(angles=(90 - k * 90 - k * 4, 90 - k * 90 - k * 4), side=side)
         dumbbell(i, hand, angle=90, half=3, plate=(2.6, 6))
-    i.arc((10, 7), (20, 4), 12, sweep=1, width=THIN)
-    i.arc((38, 7), (28, 4), 12, sweep=0, width=THIN)
+        tip = (24 + k * 6, 24.5)
+        i.arc((24 + k * 15, 21), tip, 10, sweep=0 if k < 0 else 1, width=THIN)
+        i.line(polar(tip, -50 if k < 0 else 230, 2.3), tip, polar(tip, 30 if k < 0 else 150, 2.3), width=THIN)
 
 
 @icon
@@ -606,16 +720,16 @@ def pull_up(i):
 
 @icon
 def pulldown(i):
-    """Seated at a lat pulldown, reaching up to the bar on its cable."""
+    """Seated at a lat pulldown, leaning back, reaching up to the bar on its cable."""
     i.ground()
     i.line((10, 36.5), (20, 36.5))
     i.line((15, 36.5), (15, 43))
-    f = Figure(i, (15, 33), torso=-92)
+    f = Figure(i, (15, 33), torso=-105)
     f.leg(to=(24, FOOT_Y), bend="up")
     pad(i, (22, 29.8), 5, 3)
-    f.arm(to=(19.5, 10.5), bend="left")
-    i.line((13.5, 10.5), (25.5, 10.5))
-    i.line((19.5, 10.5), (19.5, 5), (38, 5), (38, 43), width=THIN)
+    elbow, hand = f.arm(angles=(-45, -45))
+    i.line((hand[0] - 5, hand[1]), (hand[0] + 5, hand[1]))
+    i.line(hand, (hand[0], 4), (38, 4), (38, 43), width=THIN)
 
 
 @icon
@@ -626,34 +740,34 @@ def shrug(i):
     for k in (-1, 1):
         tip = (s[0] + k * 3.5, s[1] - 2)
         i.line(s, tip)
-        elbow, hand = f.arm(angles=(90 - k * 14, 90 - k * 12), root=tip)
-        dumbbell(i, (hand[0], hand[1] + 0.5), angle=90, half=3, plate=(2.6, 6))
-        arrow(i, (s[0] + k * 8, s[1] - 2.5), (s[0] + k * 8, s[1] - 9))
-    f.leg(to=(20.5, FOOT_Y), bend="left")
-    f.leg(to=(27.5, FOOT_Y), bend="right")
+        elbow, hand = f.arm(angles=(90 - k * 20, 90 - k * 16), root=tip)
+        dumbbell(i, (hand[0], hand[1] + 0.5), angle=90, half=3, plate=(2.6, 6), front=False)
+        arrow(i, (s[0] + k * 8.5, s[1] - 3), (s[0] + k * 8.5, s[1] - 9.5))
+    f.leg(to=(21.5, FOOT_Y), bend="left")
+    f.leg(to=(26.5, FOOT_Y), bend="right")
 
 
 @icon
 def curl(i):
-    """Standing curl: elbow at the side, dumbbell curled up."""
-    f = Figure(i, (20, 25), torso=-90)
-    f.leg(to=(18.5, FOOT_Y), bend="right")
-    f.leg(to=(21.5, FOOT_Y), bend="right")
-    elbow, hand = f.arm(angles=(78, -28))
-    dumbbell(i, hand, half=3.2)
+    """Standing curl: elbow at the side, dumbbell curled up in front."""
+    f = Figure(i, (19, 25), torso=-90)
+    f.leg(to=(17.5, FOOT_Y), bend="right")
+    f.leg(to=(20.5, FOOT_Y), bend="right")
+    elbow, hand = f.arm(angles=(75, -30))
+    dumbbell(i, (hand[0] + 1, hand[1]), half=3, front=False)
 
 
 @icon
 def triceps_extension(i):
-    """Cable pushdown: elbows pinned at the sides, forearms pressing the handle down."""
+    """Cable pushdown: elbows pinned at the sides, pressing the handle down."""
     i.ground()
     f = Figure(i, (16.5, 25.5), torso=-80, head=-75)
     f.leg(to=(15, FOOT_Y), bend="right")
     f.leg(to=(18.5, FOOT_Y), bend="right")
-    elbow, hand = f.arm(angles=(98, 32))
-    pulley(i, (33.5, 6), hand)
-    i.line((33.5, 3.8), (38, 3.8), (38, 43))
-    i.line(polar(hand, 122, 2), polar(hand, -58, 2))
+    elbow, hand = f.arm(angles=(98, 45))
+    pulley(i, (32, 6.8), hand)
+    i.line((32, 4.6), (37.5, 4.6), (37.5, 43))
+    arrow(i, (28, 24), (28, 31))
 
 
 @icon
@@ -664,37 +778,37 @@ def leg_extension(i):
     f = Figure(i, (14.5, 32), torso=-90)
     knee, ankle = f.leg(angles=(0, -10))
     pad(i, polar(polar(ankle, -10, -1), -100, 3.3), 4.5, 3.3, -10)
-    f.arm(to=(18.5, 33.5), bend="right")
+    f.arm(angles=(90, 90))
 
 
 @icon
 def leg_curl(i):
     """Lying face down, heels curled up against the roller pad."""
-    bench(i, 6, 37, 36, legs=(9, 34))
+    bench(i, 6, 34, 36, legs=(9, 30))
     f = Figure(i, (17.5, 32), torso=0, head=-20)
     knee, ankle = f.leg(angles=(180, -75))
     pad(i, polar(polar(ankle, -75, -1), 15, 3.3), 3.3, 4.5, 15)
-    f.arm(to=(35.5, 38.5), bend="right")
 
 
 @icon
 def calf_raise(i):
-    """Standing up on the toes, heel lifted, hands on hips."""
+    """Standing up on the toes, heels lifted, hands on hips."""
     i.ground()
-    ankle = (22, 40)
-    f = Figure(i, (22, 40 - THIGH - SHIN), torso=-90)
-    f.leg(to=ankle, bend="right", foot=55)
-    f.arm(to=(f.shoulder[0] - 1.5, 22), bend="left")
-    arrow(i, (15, 41), (15, 33.5))
+    ankle = (22, 39.5)
+    f = Figure(i, (22, ankle[1] - THIGH - SHIN), torso=-90)
+    f.leg(to=ankle, bend="right")
+    i.line(ankle, polar(ankle, 62, 3.6))
+    f.arm(to=(f.shoulder[0] - 1.5, 21.5), bend="left")
+    arrow(i, (17.5, 41.5), (17.5, 35))
 
 
 @icon
 def crunch(i):
-    """Lying on the back, knees up, shoulders curled off the floor."""
+    """Lying on the back, knees up, shoulders curled off the floor, reaching for the knees."""
     i.ground()
     f = Figure(i, (23, 40.5), torso=-150, head=-140)
     f.leg(to=(36.5, FOOT_Y), bend="up")
-    f.arm(to=polar(f.head, 165, 1.5), bend="up")
+    f.arm(angles=(-14, -14))
 
 
 @icon
@@ -739,13 +853,13 @@ def twist(i):
     f.leg(to=(28, FOOT_Y), bend="right")
     for side, k in ((0, -1), (1, 1)):
         f.arm(angles=(90 - k * 90, 90 - k * 90), side=side)
-    i.stroke(f"M{P((12, 22))}A12 4 0 0 0 {P((36, 22))}", THIN)
+    i.stroke([("M", (12, 22)), ("E", 12, 4, 0, 0, (36, 22))], THIN)
     i.line(polar((36, 22), -150, 2.5), (36, 22), polar((36, 22), 120, 2.5), width=THIN)
 
 
 @icon
 def back_extension(i):
-    """45 degree back extension: hips on the pad, body straight from heels to head."""
+    """45 degree back extension: hips on the pad, heels hooked, rising to a straight line."""
     i.ground()
     a = -32
     ankle = (7, 36)
@@ -758,6 +872,7 @@ def back_extension(i):
     i.dot(fp, 1.8)
     base = polar(hp, a + 90, 1.7)
     i.line(polar(fp, a + 90, 2.5), base, (base[0] + 2, 43))
+    swing_arc(i, hip, 17, 25, -18)
 
 
 @icon
@@ -786,8 +901,8 @@ def jump(i):
     i.ground()
     f = Figure(i, (22, 27), torso=-82)
     f.leg(angles=(-10, 95))
-    f.arm(angles=(-55, -70))
-    f.arm(angles=(-125, -110))
+    f.arm(angles=(-45, -62))
+    f.arm(angles=(-135, -118))
     for x, y in ((17, 38), (22, 37), (27, 38)):
         i.line((x, y), (x, 41), width=THIN)
 
@@ -840,20 +955,20 @@ def jump_rope(i):
         hands.append(hand)
     f.leg(to=(21.5, 40), bend="left")
     f.leg(to=(26.5, 40), bend="right")
-    i.stroke(f"M{P(hands[0])}C{P((2, 50))} {P((46, 50))} {P(hands[1])}", THIN)
+    i.stroke([("M", hands[0]), ("C", (2, 50), (46, 50), hands[1])], THIN)
 
 
 @icon
 def stretch_standing(i):
     """Front view side bend: one arm arched over the head, other hand on the hip."""
-    a = -68
-    f = Figure(i, (21, 25.5), torso=a)
+    a = -66
+    f = Figure(i, (22, 28), torso=a, head=-72)
     s = f.shoulder
     left, right = polar(s, a - 90, 3.5), polar(s, a + 90, 3.5)
     i.line(left, right)
-    f.leg(to=(16, FOOT_Y), bend="left")
-    f.leg(to=(26, FOOT_Y), bend="right")
-    f.arm(angles=(-95, -28), root=left)
+    f.leg(to=(14.5, FOOT_Y), bend="left")
+    f.leg(to=(29.5, FOOT_Y), bend="right")
+    f.arm(angles=(-95, -40), root=left)
     f.arm(to=(f.hip[0] + 4, f.hip[1] - 2.5), bend="right", root=right)
 
 
@@ -868,12 +983,12 @@ def stretch_floor(i):
 
 @icon
 def foam_roll(i):
-    """Rolling the backs of the legs on a foam roller, hands behind."""
+    """Rolling the backs of the legs on a foam roller, hands on the floor behind."""
     i.ground()
-    f = Figure(i, (17, 36), torso=-150, head=-120)
-    f.arm(to=(6.5, FOOT_Y), bend="up")
-    f.leg(angles=(8, 5))
-    foam_roller(i, (29, 39))
+    f = Figure(i, (19, 33.5), torso=-150, head=-118)
+    f.leg(angles=(0, 0))
+    f.arm(to=(10, 41.5), bend="up")
+    foam_roller(i, (33, 39))
 
 
 @icon
@@ -891,10 +1006,11 @@ def main():
         i = Icon()
         try:
             ICONS[name](i)
+            svg = i.svg()
         except ValueError as e:
             errors.append(f"{name}: {e}")
             continue
-        (OUT_DIR / f"{name}.svg").write_text(i.svg(), encoding="utf-8")
+        (OUT_DIR / f"{name}.svg").write_text(svg, encoding="utf-8")
     if errors:
         sys.exit("\n".join(errors))
     print(f"Wrote {len(ICONS)} icons to {OUT_DIR}")

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <path d="M6 36.5L30 36.5M9 36.5L9 43M27 36.5L27 43M25.5 32L15 32M15 32L15 25L15 18.5M25.5 32L33.91 33.26L36 41.5M4.5 18.5L25.5 18.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M4 44L44 44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M5.7 30.45A3.5 3.5 0 1 1 12.7 30.45A3.5 3.5 0 1 1 5.7 30.45ZM7 14L8 14A1 1 0 0 1 9 15L9 22A1 1 0 0 1 8 23L7 23A1 1 0 0 1 6 22L6 15A1 1 0 0 1 7 14ZM22 14L23 14A1 1 0 0 1 24 15L24 22A1 1 0 0 1 23 23L22 23A1 1 0 0 1 21 22L21 15A1 1 0 0 1 22 14Z" fill="currentColor"/>
+  <path d="M6 31L30 31M9 31L9 37.5M27 31L27 37.5M25.5 26.5L15 26.5M15 26.5L15 19.5L15 13M25.5 26.5L33.91 27.76L36 36M4.5 13L25.5 13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 38.5L44 38.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M5.7 24.95A3.5 3.5 0 1 1 12.7 24.95A3.5 3.5 0 1 1 5.7 24.95ZM7 8.5L8 8.5A1 1 0 0 1 9 9.5L9 16.5A1 1 0 0 1 8 17.5L7 17.5A1 1 0 0 1 6 16.5L6 9.5A1 1 0 0 1 7 8.5ZM22 8.5L23 8.5A1 1 0 0 1 24 9.5L24 16.5A1 1 0 0 1 23 17.5L22 17.5A1 1 0 0 1 21 16.5L21 9.5A1 1 0 0 1 22 8.5Z" fill="currentColor"/>
 </svg>

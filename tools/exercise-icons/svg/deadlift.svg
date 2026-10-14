@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <path d="M20.05 24.53L25.87 22.41M25.87 22.41L25.87 29.41L25.87 35.91M10.87 35.91L15.79 35.91M24.34 35.91L40.87 35.91M16 26L20.59 33.15L19 41.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M4 44L44 44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M28.31 21.57A3.5 3.5 0 1 1 35.31 21.57A3.5 3.5 0 1 1 28.31 21.57ZM13.27 30.91L14.47 30.91A1 1 0 0 1 15.47 31.91L15.47 39.91A1 1 0 0 1 14.47 40.91L13.27 40.91A1 1 0 0 1 12.27 39.91L12.27 31.91A1 1 0 0 1 13.27 30.91ZM37.27 30.91L38.47 30.91A1 1 0 0 1 39.47 31.91L39.47 39.91A1 1 0 0 1 38.47 40.91L37.27 40.91A1 1 0 0 1 36.27 39.91L36.27 31.91A1 1 0 0 1 37.27 30.91Z" fill="currentColor"/>
+  <path d="M16 18.46L25.87 14.87M25.87 14.87L25.87 21.87L25.87 28.37M10.87 28.37L15.79 28.37M24.34 28.37L40.87 28.37M16 18.46L20.59 25.61L19 33.96" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 36.46L44 36.46" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M28.31 14.04A3.5 3.5 0 1 1 35.31 14.04A3.5 3.5 0 1 1 28.31 14.04ZM13.27 23.37L14.47 23.37A1 1 0 0 1 15.47 24.37L15.47 32.37A1 1 0 0 1 14.47 33.37L13.27 33.37A1 1 0 0 1 12.27 32.37L12.27 24.37A1 1 0 0 1 13.27 23.37ZM37.27 23.37L38.47 23.37A1 1 0 0 1 39.47 24.37L39.47 32.37A1 1 0 0 1 38.47 33.37L37.27 33.37A1 1 0 0 1 36.27 32.37L36.27 24.37A1 1 0 0 1 37.27 23.37Z" fill="currentColor"/>
 </svg>

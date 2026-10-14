@@ -167,8 +167,9 @@ def convert(path):
         if name == "fill" and value != "none":
             raise IconError('the only fill allowed on <svg> is fill="none"')
     viewbox = [v for v in re.split(r"[\s,]+", root.get("viewBox", "").strip()) if v]
-    if [float(v) for v in viewbox] != [0, 0, VIEWPORT, VIEWPORT] if viewbox else True:
-        raise IconError(f'viewBox must be "0 0 {VIEWPORT} {VIEWPORT}"')
+    if not all(NUMBER.fullmatch(v) for v in viewbox) or \
+            [float(v) for v in viewbox] != [0, 0, VIEWPORT, VIEWPORT]:
+        raise IconError(f'viewBox must be "0 0 {VIEWPORT} {VIEWPORT}", got {root.get("viewBox")!r}')
     if (root.text or "").strip():
         raise IconError("text inside <svg>")
 

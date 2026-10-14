@@ -65,7 +65,13 @@ import com.tomhartill.kinzo.ui.navigation.ScreenStores
 import com.tomhartill.kinzo.ui.navigation.SystemBackHandler
 import com.tomhartill.kinzo.ui.navigation.Tab
 import com.tomhartill.kinzo.ui.navigation.rememberNavigator
+import com.tomhartill.kinzo.account.DeepLinks
 import com.tomhartill.kinzo.ui.screens.DesignSystemScreen
+import com.tomhartill.kinzo.ui.screens.account.AccountScreen
+import com.tomhartill.kinzo.ui.screens.account.SignInScreen
+import com.tomhartill.kinzo.ui.screens.account.UsernameScreen
+import com.tomhartill.kinzo.ui.screens.friends.FriendsScreen
+import com.tomhartill.kinzo.ui.screens.friends.InviteScreen
 import com.tomhartill.kinzo.ui.screens.exercises.ExerciseDetailScreen
 import com.tomhartill.kinzo.ui.screens.exercises.ExercisePickerScreen
 import com.tomhartill.kinzo.ui.screens.history.HistoryScreen
@@ -132,6 +138,14 @@ private fun AppContent(navigator: Navigator, stores: ScreenStores, viewModel: Ap
     // A buzz when rest is over, whichever screen is showing.
     LaunchedEffect(viewModel) {
         viewModel.restFinished.collect { haptics.performHapticFeedback(HapticFeedbackType.LongPress) }
+    }
+
+    // An invite link opened the app: show it over whatever is open.
+    val pendingInvite by DeepLinks.pendingInvite.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingInvite) {
+        val code = pendingInvite ?: return@LaunchedEffect
+        navigator.push(Destination.Invite(code))
+        DeepLinks.consumeInvite()
     }
 
     // Back closes the top screen, then returns to Today, then leaves the app.
@@ -255,7 +269,13 @@ private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: 
                     onOpenExercise = { open(Destination.ExerciseDetail(it)) },
                     modifier = modifier,
                 )
-                Tab.Profile -> ProfileScreen(onOpenDesignSystem = { open(Destination.DesignSystem) }, modifier = modifier)
+                Tab.Profile -> ProfileScreen(
+                    onSignIn = { open(Destination.SignIn) },
+                    onOpenAccount = { open(Destination.Account) },
+                    onOpenFriends = { open(Destination.Friends) },
+                    onOpenDesignSystem = { open(Destination.DesignSystem) },
+                    modifier = modifier,
+                )
             }
         }
     }
@@ -269,6 +289,10 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
         if (navigator.current?.id == entry.id) action()
     }
     val back = { ifCurrent { navigator.pop() } }
+    // A first sign-in asks for a username next; otherwise the screen that asked carries on.
+    val signedInHere = { newUser: Boolean ->
+        ifCurrent { if (newUser) navigator.push(Destination.Username(welcome = true)) }
+    }
 
     when (val destination = entry.destination) {
         Destination.ActiveWorkout -> ActiveWorkoutScreen(
@@ -312,5 +336,24 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             onCreateWorkout = { ifCurrent { navigator.push(Destination.RoutineEditor()) } },
         )
         Destination.DesignSystem -> DesignSystemScreen(onBack = back)
+        Destination.SignIn -> SignInScreen(
+            onClose = back,
+            onSignedIn = { newUser ->
+                ifCurrent { if (newUser) navigator.replace(Destination.Username(welcome = true)) else navigator.pop() }
+            },
+        )
+        is Destination.Username -> UsernameScreen(welcome = destination.welcome, onDone = back)
+        Destination.Account -> AccountScreen(
+            onBack = back,
+            onEditUsername = { ifCurrent { navigator.push(Destination.Username(welcome = false)) } },
+            onOpenFriends = { ifCurrent { navigator.push(Destination.Friends) } },
+        )
+        Destination.Friends -> FriendsScreen(onBack = back, onSignedIn = signedInHere)
+        is Destination.Invite -> InviteScreen(
+            code = destination.code,
+            onClose = back,
+            onSignedIn = signedInHere,
+            onOpenFriends = { ifCurrent { navigator.replace(Destination.Friends) } },
+        )
     }
 }

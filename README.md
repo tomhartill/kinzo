@@ -16,6 +16,8 @@ The app is offline-first: it reads and writes a local database and syncs with th
 
 ## Getting started
 
+Sign-in (Google and Facebook) needs a one-off setup: [`docs/sign-in.md`](docs/sign-in.md).
+
 New to mobile? [`docs/testing.md`](docs/testing.md) walks through installing the CI build on an
 Android phone, running everything on a Mac, and letting Claude's cloud sessions build Android.
 

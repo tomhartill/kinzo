@@ -2,16 +2,20 @@ package com.tomhartill.kinzo.ui.screens.profile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.domain.Format
 import com.tomhartill.kinzo.domain.Settings
 import com.tomhartill.kinzo.domain.WeightUnit
+import com.tomhartill.kinzo.ui.components.Avatar
 import com.tomhartill.kinzo.ui.components.ChoiceRow
+import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.MenuSettingRow
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
@@ -20,17 +24,51 @@ import com.tomhartill.kinzo.ui.screens.TitledScreen
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import org.koin.compose.viewmodel.koinViewModel
 
-/** The Profile tab: units and workout settings for now; body stats come with progression. */
+/** The Profile tab: the account, units and workout settings; body stats come with progression. */
 @Composable
 fun ProfileScreen(
+    onSignIn: () -> Unit,
+    onOpenAccount: () -> Unit,
+    onOpenFriends: () -> Unit,
     onOpenDesignSystem: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val settings by viewModel.state.collectAsStateWithLifecycle()
+    val account by viewModel.account.collectAsStateWithLifecycle()
     val colors = MaterialTheme.colorScheme
 
     TitledScreen(title = "Profile", modifier = modifier) {
+        SectionHeader("Account")
+        val signedIn = account
+        if (signedIn == null) {
+            KinzoCard(onClick = onSignIn) {
+                Text("Sign in", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Add friends, and back up your workouts soon. Optional: everything works without it.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
+            }
+        } else {
+            KinzoCard(onClick = onOpenAccount) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(signedIn.name)
+                    Column {
+                        Text(signedIn.name, style = MaterialTheme.typography.titleMedium)
+                        Text("@${signedIn.username}", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                    }
+                }
+            }
+            KinzoCard(onClick = onOpenFriends) {
+                Text("Friends", style = MaterialTheme.typography.titleMedium)
+                Text("Find friends, answer requests and share your invite link", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            }
+        }
+
         val current = settings
         if (current != null) {
             SectionHeader("Units")

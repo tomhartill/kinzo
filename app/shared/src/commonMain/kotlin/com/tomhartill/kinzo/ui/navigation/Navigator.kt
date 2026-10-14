@@ -59,6 +59,28 @@ sealed interface Destination {
         override val route = "design-system"
     }
 
+    data object SignIn : Destination {
+        override val route = "sign-in"
+    }
+
+    /** Picking a username. [welcome] is straight after a first sign-in. */
+    data class Username(val welcome: Boolean) : Destination {
+        override val route = "username/${if (welcome) "welcome" else "edit"}"
+    }
+
+    data object Account : Destination {
+        override val route = "account"
+    }
+
+    data object Friends : Destination {
+        override val route = "friends"
+    }
+
+    /** A friend's invite link. */
+    data class Invite(val code: String) : Destination {
+        override val route = "invite/$code"
+    }
+
     companion object {
         private const val NONE = "-"
 
@@ -68,6 +90,11 @@ sealed interface Destination {
                 route == ActiveWorkout.route -> ActiveWorkout
                 route == AddExercises.route -> AddExercises
                 route == DesignSystem.route -> DesignSystem
+                route == SignIn.route -> SignIn
+                route == Account.route -> Account
+                route == Friends.route -> Friends
+                parts.size == 2 && parts[0] == "username" -> Username(welcome = parts[1] == "welcome")
+                parts.size == 2 && parts[0] == "invite" -> Invite(parts[1])
                 parts.size == 2 && parts[0] == "exercise" -> ExerciseDetail(parts[1])
                 parts.size == 3 && parts[0] == "history" -> WorkoutDetail(parts[1], justFinished = parts[2] == "finished")
                 parts.size == 2 && parts[0] == "routine" -> RoutineDetail(parts[1])

@@ -5,12 +5,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import com.tomhartill.kinzo.data.JvmDriverFactory
-import com.tomhartill.kinzo.di.initKoin
+import com.tomhartill.kinzo.di.initKoinDesktop
 
 // Desktop is a development target only: a phone-sized window for quick UI iteration.
 fun main() {
-    initKoin(JvmDriverFactory())
+    initKoinDesktop()
 
     application {
         Window(

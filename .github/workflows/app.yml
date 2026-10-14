@@ -26,6 +26,11 @@ jobs:
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
       - name: Build Android debug APK, desktop app and run shared tests
+        env:
+          # Repository variables (Settings > Secrets and variables > Actions > Variables).
+          # Empty until the API is hosted; the app then says sign-in isn't set up.
+          KINZO_API_URL: ${{ vars.KINZO_API_URL }}
+          KINZO_GOOGLE_WEB_CLIENT_ID: ${{ vars.KINZO_GOOGLE_WEB_CLIENT_ID }}
         run: ./gradlew :androidApp:assembleDebug :desktopApp:assemble :shared:jvmTest --stacktrace
       - uses: actions/upload-artifact@v4
         with:

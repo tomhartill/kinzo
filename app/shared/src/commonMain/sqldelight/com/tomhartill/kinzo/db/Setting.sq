@@ -13,3 +13,6 @@ SELECT setting_value FROM setting WHERE setting_key = :key;
 
 putSetting:
 INSERT OR REPLACE INTO setting(setting_key, setting_value) VALUES (:key, :value);
+
+deleteSetting:
+DELETE FROM setting WHERE setting_key = :key;

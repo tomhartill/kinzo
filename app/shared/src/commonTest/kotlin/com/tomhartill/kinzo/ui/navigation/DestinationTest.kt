@@ -21,6 +21,12 @@ class DestinationTest {
             Destination.RoutineEditor(routineId = id),
             Destination.RoutineEditor(copyFromId = id),
             Destination.Mesocycle(id),
+            Destination.SignIn,
+            Destination.Username(welcome = true),
+            Destination.Username(welcome = false),
+            Destination.Account,
+            Destination.Friends,
+            Destination.Invite("aB3dE5fG7h"),
         )
         destinations.forEach { destination ->
             assertEquals(destination, Destination.fromRoute(destination.route), destination.route)

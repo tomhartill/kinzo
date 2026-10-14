@@ -18,15 +18,28 @@ type Pinger interface {
 type Server struct {
 	db     Pinger
 	logger *slog.Logger
+
+	// Accounts and friends; nil when the server runs without them, as in the health tests.
+	accounts *accounts
 }
 
-func New(db Pinger, logger *slog.Logger) *Server {
-	return &Server{db: db, logger: logger}
+// Option configures optional parts of the server.
+type Option func(*Server)
+
+func New(db Pinger, logger *slog.Logger, opts ...Option) *Server {
+	s := &Server{db: db, logger: logger}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
+	if s.accounts != nil {
+		s.accountRoutes(mux)
+	}
 	return s.logRequests(mux)
 }
 
@@ -51,6 +64,22 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+// apiError is the body of every error response: a stable code for the app to switch on and a
+// sentence a person could read.
+type apiError struct {
+	Error struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	var body apiError
+	body.Error.Code = code
+	body.Error.Message = message
+	writeJSON(w, status, body)
 }
 
 func (s *Server) logRequests(next http.Handler) http.Handler {

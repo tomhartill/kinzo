@@ -4,12 +4,24 @@ info:
   version: 0.1.0
   description: |
     The contract between the Kinzo app and the Go API. Change this file first, then the
-    server and the app. Endpoints for auth and sync arrive in milestone 5.
+    server and the app. Sync endpoints arrive later.
 
     Conventions:
     - IDs are UUIDs; the app generates UUIDv7 for rows it creates.
     - Weights are kilograms, distances metres, durations seconds.
     - Timestamps are RFC 3339 in UTC.
+    - Signed-in requests send `Authorization: Bearer <token>` with the session token from sign-in.
+    - Errors return `{"error": {"code": "...", "message": "..."}}`. A 401 with code `signed_out`
+      means the session has ended and the app should sign out locally.
+
+    Sign-in. Android uses Google's one-tap sheet and posts the ID token to
+    `/v1/auth/google/id-token`. Everything else signs in through the browser:
+    1. The app opens `/v1/auth/{provider}/start` with `redirect_uri` (`kinzo://auth/callback`, or a
+       loopback URL on desktop) and an S256 PKCE `code_challenge`.
+    2. The API sends the browser to Google or Facebook, which sends it back to
+       `/v1/auth/{provider}/callback`.
+    3. The API redirects to `redirect_uri` with `?code=...`, or `?error=cancelled|failed`.
+    4. The app posts the code and its `code_verifier` to `/v1/auth/exchange` for a session token.
 servers:
   - url: http://localhost:8080
     description: Local development (docker compose up)
@@ -37,8 +49,407 @@ paths:
               example:
                 status: degraded
                 database: unreachable
+  /v1/auth/providers:
+    get:
+      summary: Which sign-in options this server has turned on
+      operationId: getAuthProviders
+      responses:
+        "200":
+          description: Provider names, and whether Google ID tokens from the app are accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers, google_id_tokens]
+                properties:
+                  providers:
+                    type: array
+                    items: { type: string, enum: [google, facebook] }
+                  google_id_tokens: { type: boolean }
+  /v1/auth/{provider}/start:
+    get:
+      summary: Start a browser sign-in
+      operationId: startSignIn
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string, enum: [google, facebook] } }
+        - { name: redirect_uri, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
+      responses:
+        "302": { description: Redirect to the provider's sign-in page. }
+        "400": { $ref: "#/components/responses/Error" }
+  /v1/auth/{provider}/callback:
+    get:
+      summary: Where the provider sends the browser back (not called by the app)
+      operationId: signInCallback
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string } }
+      responses:
+        "302": { description: Redirect to the app's redirect_uri with code or error. }
+  /v1/auth/exchange:
+    post:
+      summary: Swap a browser sign-in's one-time code for a session
+      operationId: exchangeSignInCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, code_verifier]
+              properties:
+                code: { type: string }
+                code_verifier: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/SignedIn" }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/auth/google/id-token:
+    post:
+      summary: Sign in with a Google ID token the app got itself
+      operationId: signInWithGoogleIdToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/SignedIn" }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/auth/sign-out:
+    post:
+      summary: End this device's session
+      operationId: signOut
+      security: [{ session: [] }]
+      responses:
+        "204": { description: Signed out. }
+  /v1/me:
+    get:
+      summary: The signed-in account
+      operationId: getMe
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Error" }
+    patch:
+      summary: Change username or display name
+      operationId: updateMe
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string, description: "3 to 30 of a-z, 0-9, dot, underscore. A leading @ and capitals are tidied." }
+                display_name: { type: string, maxLength: 50 }
+      responses:
+        "200":
+          description: The updated account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Delete the account and everything in it
+      operationId: deleteMe
+      security: [{ session: [] }]
+      responses:
+        "204": { description: Deleted. }
+  /v1/usernames/{username}:
+    get:
+      summary: Whether a username is free
+      operationId: checkUsername
+      security: [{ session: [] }]
+      parameters:
+        - { name: username, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Availability.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [username, available, valid]
+                properties:
+                  username: { type: string }
+                  available: { type: boolean }
+                  valid: { type: boolean }
+  /v1/users/search:
+    get:
+      summary: Find people by username or name
+      operationId: searchUsers
+      security: [{ session: [] }]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2 } }
+      responses:
+        "200":
+          description: Up to 20 people. Blocked people, either way, never appear.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: "#/components/schemas/Person" }
+  /v1/users/{id}:
+    get:
+      summary: One person
+      operationId: getUser
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The person.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/friends:
+    get:
+      summary: Friends, requests received and requests sent
+      operationId: listFriends
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The three lists.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [friends, incoming, outgoing]
+                properties:
+                  friends: { type: array, items: { $ref: "#/components/schemas/Person" } }
+                  incoming: { type: array, items: { $ref: "#/components/schemas/Person" } }
+                  outgoing: { type: array, items: { $ref: "#/components/schemas/Person" } }
+  /v1/friends/requests:
+    post:
+      summary: Send a friend request
+      description: If the other person had already sent one, you become friends straight away.
+      operationId: sendFriendRequest
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The relationship afterwards.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [relationship]
+                properties:
+                  relationship: { $ref: "#/components/schemas/Relationship" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/friends/requests/{id}/accept:
+    post:
+      summary: Accept a friend request from this person
+      operationId: acceptFriendRequest
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Now friends. }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/friends/requests/{id}:
+    delete:
+      summary: Decline a request from this person, or cancel one sent to them
+      operationId: deleteFriendRequest
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Gone. }
+  /v1/friends/{id}:
+    delete:
+      summary: Remove a friend, for both people
+      operationId: removeFriend
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Removed. }
+  /v1/blocks:
+    get:
+      summary: People you've blocked
+      operationId: listBlocks
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: Blocked people.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users: { type: array, items: { $ref: "#/components/schemas/PublicUser" } }
+    post:
+      summary: Block someone. Ends any friendship or request between you.
+      operationId: block
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: string, format: uuid }
+      responses:
+        "204": { description: Blocked. }
+  /v1/blocks/{id}:
+    delete:
+      summary: Unblock someone
+      operationId: unblock
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Unblocked. }
+  /v1/invites/mine:
+    get:
+      summary: Your invite link
+      operationId: getMyInvite
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The link.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invite" }
+  /v1/invites/mine/reset:
+    post:
+      summary: Replace your invite link; the old one stops working
+      operationId: resetMyInvite
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The new link.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invite" }
+  /v1/invites/{code}:
+    get:
+      summary: Who sent this invite
+      operationId: getInvite
+      security: [{ session: [] }]
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The inviter.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [inviter, is_you]
+                properties:
+                  inviter: { $ref: "#/components/schemas/Person" }
+                  is_you: { type: boolean }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/invites/{code}/accept:
+    post:
+      summary: Accept an invite. You and the inviter become friends straight away.
+      operationId: acceptInvite
+      security: [{ session: [] }]
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The inviter, now a friend.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "404": { $ref: "#/components/responses/Error" }
 components:
+  securitySchemes:
+    session:
+      type: http
+      scheme: bearer
+  responses:
+    Error:
+      description: Something went wrong; see the code.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    SignedIn:
+      description: Signed in.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token, user, new_user]
+            properties:
+              token: { type: string, description: Session token. Send it as a bearer token. }
+              user: { $ref: "#/components/schemas/User" }
+              new_user: { type: boolean, description: True on a first sign-in. }
   schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+    User:
+      type: object
+      required: [id, username, display_name, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string }
+        email: { type: string }
+        created_at: { type: string, format: date-time }
+    PublicUser:
+      type: object
+      required: [id, username, display_name]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string }
+    Person:
+      allOf:
+        - $ref: "#/components/schemas/PublicUser"
+        - type: object
+          required: [relationship]
+          properties:
+            relationship: { $ref: "#/components/schemas/Relationship" }
+            since: { type: string, format: date-time }
+    Relationship:
+      type: string
+      enum: [none, friends, request_sent, request_received]
+    Invite:
+      type: object
+      required: [code, url]
+      properties:
+        code: { type: string }
+        url: { type: string }
     Health:
       type: object
       required: [status, database]

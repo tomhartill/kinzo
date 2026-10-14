@@ -38,7 +38,10 @@ jobs:
       - name: Check formatting
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
-      - run: go test -race ./...
+      - name: Test (with the database tests)
+        env:
+          KINZO_TEST_DATABASE_URL: postgres://kinzo:kinzo@localhost:5432/kinzo?sslmode=disable
+        run: go test -race ./...
       - name: Migrate and serve against Postgres
         env:
           DATABASE_URL: postgres://kinzo:kinzo@localhost:5432/kinzo?sslmode=disable

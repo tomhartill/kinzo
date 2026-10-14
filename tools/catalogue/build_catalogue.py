@@ -131,16 +131,18 @@ ICON_OVERRIDES = {
     "Isometric_Wipers": "push_up",
     "Drop_Push": "push_up",
     "Plate_Pinch": "carry",  # plates held at the sides for time
+    "Standing_Olympic_Plate_Hand_Squeeze": "carry",  # plates hanging from the fingers at the sides
     "Power_Stairs": "deadlift",  # implements lifted from the floor onto each step
     # Stretches and mobility drills that a name rule or the position check gets wrong.
     "Front_Leg_Raises": "stretch_standing",
     "Side_Leg_Raises": "stretch_standing",
-    "Rear_Leg_Raises": "stretch_floor",
+    "Rear_Leg_Raises": "hip_thrust",  # on all fours, a leg extended up and back, like Glute Kickback
     "Lying_Crossover": "stretch_floor",
     "Overhead_Triceps": "stretch_floor",
     "Elbow_Circles": "stretch_standing",  # "sit or stand"
     "Shoulder_Circles": "stretch_standing",
     "Pyramid": "stretch_floor",  # draped over a ball, hands and feet on the floor
+    "Shoulder_Raise": "shrug",  # shoulders raised to the ears and lowered
     # Hip abduction and adduction, and balance work: no picture fits.
     "Monster_Walk": "generic",
     "Cable_Hip_Adduction": "generic",
@@ -171,19 +173,26 @@ ICON_RULES = [(re.compile(pattern), icon) for pattern, icon in (
     (r"\bpull ?ups?\b|(?<!to )\bchins?\b|\bchin ups?\b|\bmuscle ups?\b|\brope climb\b", "pull_up"),
     (r"\bpull ?downs?\b", "pulldown"),
     (r"\blunges?\b|\bsplit squats?\b|\bstep ups?\b", "lunge"),
+    # Clean and snatch pulls stop at the hips, like a deadlift; the olympic_lift picture is
+    # an overhead lockout, which also fits overhead squats.
     (r"\bdeadlifts?\b|\brack pulls?\b|\bgood mornings?\b|\bstiff leg|\bromanian\b|\bpull through\b"
-     r"|\batlas stones?\b|\bkeg load\b|\bsandbag load\b|\btire flip\b", "deadlift"),
-    (r"\bclean\b(?! grip)|\bsnatch\b|\bjerk\b|\bhigh pull\b|\brack delivery\b", "olympic_lift"),
+     r"|\batlas stones?\b|\bkeg load\b|\bsandbag load\b|\btire flip\b|\b(?:clean|snatch) pull\b",
+     "deadlift"),
+    (r"\bclean\b(?! grip)|\bsnatch\b|\bjerk\b|\bhigh pull\b|\brack delivery\b|\boverhead\b.*\bsquats?\b",
+     "olympic_lift"),
     (r"\bdips?\b", "dip"),
     (r"\bjump|\bhops?\b|\bbound\b|\bleap\b|\bskip|\bbutt kick\b|\bbox shuffle\b|\bpush off\b", "jump"),
     (r"\bsquats?\b", "squat"),
+    # Pullovers are done lying on a bench with the weight held above, as in the bench press.
     (r"\bbench press|\bchest press|\bfloor press|\bboard press|\bpin press|\bchain press"
-     r"|\bsmith press|\bdecline press|\bneck press|\bsvend press|\bincline\b.*\bpress\b"
-     r"|\bclose grip\b.*\bpress\b|\bdumbbell bench\b|\bincline shoulder raise\b", "bench_press"),
+     r"|\bsmith press|\bdecline press|\bneck press|\bincline\b.*\bpress\b"
+     r"|\bclose grip\b.*\bpress\b|\bdumbbell bench\b|\bincline shoulder raise\b|\bpullover\b",
+     "bench_press"),
     # Reverse flyes and rear-delt raises lift the arms out to the sides.
     (r"\breverse\b.*\bfly|\brear delt fly|\bback fly|\bpull apart\b", "lateral_raise"),
+    # The Svend press squeezes plates between the palms in front of the chest: the closed fly.
     (r"\bfly\b|\bflyes?\b|\bcross ?over\b|\bbutterfly\b|\biron cross\b|\baround the worlds\b"
-     r"|\bchest squeezes\b|\bpullover\b", "chest_fly"),
+     r"|\bchest squeezes\b|\bsvend press\b", "chest_fly"),
     (r"\btriceps?\b|\bpushdown\b|\bchain handle extension\b|\boverhead extension\b",
      "triceps_extension"),
     (r"\bleg raises?\b|\bknee raise\b|\bhip raise\b|\bleg pull in\b|\bleg tucks?\b"

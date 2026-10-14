@@ -35,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +75,16 @@ fun ExerciseBrowser(
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val listState = rememberLazyListState()
+    // A new search or filter starts back at the top, so the best matches aren't scrolled past.
+    // Only on a change: coming back to the list keeps its place.
+    val filters = listOf(state.query, state.muscle?.key, state.equipment?.id)
+    var resultsFor by remember { mutableStateOf(filters) }
+    LaunchedEffect(filters) {
+        if (filters != resultsFor) {
+            resultsFor = filters
+            listState.scrollToItem(0)
+        }
+    }
     Column(modifier) {
         Column(
             modifier = Modifier.padding(horizontal = KinzoTheme.spacing.screen),

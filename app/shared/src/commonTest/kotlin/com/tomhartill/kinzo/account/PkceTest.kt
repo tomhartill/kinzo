@@ -9,7 +9,7 @@ class PkceTest {
     @Test
     fun matchesTheRfcExample() {
         // RFC 7636, appendix B.
-        assertEquals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", Pkce.challenge("dBjftJeZ4CVP-1mB2Sdw3Gaj9pkwJIBX8u4CXH4MgJk"))
+        assertEquals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", Pkce.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
     }
 
     @Test

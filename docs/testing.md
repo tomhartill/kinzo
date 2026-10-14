@@ -4,17 +4,19 @@ Three ways to try the app, from least to most setup.
 
 ## 1. Install the CI build on an Android phone (no setup on your Mac)
 
-Every push to `main` that touches `app/` builds a debug APK on GitHub Actions.
+Every push to `main` that touches `app/` builds a debug APK on GitHub Actions and publishes it
+at one fixed link.
 
-1. On your phone, sign in to GitHub in the browser and open
-   [Actions > App](https://github.com/tomhartill/kinzo/actions/workflows/app.yml).
-2. Open the newest green run and scroll to **Artifacts**. Download `kinzo-debug-apk`.
-   GitHub wraps it in a zip; open the zip in the Files app to get `androidApp-debug.apk`.
-3. Tap the APK. Android asks to allow installs from your browser or Files app; allow it, then
-   tap **Install**. Play Protect may warn about an unknown developer; choose **Install anyway**.
+1. On your phone, open this link in Chrome (not the GitHub app):
+   <https://github.com/tomhartill/kinzo/releases/download/android-latest/kinzo-debug.apk>
+2. When it finishes downloading, tap it. Android asks to allow installs from Chrome; allow it,
+   then tap **Install**. Play Protect may warn about an unknown developer; choose
+   **Install anyway**.
 
-Artifacts expire after 14 days. To get a fresh build without changing code, open the same
-Actions page and press **Run workflow** on `main`.
+To get a fresh build without changing code, open
+[Actions > App](https://github.com/tomhartill/kinzo/actions/workflows/app.yml) and press
+**Run workflow** on `main`. Each run's APK is also attached to the run under **Artifacts**
+(zipped, kept for 14 days).
 
 A new APK installs over the old one and keeps its data. Debug builds are signed with a shared
 key committed at `app/androidApp/debug.keystore`, so CI builds and builds from your own Android

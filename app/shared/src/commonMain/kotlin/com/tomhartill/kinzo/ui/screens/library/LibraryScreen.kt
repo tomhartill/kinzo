@@ -17,10 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
@@ -44,17 +41,21 @@ import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
 
-private enum class LibrarySection(val label: String) {
+/** The two halves of the Library tab. */
+enum class LibrarySection(val label: String) {
     Workouts("Workouts"),
     Exercises("Exercises"),
 }
 
 /**
  * The Library tab: saved workouts to start from (your own, ready-made ones, and later the AI
- * coach's), and the searchable exercise library.
+ * coach's), and the searchable exercise library. The app holds [section], so other tabs can
+ * open a particular one.
  */
 @Composable
 fun LibraryScreen(
+    section: LibrarySection,
+    onSectionChange: (LibrarySection) -> Unit,
     onCreateWorkout: () -> Unit,
     onOpenWorkout: (routineId: String) -> Unit,
     onOpenExercise: (exerciseId: String) -> Unit,
@@ -62,9 +63,6 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = koinViewModel(),
     exercises: ExerciseBrowserViewModel = koinViewModel(),
 ) {
-    // An index rather than the enum, so it saves on every platform.
-    var sectionIndex by rememberSaveable { mutableIntStateOf(LibrarySection.Workouts.ordinal) }
-    val section = LibrarySection.entries[sectionIndex]
     val spacing = KinzoTheme.spacing
 
     // The exercise list stops at the keyboard so its last results stay reachable.
@@ -78,7 +76,7 @@ fun LibraryScreen(
                 options = LibrarySection.entries,
                 selected = section,
                 optionLabel = { it.label },
-                onSelect = { sectionIndex = it.ordinal },
+                onSelect = onSectionChange,
             )
         }
         when (section) {

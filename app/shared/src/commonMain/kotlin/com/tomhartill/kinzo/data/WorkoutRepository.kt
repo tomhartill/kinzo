@@ -212,7 +212,8 @@ class WorkoutRepository(
                     workoutId = workoutId,
                     exerciseId = planned.exercise_id,
                     position = position.toLong(),
-                    restS = planned.rest_s ?: queries.lastRestForExercise(planned.exercise_id).executeAsOneOrNull(),
+                    // As planned. No rest planned means the default, which is what the plan shows.
+                    restS = planned.rest_s,
                     now = now,
                 )
                 val type = MeasurementType.fromKey(planned.measurement_type)

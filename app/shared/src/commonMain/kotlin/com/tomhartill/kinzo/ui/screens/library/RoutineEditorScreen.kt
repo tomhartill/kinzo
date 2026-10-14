@@ -87,6 +87,14 @@ fun RoutineEditorScreen(
     onOpenExercise: (exerciseId: String) -> Unit,
     viewModel: RoutineEditorViewModel = koinViewModel { parametersOf(args) },
 ) {
+    // The unsaved draft is also kept in this screen's saved state, which outlives the app being
+    // killed in the background; a view model made afresh after that picks it back up.
+    var savedDraft by rememberSaveable { mutableStateOf<String?>(null) }
+    remember(viewModel) { viewModel.attach(savedDraft) }
+    LaunchedEffect(viewModel) {
+        snapshotFlow { viewModel.savedState() }.collect { savedDraft = it }
+    }
+
     val draft = viewModel.draft
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val colors = MaterialTheme.colorScheme

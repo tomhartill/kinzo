@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Builds one of the user's workouts. Nothing is written until [save]; closing without saving
@@ -44,38 +46,57 @@ class RoutineEditorViewModel(
 
     // What the draft started as, to tell whether there's anything to lose. Null for a copy,
     // which is new work even before it's changed.
-    private var original: Routine? = null
+    private var original by mutableStateOf<Routine?>(null)
     private var saving = false
+    private var attached = false
 
     val settings: StateFlow<Settings> = settings.settings().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Settings())
 
     val hasChanges: Boolean get() = draft != null && draft != original
 
-    init {
-        viewModelScope.launch {
-            when {
-                args.routineId != null -> {
-                    val routine = routines.routine(args.routineId).first()?.takeIf { it.isEditable }
-                    if (routine == null) missing = true
-                    original = routine
-                    draft = routine
-                }
-                args.copyFromId != null -> {
-                    val source = routines.routine(args.copyFromId).first()
-                    if (source == null) {
-                        missing = true
-                    } else {
-                        // Your own gets "copy" on the end so the two are easy to tell apart.
-                        draft = source.copyAsNew(name = if (source.isEditable) "${source.name} copy" else source.name)
-                    }
-                }
-                else -> {
-                    val empty = Routine(id = Ids.newId(), name = "", notes = null, source = RoutineSource.User, exercises = emptyList())
-                    original = empty
-                    draft = empty
+    // Loads what to edit. Cancelled if the screen hands back a draft kept from before the app
+    // was killed.
+    private val load = viewModelScope.launch {
+        when {
+            args.routineId != null -> {
+                val routine = routines.routine(args.routineId).first()?.takeIf { it.isEditable }
+                if (routine == null) missing = true
+                original = routine
+                draft = routine
+            }
+            args.copyFromId != null -> {
+                val source = routines.routine(args.copyFromId).first()
+                if (source == null) {
+                    missing = true
+                } else {
+                    // Your own gets "copy" on the end so the two are easy to tell apart.
+                    draft = source.copyAsNew(name = if (source.isEditable) "${source.name} copy" else source.name)
                 }
             }
+            else -> {
+                val empty = Routine(id = Ids.newId(), name = "", notes = null, source = RoutineSource.User, exercises = emptyList())
+                original = empty
+                draft = empty
+            }
         }
+    }
+
+    /** The draft and what it started as, as text, for the screen to keep across process death. */
+    fun savedState(): String? = draft?.let { json.encodeToString(SavedDraft.serializer(), SavedDraft(it, original)) }
+
+    /**
+     * Called by the screen once per view model with what it kept from [savedState], if
+     * anything. A view model made after the app was killed picks the unsaved draft back up; one
+     * that lived on already has it and ignores this.
+     */
+    fun attach(saved: String?) {
+        if (attached) return
+        attached = true
+        val restored = saved?.let { runCatching { json.decodeFromString(SavedDraft.serializer(), it) }.getOrNull() } ?: return
+        load.cancel()
+        original = restored.original
+        draft = restored.draft
+        missing = false
     }
 
     fun setName(name: String) = edit { it.copy(name = name) }
@@ -136,5 +157,12 @@ class RoutineEditorViewModel(
 
     private fun editExercise(id: String, change: (RoutineExercise) -> RoutineExercise) = edit { routine ->
         routine.copy(exercises = routine.exercises.map { if (it.id == id) change(it) else it })
+    }
+
+    @Serializable
+    private data class SavedDraft(val draft: Routine, val original: Routine?)
+
+    private companion object {
+        val json = Json { ignoreUnknownKeys = true }
     }
 }

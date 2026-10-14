@@ -35,7 +35,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -63,6 +66,7 @@ import com.tomhartill.kinzo.ui.screens.exercises.ExercisePickerScreen
 import com.tomhartill.kinzo.ui.screens.history.HistoryScreen
 import com.tomhartill.kinzo.ui.screens.history.WorkoutDetailScreen
 import com.tomhartill.kinzo.ui.screens.library.LibraryScreen
+import com.tomhartill.kinzo.ui.screens.library.LibrarySection
 import com.tomhartill.kinzo.ui.screens.library.RoutineDetailScreen
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorScreen
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorViewModel
@@ -173,6 +177,9 @@ private fun AnimatedContentTransitionScope<BackStackEntry?>.screenTransition(): 
 @Composable
 private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: RestTimer.State?) {
     val tabStates = rememberSaveableStateHolder()
+    // Which half of Library shows. Kept here so Today's "See all workouts" can pick Workouts;
+    // an index rather than the enum, so it saves on every platform.
+    var librarySection by rememberSaveable { mutableIntStateOf(LibrarySection.Workouts.ordinal) }
     // Taps on the tabs while they slide away under a new screen are ignored.
     fun open(destination: Destination) {
         if (navigator.current == null) navigator.push(destination)
@@ -205,12 +212,17 @@ private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: 
                     onOpenWorkout = { open(Destination.ActiveWorkout) },
                     onCreateWorkout = { open(Destination.RoutineEditor()) },
                     onOpenRoutine = { open(Destination.RoutineDetail(it)) },
-                    onSeeAllRoutines = { navigator.selectTab(Tab.Library) },
+                    onSeeAllRoutines = {
+                        librarySection = LibrarySection.Workouts.ordinal
+                        navigator.selectTab(Tab.Library)
+                    },
                     onOpenFinishedWorkout = { open(Destination.WorkoutDetail(it)) },
                     modifier = modifier,
                 )
                 Tab.History -> HistoryScreen(onOpenWorkout = { open(Destination.WorkoutDetail(it)) }, modifier = modifier)
                 Tab.Library -> LibraryScreen(
+                    section = LibrarySection.entries[librarySection],
+                    onSectionChange = { librarySection = it.ordinal },
                     onCreateWorkout = { open(Destination.RoutineEditor()) },
                     onOpenWorkout = { open(Destination.RoutineDetail(it)) },
                     onOpenExercise = { open(Destination.ExerciseDetail(it)) },

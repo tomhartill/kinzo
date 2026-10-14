@@ -151,6 +151,16 @@ class RoutineRepositoryTest {
         routines.save(Routine("mine", "Chest", null, RoutineSource.User, listOf(bench(sets = 2, reps = 5, weightKg = 60.0, rest = 120), curl)))
         assertEquals(StartResult.NotFound, workouts.startFromRoutine("nope"))
 
+        // A rest picked for curls in an earlier workout doesn't override the plan, which shows
+        // the default for them.
+        val earlier = workouts.startWorkout("Arms")
+        workouts.addExercises(earlier, listOf("ex-curl"))
+        val earlierCurl = assertNotNull(workouts.activeWorkout().first()).exercises.single()
+        workouts.setExerciseRest(earlierCurl.id, 45)
+        workouts.completeSet(earlierCurl.sets.first().id, SetValues(reps = 10, weightKg = 30.0))
+        assertTrue(workouts.finishWorkout(earlier))
+        clock.advance(60_000)
+
         val result = assertIs<StartResult.Started>(workouts.startFromRoutine("mine"))
         val workout = assertNotNull(workouts.activeWorkout().first())
         assertEquals(result.workoutId, workout.id)

@@ -1,5 +1,7 @@
 package com.tomhartill.kinzo.domain
 
+import kotlinx.serialization.Serializable
+
 /** How an exercise is logged, which decides the numbers each of its sets records. */
 enum class MeasurementType(val key: String) {
     /** Weight and reps, for example a bench press. */
@@ -74,6 +76,7 @@ data class ExerciseDetail(
  * The numbers recorded for one set, in storage units: kilograms, seconds and metres.
  * Which of them matter depends on the exercise's [MeasurementType].
  */
+@Serializable
 data class SetValues(
     val reps: Int? = null,
     val weightKg: Double? = null,
@@ -186,6 +189,7 @@ data class RoutineSummary(
 )
 
 /** One exercise in a saved workout, with what to aim for in each set. */
+@Serializable
 data class RoutineExercise(
     val id: String,
     val exerciseId: String,
@@ -204,7 +208,11 @@ data class RoutineExercise(
     }
 }
 
-/** A saved workout to start from. */
+/**
+ * A saved workout to start from. Serializable so the editor can keep an unsaved one when the
+ * system kills the app in the background.
+ */
+@Serializable
 data class Routine(
     val id: String,
     val name: String,

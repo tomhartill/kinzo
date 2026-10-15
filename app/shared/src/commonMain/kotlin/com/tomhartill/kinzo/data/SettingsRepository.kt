@@ -29,7 +29,7 @@ class SettingsRepository(
                 restSeconds = values[REST_SECONDS]?.toIntOrNull() ?: Settings.DEFAULT_REST_SECONDS,
                 theme = ThemeName.fromKey(values[THEME]),
                 themeMode = ThemeMode.fromKey(values[THEME_MODE]),
-                tipsEnabled = values[TIPS_ENABLED] != "false",
+                tipsEnabled = values[GuidanceRepository.TIPS_ENABLED] != "false",
             )
         }.distinctUntilChanged()
 
@@ -41,7 +41,7 @@ class SettingsRepository(
 
     suspend fun setThemeMode(mode: ThemeMode) = put(THEME_MODE, mode.key)
 
-    suspend fun setTipsEnabled(enabled: Boolean) = put(TIPS_ENABLED, enabled.toString())
+    suspend fun setTipsEnabled(enabled: Boolean) = put(GuidanceRepository.TIPS_ENABLED, enabled.toString())
 
     private suspend fun put(key: String, value: String) = withContext(io) {
         queries.putSetting(key = key, value = value)
@@ -52,6 +52,5 @@ class SettingsRepository(
         const val REST_SECONDS = "rest_seconds"
         const val THEME = "appearance.theme"
         const val THEME_MODE = "appearance.mode"
-        const val TIPS_ENABLED = "tips.enabled"
     }
 }

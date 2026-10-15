@@ -1,5 +1,8 @@
 package com.tomhartill.kinzo.ui.screens.library
 
+import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
+import com.tomhartill.kinzo.ui.tips.PageTipCard
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -72,13 +75,16 @@ fun LibraryScreen(
     val spacing = KinzoTheme.spacing
     var nextMesocycle by remember { mutableStateOf<MesocycleDraft?>(null) }
 
+    ScreenTipsEffect(KinzoTips.Library)
+
     // The exercise list stops at the keyboard so its last results stay reachable.
     Column(modifier.fillMaxSize().imePadding()) {
         Column(
             modifier = Modifier.padding(start = spacing.screen, end = spacing.screen, top = spacing.xl, bottom = spacing.md),
             verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
-            ScreenTitle("Library")
+            ScreenTitle("Library", tips = KinzoTips.Library)
+            PageTipCard(KinzoTips.Library)
             ChoiceRow(
                 options = LibrarySection.entries,
                 selected = section,

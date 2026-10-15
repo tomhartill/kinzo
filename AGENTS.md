@@ -26,6 +26,8 @@ finish something on the roadmap below, update "Where things stand" in the same c
 | App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database; a cached trend sparkline per exercise in the exercise list ([plan for muscles and regions](docs/specs/strength-trends.md)) |
 | App: body | Progress photos from Profile: take one by pose (front, side, back), browse by day, delete. Private to the phone |
 | App: accounts | Optional sign-in with Google or Facebook, or email and a phone code (waiting on the API); username and name picker; account screen (add a phone, sign out, delete) |
+| App: appearance | Seven colour themes (Mono default, plus pastels) in light and dark, picked in Profile; no borders anywhere, everything stands apart by fill |
+| App: guidance | First-run introduction (units, rest, theme), first-time tips on each screen (page cards and spotlights), Profile → Help to replay or switch them off |
 | App: friends | Search by name or username, requests, remove, block, invite links (`kinzo://invite/CODE`, `https://<api>/i/CODE`) |
 | API | Health check; Google and Facebook sign-in (browser with PKCE, plus Android ID tokens); sessions; profile; friends, blocks and invites; machine scan through Claude (needs `ANTHROPIC_API_KEY`, 30 scans a day each) |
 | CI | Android APK (published at a fixed link), desktop build, shared tests, iOS simulator build; API vet, race tests and a Postgres smoke test |
@@ -63,6 +65,12 @@ Decisions already made:
 - **Units:** weights in kilograms (three decimals), distances in metres, durations in seconds,
   timestamps UTC. The app converts for display.
 - **IDs:** UUIDs; the app makes UUIDv7 for rows it creates so they exist before reaching the server.
+- **Colours:** screens and components use `KinzoTheme.colors` or `MaterialTheme.colorScheme` roles,
+  never a hex value (a test fails the build). Themes live in `ui/theme/Themes.kt` only. No borders:
+  set things apart with `surface`, `surfaceHigh` or `accentSoft` fills.
+- **Tips:** a screen's first-time tips are a `ScreenTips` in `ui/tips/Tips.kt`, shown with
+  `ScreenTipsEffect`, `PageTipCard` and `Modifier.tipAnchor`. Tip ids are stored once seen, so
+  never reuse one.
 - **Words people see:** plain, short and specific. No error codes or internals in the UI.
 - **Comments:** explain why, in full sentences. Match the surrounding code's density.
 - **Secrets** never go in the repo. API settings come from the environment (`api/README.md`); the

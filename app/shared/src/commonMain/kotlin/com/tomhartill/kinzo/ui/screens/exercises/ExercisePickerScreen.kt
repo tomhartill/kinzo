@@ -1,5 +1,9 @@
 package com.tomhartill.kinzo.ui.screens.exercises
 
+import com.tomhartill.kinzo.ui.tips.TipsButton
+import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
+import com.tomhartill.kinzo.ui.tips.PageTipCard
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -76,6 +80,7 @@ fun ExercisePicker(
     var confirmed by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
 
+    ScreenTipsEffect(KinzoTips.ExercisePicker)
     Column(modifier.fillMaxSize().background(colors.background).imePadding()) {
         KinzoTopBar(
             title = "Add exercises",
@@ -83,12 +88,17 @@ fun ExercisePicker(
             backIcon = Icons.Filled.Close,
             backLabel = "Close",
             actions = {
+                TipsButton(KinzoTips.ExercisePicker)
                 if (selected.isNotEmpty()) {
                     TextButton(onClick = { selected = emptyList() }) {
                         Text("Clear", color = colors.onSurface, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             },
+        )
+        PageTipCard(
+            KinzoTips.ExercisePicker,
+            Modifier.padding(horizontal = KinzoTheme.spacing.screen, vertical = KinzoTheme.spacing.xs),
         )
         ExerciseBrowser(
             query = viewModel.query,

@@ -1,5 +1,9 @@
 package com.tomhartill.kinzo.ui.screens.workout
 
+import com.tomhartill.kinzo.ui.tips.tipAnchor
+import com.tomhartill.kinzo.ui.tips.TipsButton
+import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -175,6 +179,12 @@ fun ActiveWorkoutScreen(
         }
     }
 
+    // Tips only before the first set is ticked, so nothing interrupts a workout under way.
+    ScreenTipsEffect(
+        KinzoTips.ActiveWorkout,
+        enabled = !editing && workout.exercises.isNotEmpty() && workout.completedSetCount == 0,
+    )
+
     // Back while editing tidies up on the way out, the same as Done.
     SystemBackHandler(enabled = editing) { requestDone() }
 
@@ -191,6 +201,7 @@ fun ActiveWorkoutScreen(
             backLabel = if (editing) "Done" else "Minimise workout",
             onTitleClick = { dialog = WorkoutDialog.Rename },
             actions = {
+                if (!editing) TipsButton(KinzoTips.ActiveWorkout)
                 Button(
                     onClick = { if (editing) requestDone() else requestFinish() },
                     shape = MaterialTheme.shapes.medium,
@@ -265,7 +276,9 @@ fun ActiveWorkoutScreen(
                         onToggleDone = { set, entered -> viewModel.toggleDone(exercise, set, entered) },
                         onToggleWarmup = viewModel::toggleWarmup,
                         onRemoveSet = ::removeSet,
-                        modifier = Modifier.animateItem(),
+                        modifier = Modifier
+                            .animateItem()
+                            .then(if (exercise.id == workout.exercises.first().id) Modifier.tipAnchor(KinzoTips.LogSet) else Modifier),
                     )
                 }
                 item(key = "actions") {
@@ -290,6 +303,7 @@ fun ActiveWorkoutScreen(
                 onSkip = viewModel::skipRest,
                 onChangeRest = { seconds -> currentExercise?.let { viewModel.setRest(it, seconds) } },
                 onStart = { viewModel.startRest(currentRest) },
+                modifier = Modifier.tipAnchor(KinzoTips.RestBar),
             )
         } else {
             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))

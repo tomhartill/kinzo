@@ -16,3 +16,7 @@ INSERT OR REPLACE INTO setting(setting_key, setting_value) VALUES (:key, :value)
 
 deleteSetting:
 DELETE FROM setting WHERE setting_key = :key;
+
+-- The prefix must not contain % or _, which LIKE treats as wildcards.
+deleteSettingsWithPrefix:
+DELETE FROM setting WHERE setting_key LIKE :prefix || '%';

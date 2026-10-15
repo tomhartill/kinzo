@@ -5,6 +5,7 @@ import com.tomhartill.kinzo.data.AccountRepository
 import com.tomhartill.kinzo.data.CatalogueImporter
 import com.tomhartill.kinzo.data.CatalogueRepository
 import com.tomhartill.kinzo.data.DriverFactory
+import com.tomhartill.kinzo.data.GuidanceRepository
 import com.tomhartill.kinzo.data.KinzoWorkoutsImporter
 import com.tomhartill.kinzo.data.MesocycleRepository
 import com.tomhartill.kinzo.data.ProgressPhotoRepository
@@ -47,6 +48,8 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
+import com.tomhartill.kinzo.ui.screens.introduction.IntroductionViewModel
+import com.tomhartill.kinzo.ui.tips.TipController
 import kotlin.time.Clock
 
 @OptIn(ExperimentalResourceApi::class)
@@ -55,6 +58,9 @@ internal fun dataModule(driverFactory: DriverFactory): Module = module {
     single<Clock> { Clock.System }
     single { CatalogueRepository(get()) }
     single { SettingsRepository(get()) }
+    single { GuidanceRepository(get()) }
+    // One for the whole app, so only one tip ever shows at a time.
+    single { TipController(get(), CoroutineScope(SupervisorJob() + Dispatchers.Default)) }
     single { WorkoutRepository(get(), get()) }
     single { TrendRepository(get(), get()) }
     single { RoutineRepository(get(), get()) }
@@ -86,6 +92,7 @@ internal val viewModelModule: Module = module {
     viewModelOf(::ExerciseBrowserViewModel)
     viewModelOf(::MachineScanViewModel)
     viewModelOf(::ProfileViewModel)
+    viewModelOf(::IntroductionViewModel)
     viewModelOf(::ProgressPhotosViewModel)
     // No parameter for the workout in progress; a workout ID to edit a finished one.
     viewModel { params -> ActiveWorkoutViewModel(params.getOrNull(), get(), get(), get()) }

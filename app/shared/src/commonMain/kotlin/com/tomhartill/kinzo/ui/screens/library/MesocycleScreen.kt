@@ -1,5 +1,9 @@
 package com.tomhartill.kinzo.ui.screens.library
 
+import com.tomhartill.kinzo.ui.tips.TipsButton
+import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
+import com.tomhartill.kinzo.ui.tips.PageTipCard
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,11 +59,13 @@ fun MesocycleScreen(
         if (!state.loading && mesocycle == null) onBack()
     }
 
+    ScreenTipsEffect(KinzoTips.Mesocycle)
     Column(Modifier.fillMaxSize().background(colors.background)) {
         KinzoTopBar(
             title = "",
             onBack = onBack,
             actions = {
+                TipsButton(KinzoTips.Mesocycle)
                 if (mesocycle != null) {
                     TextButton(onClick = { editing = true }) {
                         Text("Edit", color = colors.onSurface, style = MaterialTheme.typography.labelLarge)
@@ -73,6 +79,7 @@ fun MesocycleScreen(
                 contentPadding = PaddingValues(start = spacing.screen, end = spacing.screen, top = spacing.sm, bottom = spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
+                item(key = "tip") { PageTipCard(KinzoTips.Mesocycle) }
                 item(key = "header") {
                     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
                         Text(mesocycle.name, style = MaterialTheme.typography.headlineSmall)

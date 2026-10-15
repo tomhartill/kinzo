@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,6 +22,7 @@ import com.tomhartill.kinzo.ui.components.MenuSettingRow
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.components.ThemePicker
+import com.tomhartill.kinzo.ui.components.kinzoSwitchColors
 import com.tomhartill.kinzo.ui.screens.EmptyState
 import com.tomhartill.kinzo.ui.screens.TitledScreen
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
@@ -34,6 +36,7 @@ fun ProfileScreen(
     onOpenFriends: () -> Unit,
     onOpenProgressPhotos: () -> Unit,
     onOpenDesignSystem: () -> Unit,
+    onReplayIntroduction: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
@@ -119,6 +122,23 @@ fun ProfileScreen(
             )
         }
         EmptyState(title = "Body stats", body = "Height, weight and body fat tracking arrive with progression.")
+
+        if (current != null) {
+            SectionHeader("Help")
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
+                    Text("Show tips", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "A short tip the first time you open each screen.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = current.tipsEnabled, onCheckedChange = viewModel::setTipsEnabled, colors = kinzoSwitchColors())
+            }
+            SecondaryButton(text = "Show all tips again", onClick = viewModel::resetTips)
+            SecondaryButton(text = "Replay introduction", onClick = onReplayIntroduction)
+        }
 
         SectionHeader("About")
         Text(

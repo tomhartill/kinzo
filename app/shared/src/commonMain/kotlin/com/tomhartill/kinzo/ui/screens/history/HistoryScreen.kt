@@ -1,5 +1,8 @@
 package com.tomhartill.kinzo.ui.screens.history
 
+import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
+import com.tomhartill.kinzo.ui.tips.PageTipCard
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,12 +38,14 @@ fun HistoryScreen(
         state.workouts.groupBy { Dates.monthLabel(it.startedAt, zone) }.toList()
     }
 
+    ScreenTipsEffect(KinzoTips.History)
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = spacing.screen, vertical = spacing.xl),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
-        item(key = "title") { ScreenTitle("History", modifier = Modifier.padding(bottom = spacing.xs)) }
+        item(key = "title") { ScreenTitle("History", modifier = Modifier.padding(bottom = spacing.xs), tips = KinzoTips.History) }
+        item(key = "tip") { PageTipCard(KinzoTips.History) }
         if (!state.loading && state.workouts.isEmpty()) {
             item(key = "empty") {
                 EmptyState(title = "No workouts yet", body = "Finished workouts appear here, newest first.")

@@ -1,5 +1,15 @@
 package com.tomhartill.kinzo
 
+import kotlinx.coroutines.launch
+import com.tomhartill.kinzo.ui.tips.TipOverlay
+import com.tomhartill.kinzo.ui.screens.introduction.IntroductionScreen
+import com.tomhartill.kinzo.ui.screens.introduction.IntroductionExit
+import com.tomhartill.kinzo.domain.IntroductionStep
+import com.tomhartill.kinzo.domain.Introduction
+import com.tomhartill.kinzo.data.GuidanceRepository
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
@@ -111,14 +121,51 @@ private const val TRANSITION_MILLIS = 300
 fun App() {
     val settingsRepository = koinInject<SettingsRepository>()
     val settings by remember(settingsRepository) { settingsRepository.settings() }.collectAsStateWithLifecycle(initialValue = null)
-    // Nothing draws for the moment it takes to read the settings, rather than flashing the
-    // default theme at someone who chose another.
+    // Read before anything else runs: the exercise library import is what marks an install as
+    // one from before the introduction existed.
+    val guidance = koinInject<GuidanceRepository>()
+    val introductionSeen by produceState<Int?>(null, guidance) { value = guidance.introductionVersion() }
+    // Nothing draws for the moment these take to read, rather than flashing the default theme
+    // at someone who chose another.
     val current = settings ?: return
+    val seenVersion = introductionSeen ?: return
     KinzoTheme(theme = current.theme, mode = current.themeMode) {
         val navigator = rememberNavigator()
+        val scope = rememberCoroutineScope()
+        var replayingIntroduction by rememberSaveable { mutableStateOf(false) }
+        var introductionDone by rememberSaveable { mutableStateOf(false) }
+        val introductionSteps = when {
+            replayingIntroduction -> IntroductionStep.entries.toList()
+            introductionDone -> emptyList()
+            else -> Introduction.stepsAfter(seenVersion)
+        }
+        val showIntroduction = introductionSteps.isNotEmpty()
         CompositionLocalProvider(LocalExerciseIcons provides rememberExerciseIcons()) {
             ProvideScreenStores { stores ->
-                AppContent(navigator, stores)
+                Box(Modifier.fillMaxSize()) {
+                    // The app is there underneath from the start, so the exercise library
+                    // imports while the introduction shows. Screen readers skip it until then.
+                    Box(Modifier.fillMaxSize().then(if (showIntroduction) Modifier.clearAndSetSemantics {} else Modifier)) {
+                        AppContent(navigator, stores, onReplayIntroduction = { replayingIntroduction = true })
+                    }
+                    // Above every screen, so a spotlight can dim all of them.
+                    TipOverlay()
+                    if (showIntroduction) {
+                        IntroductionScreen(
+                            steps = introductionSteps,
+                            onDone = { exit ->
+                                replayingIntroduction = false
+                                introductionDone = true
+                                scope.launch { guidance.setIntroductionVersion(Introduction.VERSION) }
+                                when (exit) {
+                                    IntroductionExit.Today -> Unit
+                                    IntroductionExit.ReadyMadeWorkouts -> navigator.selectTab(Tab.Library)
+                                    IntroductionExit.SignIn -> navigator.push(Destination.SignIn)
+                                }
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -139,7 +186,12 @@ private fun rememberExerciseIcons(): ExerciseIconSet? = produceState<ExerciseIco
 }.value
 
 @Composable
-private fun AppContent(navigator: Navigator, stores: ScreenStores, viewModel: AppViewModel = koinViewModel()) {
+private fun AppContent(
+    navigator: Navigator,
+    stores: ScreenStores,
+    onReplayIntroduction: () -> Unit,
+    viewModel: AppViewModel = koinViewModel(),
+) {
     val activeWorkout by viewModel.activeWorkout.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -171,7 +223,7 @@ private fun AppContent(navigator: Navigator, stores: ScreenStores, viewModel: Ap
     ) { entry ->
         if (entry == null) {
             screenStates.SaveableStateProvider("tabs") {
-                Tabs(navigator, activeWorkout, rest)
+                Tabs(navigator, activeWorkout, rest, onReplayIntroduction)
             }
         } else {
             val key = "entry-${entry.id}"
@@ -225,7 +277,12 @@ private fun AnimatedContentTransitionScope<BackStackEntry?>.screenTransition(): 
 }
 
 @Composable
-private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: RestTimer.State?) {
+private fun Tabs(
+    navigator: Navigator,
+    activeWorkout: ActiveWorkoutInfo?,
+    rest: RestTimer.State?,
+    onReplayIntroduction: () -> Unit,
+) {
     val tabStates = rememberSaveableStateHolder()
     // Which half of Library shows. Kept here so Today's "See all workouts" can pick Workouts;
     // an index rather than the enum, so it saves on every platform.
@@ -285,6 +342,7 @@ private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: 
                     onOpenFriends = { open(Destination.Friends) },
                     onOpenProgressPhotos = { open(Destination.ProgressPhotos) },
                     onOpenDesignSystem = { open(Destination.DesignSystem) },
+                    onReplayIntroduction = onReplayIntroduction,
                     modifier = modifier,
                 )
             }

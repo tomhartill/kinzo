@@ -1,5 +1,9 @@
 package com.tomhartill.kinzo.ui.screens.exercises
 
+import com.tomhartill.kinzo.ui.tips.TipsButton
+import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
+import com.tomhartill.kinzo.ui.tips.PageTipCard
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -73,8 +77,13 @@ fun ExerciseDetailScreen(
     val now by rememberNow(intervalMillis = 60_000)
     val navigationBars = WindowInsets.navigationBars.asPaddingValues()
 
+    ScreenTipsEffect(KinzoTips.ExerciseDetail)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        KinzoTopBar(title = if (showTitle) exercise?.name.orEmpty() else "", onBack = onBack)
+        KinzoTopBar(
+            title = if (showTitle) exercise?.name.orEmpty() else "",
+            onBack = onBack,
+            actions = { TipsButton(KinzoTips.ExerciseDetail) },
+        )
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
@@ -93,6 +102,7 @@ fun ExerciseDetailScreen(
                 }
                 else -> {
                     item(key = "header") { Header(exercise) }
+                    item(key = "tip") { PageTipCard(KinzoTips.ExerciseDetail) }
                     val best = state.best
                     if (best != null) {
                         item(key = "stats") { Stats(exercise.measurementType, best, state.sessions.size, state.unit) }

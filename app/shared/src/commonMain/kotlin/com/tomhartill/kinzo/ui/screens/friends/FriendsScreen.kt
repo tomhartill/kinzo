@@ -1,5 +1,9 @@
 package com.tomhartill.kinzo.ui.screens.friends
 
+import com.tomhartill.kinzo.ui.tips.TipsButton
+import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
+import com.tomhartill.kinzo.ui.tips.PageTipCard
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,8 +77,13 @@ fun FriendsScreen(
     val spacing = KinzoTheme.spacing
     var confirm by remember { mutableStateOf<PendingConfirm?>(null) }
 
+    ScreenTipsEffect(KinzoTips.Friends, enabled = state.signedIn)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).imePadding()) {
-        KinzoTopBar(title = "Friends", onBack = onBack)
+        KinzoTopBar(
+            title = "Friends",
+            onBack = onBack,
+            actions = { if (state.signedIn) TipsButton(KinzoTips.Friends) },
+        )
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(
@@ -89,6 +98,7 @@ fun FriendsScreen(
                 signedOut(onSignedIn, onEmail)
                 return@LazyColumn
             }
+            item(key = "tip") { PageTipCard(KinzoTips.Friends) }
             item(key = "search") {
                 SearchField(query = state.query, onQueryChange = viewModel::onQueryChange, placeholder = "Find people by username")
             }

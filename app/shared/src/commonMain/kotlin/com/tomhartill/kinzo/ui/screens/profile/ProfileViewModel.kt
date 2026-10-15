@@ -9,12 +9,17 @@ import com.tomhartill.kinzo.domain.Settings
 import com.tomhartill.kinzo.domain.ThemeMode
 import com.tomhartill.kinzo.domain.ThemeName
 import com.tomhartill.kinzo.domain.WeightUnit
+import com.tomhartill.kinzo.ui.tips.TipController
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class ProfileViewModel(private val settings: SettingsRepository, accounts: AccountRepository) : ViewModel() {
+class ProfileViewModel(
+    private val settings: SettingsRepository,
+    accounts: AccountRepository,
+    private val tips: TipController,
+) : ViewModel() {
     val state: StateFlow<Settings?> =
         settings.settings().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -40,5 +45,15 @@ class ProfileViewModel(private val settings: SettingsRepository, accounts: Accou
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settings.setThemeMode(mode) }
+    }
+
+    fun setTipsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settings.setTipsEnabled(enabled) }
+    }
+
+    /** Every tip shows again, once each, and tips turn on if they were off. */
+    fun resetTips() {
+        tips.resetAll()
+        setTipsEnabled(true)
     }
 }

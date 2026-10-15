@@ -1,5 +1,6 @@
 package com.tomhartill.kinzo.ui.screens.today
 
+import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,7 +49,7 @@ fun TodayScreen(
     val zone = remember { TimeZone.currentSystemDefault() }
     val now by rememberNow(intervalMillis = 60_000)
 
-    TitledScreen(title = "Today", subtitle = Dates.longDayLabel(now, zone), modifier = modifier) {
+    TitledScreen(title = "Today", subtitle = Dates.longDayLabel(now, zone), modifier = modifier, tips = KinzoTips.Today) {
         Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm)) {
             if (state.hasActiveWorkout) {
                 PrimaryButton(text = "Resume workout", onClick = onOpenWorkout)

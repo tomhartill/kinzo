@@ -202,6 +202,16 @@ Sign in with your Apple ID on iPhone.
 
 A coach that helps plan and adjust your training. Needs an account.
 
+## Privacy and research
+
+### Share anonymised training data with researchers
+**Status:** Planned
+
+Choose to share your training data, with everything that could identify you removed, to help
+sports science researchers. It's off unless you turn it on, and you can turn it off again at any
+time. The data will only be shared once it meets the UK GDPR standard for anonymisation, so it
+can't be traced back to you.
+
 ## Look and feel
 
 ### Colour themes

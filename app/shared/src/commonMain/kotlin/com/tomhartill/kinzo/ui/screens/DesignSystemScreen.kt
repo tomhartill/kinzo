@@ -1,7 +1,6 @@
 package com.tomhartill.kinzo.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +23,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -34,6 +34,8 @@ import com.tomhartill.kinzo.domain.PreviousSet
 import com.tomhartill.kinzo.domain.ProgressPoint
 import com.tomhartill.kinzo.domain.SetRules
 import com.tomhartill.kinzo.domain.SetValues
+import com.tomhartill.kinzo.domain.ThemeMode
+import com.tomhartill.kinzo.domain.ThemeName
 import com.tomhartill.kinzo.domain.WeightUnit
 import com.tomhartill.kinzo.ui.components.ChoiceRow
 import com.tomhartill.kinzo.ui.components.KinzoCard
@@ -46,11 +48,44 @@ import com.tomhartill.kinzo.ui.components.SetEditorRow
 import com.tomhartill.kinzo.ui.components.SetSummaryRow
 import com.tomhartill.kinzo.ui.components.SetTableHeader
 import com.tomhartill.kinzo.ui.components.StatTile
+import com.tomhartill.kinzo.ui.components.ThemePicker
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
-/** Living reference for the design system: every token and component in one place. */
+/**
+ * Living reference for the design system: every token and component in one place, in any
+ * theme and mode, so a new screen can be checked in all of them.
+ */
 @Composable
 fun DesignSystemScreen(onBack: () -> Unit) {
+    // Null follows the app's own choice.
+    var previewTheme by remember { mutableStateOf<ThemeName?>(null) }
+    var previewMode by remember { mutableStateOf<ThemeMode?>(null) }
+    val content: @Composable () -> Unit = {
+        DesignSystemContent(
+            onBack = onBack,
+            previewTheme = previewTheme,
+            onPreviewTheme = { previewTheme = it },
+            previewMode = previewMode,
+            onPreviewMode = { previewMode = it },
+        )
+    }
+    val theme = previewTheme
+    if (theme == null && previewMode == null) {
+        content()
+    } else {
+        val mode = previewMode ?: if (KinzoTheme.isDark) ThemeMode.Dark else ThemeMode.Light
+        KinzoTheme(theme = theme ?: ThemeName.Mono, mode = mode, applySystemBars = false, content = content)
+    }
+}
+
+@Composable
+private fun DesignSystemContent(
+    onBack: () -> Unit,
+    previewTheme: ThemeName?,
+    onPreviewTheme: (ThemeName) -> Unit,
+    previewMode: ThemeMode?,
+    onPreviewMode: (ThemeMode) -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     val spacing = KinzoTheme.spacing
     Column(Modifier.fillMaxSize().background(colors.background)) {
@@ -62,10 +97,34 @@ fun DesignSystemScreen(onBack: () -> Unit) {
                 .padding(horizontal = spacing.screen, vertical = spacing.lg),
             verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
-            SectionHeader("Colour")
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                listOf(colors.primary, colors.onSurfaceVariant, colors.outline, colors.surfaceContainerHigh, colors.surface, colors.error)
-                    .forEach { Swatch(it) }
+            SectionHeader("Preview theme")
+            ThemePicker(selected = previewTheme ?: ThemeName.Mono, onSelect = onPreviewTheme)
+            ChoiceRow(
+                options = listOf(ThemeMode.Light, ThemeMode.Dark),
+                selected = previewMode ?: if (KinzoTheme.isDark) ThemeMode.Dark else ThemeMode.Light,
+                optionLabel = { it.label },
+                onSelect = onPreviewMode,
+            )
+
+            SectionHeader("Colour roles")
+            val roles = KinzoTheme.colors
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                listOf(
+                    "background" to roles.background,
+                    "surface" to roles.surface,
+                    "surfaceHigh" to roles.surfaceHigh,
+                    "accent" to roles.accent,
+                    "onAccent" to roles.onAccent,
+                    "accentSoft" to roles.accentSoft,
+                    "text" to roles.text,
+                    "textMuted" to roles.textMuted,
+                    "danger" to roles.danger,
+                ).forEach { (name, color) ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
+                        Swatch(color)
+                        Text(name, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
 
             SectionHeader("Type")
@@ -172,12 +231,14 @@ private fun LoggingSample(unit: WeightUnit) {
     }
 }
 
+// Swatches sit on a filled square so white shows up on a white screen, without a border.
 @Composable
 private fun Swatch(color: Color) {
     Box(
         Modifier
             .size(40.dp)
-            .background(color, MaterialTheme.shapes.small)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small),
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small)
+            .padding(4.dp)
+            .background(color, MaterialTheme.shapes.extraSmall),
     )
 }

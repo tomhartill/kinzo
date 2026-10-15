@@ -1,6 +1,6 @@
 package com.tomhartill.kinzo.ui.screens.library
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,9 +13,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,6 +35,7 @@ import com.tomhartill.kinzo.ui.components.DateField
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.PrimaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
+import com.tomhartill.kinzo.ui.components.kinzoSwitchColors
 import com.tomhartill.kinzo.ui.components.kinzoTextFieldColors
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import kotlinx.datetime.DateTimeUnit
@@ -133,7 +133,7 @@ private fun MesocycleCard(
                         "CURRENT",
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
-                            .border(1.dp, colors.onSurface, MaterialTheme.shapes.extraSmall)
+                            .background(colors.primaryContainer, MaterialTheme.shapes.extraSmall)
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
@@ -211,7 +211,7 @@ internal fun MesocycleFormDialog(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md)) {
-                OutlinedTextField(
+                TextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Name") },
@@ -265,13 +265,7 @@ internal fun MesocycleFormDialog(
                         Switch(
                             checked = copyWorkouts,
                             onCheckedChange = { copyWorkouts = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = colors.surface,
-                                checkedTrackColor = colors.onSurface,
-                                uncheckedThumbColor = colors.outline,
-                                uncheckedTrackColor = colors.surface,
-                                uncheckedBorderColor = colors.outline,
-                            ),
+                            colors = kinzoSwitchColors(),
                         )
                     }
                 }

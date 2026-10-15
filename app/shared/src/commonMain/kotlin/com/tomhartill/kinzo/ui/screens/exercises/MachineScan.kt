@@ -15,7 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.tomhartill.kinzo.domain.ExerciseSummary
 import com.tomhartill.kinzo.ui.components.KinzoIcons
 import com.tomhartill.kinzo.ui.components.PrimaryButton
+import com.tomhartill.kinzo.ui.components.secondaryButtonColors
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
@@ -32,10 +33,11 @@ import com.tomhartill.kinzo.ui.theme.KinzoTheme
 /** The button above the exercise list that opens the camera. */
 @Composable
 fun ScanMachineButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedButton(
+    Button(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().heightIn(min = KinzoTheme.spacing.touchTarget),
         shape = MaterialTheme.shapes.medium,
+        colors = secondaryButtonColors(),
     ) {
         Icon(KinzoIcons.Camera, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.size(KinzoTheme.spacing.sm))

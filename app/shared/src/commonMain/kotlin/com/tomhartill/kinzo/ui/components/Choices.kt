@@ -2,7 +2,6 @@ package com.tomhartill.kinzo.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +21,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwitchColors
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,11 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
-/** A small segmented control: the chosen option is solid, the rest are plain text. */
+/** A small segmented control on a filled track: the chosen option is solid accent. */
 @Composable
 fun <T> ChoiceRow(
     options: List<T>,
@@ -51,13 +53,13 @@ fun <T> ChoiceRow(
             .fillMaxWidth()
             .height(KinzoTheme.spacing.touchTarget)
             .clip(shape)
-            .border(1.dp, colors.outline, shape)
+            .background(colors.surfaceContainerHigh)
             .padding(3.dp)
             .selectableGroup(),
     ) {
         options.forEach { option ->
             val isSelected = option == selected
-            val background by animateColorAsState(if (isSelected) colors.primary else colors.surface)
+            val background by animateColorAsState(if (isSelected) colors.primary else colors.surfaceContainerHigh)
             val content by animateColorAsState(if (isSelected) colors.onPrimary else colors.onSurface)
             Box(
                 modifier = Modifier
@@ -124,4 +126,18 @@ fun <T> MenuSettingRow(
             }
         }
     }
+}
+
+/** Switch colours: an accent track when on, a plain filled track when off, never an outline. */
+@Composable
+fun kinzoSwitchColors(): SwitchColors {
+    val colors = MaterialTheme.colorScheme
+    return SwitchDefaults.colors(
+        checkedThumbColor = colors.onPrimary,
+        checkedTrackColor = colors.primary,
+        checkedBorderColor = Color.Transparent,
+        uncheckedThumbColor = colors.onSurfaceVariant,
+        uncheckedTrackColor = colors.surfaceContainerHigh,
+        uncheckedBorderColor = Color.Transparent,
+    )
 }

@@ -1,6 +1,6 @@
 package com.tomhartill.kinzo.ui.components
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +41,7 @@ fun RestChip(seconds: Int, onSelect: (seconds: Int) -> Unit, modifier: Modifier 
             modifier = Modifier
                 .minimumInteractiveComponentSize()
                 .clip(MaterialTheme.shapes.small)
-                .border(1.dp, colors.outlineVariant, MaterialTheme.shapes.small)
+                .background(colors.surfaceContainerHigh)
                 .clickable(onClickLabel = "Change rest time", role = Role.DropdownList) { open = true }
                 .heightIn(min = 32.dp)
                 .padding(start = KinzoTheme.spacing.sm, end = KinzoTheme.spacing.xs),

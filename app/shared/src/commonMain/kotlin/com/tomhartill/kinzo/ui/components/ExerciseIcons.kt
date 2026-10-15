@@ -1,6 +1,6 @@
 package com.tomhartill.kinzo.ui.components
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -82,7 +82,7 @@ class ExerciseIconSet private constructor(private val file: IconFile) {
 val LocalExerciseIcons = staticCompositionLocalOf<ExerciseIconSet?> { null }
 
 /**
- * An exercise's pictogram in a hairline square, [size] across. Keeps its space while the
+ * An exercise's pictogram on a filled square, [size] across. Keeps its space while the
  * pictograms load, so lists don't shift.
  */
 @Composable
@@ -91,7 +91,7 @@ fun ExerciseIcon(key: String?, modifier: Modifier = Modifier, size: Dp = 44.dp) 
     Box(
         modifier = modifier
             .size(size)
-            .border(0.5.dp, colors.outlineVariant, MaterialTheme.shapes.small),
+            .background(colors.surfaceContainerHigh, MaterialTheme.shapes.small),
         contentAlignment = Alignment.Center,
     ) {
         val icon = LocalExerciseIcons.current?.icon(key ?: ExerciseIconSet.GENERIC)

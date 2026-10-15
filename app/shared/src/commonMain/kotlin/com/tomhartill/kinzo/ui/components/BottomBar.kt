@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,8 +43,8 @@ fun KinzoBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    // No divider: the bar's fill sets it apart from the screen.
     Column(modifier.fillMaxWidth().background(colors.surface)) {
-        HorizontalDivider(thickness = 0.5.dp, color = colors.outlineVariant)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -55,7 +54,7 @@ fun KinzoBottomBar(
         ) {
             items.forEachIndexed { index, item ->
                 val selected = index == selectedIndex
-                val tint by animateColorAsState(if (selected) colors.onSurface else colors.onSurfaceVariant)
+                val tint by animateColorAsState(if (selected) colors.primary else colors.onSurfaceVariant)
                 Column(
                     modifier = Modifier
                         .weight(1f)

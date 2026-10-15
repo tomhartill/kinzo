@@ -406,6 +406,10 @@ data class Routine(
 data class Settings(
     val weightUnit: WeightUnit = WeightUnit.Kilograms,
     val restSeconds: Int = DEFAULT_REST_SECONDS,
+    val theme: ThemeName = ThemeName.Mono,
+    val themeMode: ThemeMode = ThemeMode.System,
+    /** Whether first-time tips show. Each tip still shows only once. */
+    val tipsEnabled: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_REST_SECONDS = 90

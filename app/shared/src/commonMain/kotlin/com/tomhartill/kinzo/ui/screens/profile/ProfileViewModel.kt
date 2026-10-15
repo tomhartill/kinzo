@@ -6,6 +6,8 @@ import com.tomhartill.kinzo.data.AccountRepository
 import com.tomhartill.kinzo.data.SettingsRepository
 import com.tomhartill.kinzo.data.api.Account
 import com.tomhartill.kinzo.domain.Settings
+import com.tomhartill.kinzo.domain.ThemeMode
+import com.tomhartill.kinzo.domain.ThemeName
 import com.tomhartill.kinzo.domain.WeightUnit
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,5 +32,13 @@ class ProfileViewModel(private val settings: SettingsRepository, accounts: Accou
 
     fun setRestSeconds(seconds: Int) {
         viewModelScope.launch { settings.setRestSeconds(seconds) }
+    }
+
+    fun setTheme(theme: ThemeName) {
+        viewModelScope.launch { settings.setTheme(theme) }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { settings.setThemeMode(mode) }
     }
 }

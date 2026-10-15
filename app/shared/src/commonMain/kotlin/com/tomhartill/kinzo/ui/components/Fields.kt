@@ -17,8 +17,8 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldColors
@@ -29,22 +29,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
-/** The outlined text field colours used across the app: black and white, no accent. */
+/**
+ * The text field colours used across the app: a filled field with no outline, standing apart by
+ * fill alone like everything else. Focus shows as an accent underline, errors as a red one.
+ */
 @Composable
 fun kinzoTextFieldColors(): TextFieldColors {
-    val colors = MaterialTheme.colorScheme
-    return OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = colors.onSurface,
-        unfocusedBorderColor = colors.outline,
-        focusedLabelColor = colors.onSurface,
-        cursorColor = colors.onSurface,
+    val colors = KinzoTheme.colors
+    return TextFieldDefaults.colors(
+        focusedContainerColor = colors.surfaceHigh,
+        unfocusedContainerColor = colors.surfaceHigh,
+        disabledContainerColor = colors.surfaceHigh,
+        errorContainerColor = colors.surfaceHigh,
+        focusedIndicatorColor = colors.accent,
+        unfocusedIndicatorColor = Color.Transparent,
+        disabledIndicatorColor = Color.Transparent,
+        errorIndicatorColor = colors.danger,
+        focusedLabelColor = colors.text,
+        unfocusedLabelColor = colors.textMuted,
+        cursorColor = colors.text,
     )
 }
 
@@ -63,7 +75,7 @@ fun DropdownField(
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
-        OutlinedTextField(
+        TextField(
             value = value,
             onValueChange = {},
             readOnly = true,
@@ -129,7 +141,7 @@ fun DateField(
     val colors = MaterialTheme.colorScheme
     // A read-only field doesn't take clicks, so a transparent button sits over it.
     Box(modifier) {
-        OutlinedTextField(
+        TextField(
             value = dateText,
             onValueChange = {},
             readOnly = true,

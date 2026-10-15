@@ -1,6 +1,6 @@
 package com.tomhartill.kinzo.ui.screens.library
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -301,7 +301,7 @@ private fun GenerateWithAiCard() {
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.onSurfaceVariant,
                         modifier = Modifier
-                            .border(1.dp, colors.outlineVariant, MaterialTheme.shapes.extraSmall)
+                            .background(colors.surfaceContainerHigh, MaterialTheme.shapes.extraSmall)
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }

@@ -1,6 +1,5 @@
 package com.tomhartill.kinzo.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,7 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
-/** Flat card with a hairline border; no shadows anywhere in the app. Tappable with [onClick]. */
+/**
+ * Flat card that stands apart from the screen by its fill alone: no border and no shadow, here
+ * or anywhere in the app. Tappable with [onClick].
+ */
 @Composable
 fun KinzoCard(
     modifier: Modifier = Modifier,
@@ -24,7 +26,6 @@ fun KinzoCard(
 ) {
     val shape = MaterialTheme.shapes.large
     val color = MaterialTheme.colorScheme.surface
-    val border = BorderStroke(KinzoTheme.spacing.xxs / 2, MaterialTheme.colorScheme.outlineVariant)
     val inner: @Composable () -> Unit = {
         Column(
             modifier = Modifier.padding(KinzoTheme.spacing.lg),
@@ -33,9 +34,9 @@ fun KinzoCard(
         )
     }
     if (onClick != null) {
-        Surface(onClick = onClick, modifier = modifier.fillMaxWidth(), shape = shape, color = color, border = border, content = inner)
+        Surface(onClick = onClick, modifier = modifier.fillMaxWidth(), shape = shape, color = color, content = inner)
     } else {
-        Surface(modifier = modifier.fillMaxWidth(), shape = shape, color = color, border = border, content = inner)
+        Surface(modifier = modifier.fillMaxWidth(), shape = shape, color = color, content = inner)
     }
 }
 

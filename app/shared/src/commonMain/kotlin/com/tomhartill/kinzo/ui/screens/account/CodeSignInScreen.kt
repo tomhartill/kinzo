@@ -20,8 +20,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,6 +51,7 @@ import com.tomhartill.kinzo.account.PhoneNumbers
 import com.tomhartill.kinzo.data.api.CodeChannel
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
 import com.tomhartill.kinzo.ui.components.PrimaryButton
+import com.tomhartill.kinzo.ui.components.secondaryButtonColors
 import com.tomhartill.kinzo.ui.components.kinzoTextFieldColors
 import com.tomhartill.kinzo.ui.navigation.SystemBackHandler
 import com.tomhartill.kinzo.ui.screens.account.CodeSignInViewModel.Step
@@ -130,7 +131,7 @@ private fun EmailStep(state: CodeSignInViewModel.State, viewModel: CodeSignInVie
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     Heading("What's your email?", "We'll text or WhatsApp a code to your phone. No password.")
-    OutlinedTextField(
+    TextField(
         value = state.email,
         onValueChange = viewModel::onEmailChange,
         label = { Text("Email") },
@@ -158,7 +159,7 @@ private fun PhoneStep(state: CodeSignInViewModel.State, viewModel: CodeSignInVie
     )
     Row(horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
         CountryPicker(state, viewModel)
-        OutlinedTextField(
+        TextField(
             value = state.number,
             onValueChange = viewModel::onNumberChange,
             label = { Text("Mobile number") },
@@ -176,9 +177,11 @@ private fun PhoneStep(state: CodeSignInViewModel.State, viewModel: CodeSignInVie
             if (index == 0) {
                 PrimaryButton(text = label, onClick = { viewModel.send(channel) }, enabled = !state.busy)
             } else {
-                OutlinedButton(
+                Button(
                     onClick = { viewModel.send(channel) },
                     enabled = !state.busy,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = secondaryButtonColors(),
                     modifier = Modifier.fillMaxWidth().heightIn(min = KinzoTheme.spacing.touchTarget),
                 ) { Text(label, style = MaterialTheme.typography.labelLarge) }
             }
@@ -190,9 +193,10 @@ private fun PhoneStep(state: CodeSignInViewModel.State, viewModel: CodeSignInVie
 private fun CountryPicker(state: CodeSignInViewModel.State, viewModel: CodeSignInViewModel) {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(
+        Button(
             onClick = { open = true },
             shape = MaterialTheme.shapes.small,
+            colors = secondaryButtonColors(),
             modifier = Modifier.heightIn(min = KinzoTheme.spacing.touchTarget),
         ) { Text("${state.country.iso} +${state.country.dialCode}", style = MaterialTheme.typography.bodyLarge) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -216,7 +220,7 @@ private fun CodeStep(state: CodeSignInViewModel.State, viewModel: CodeSignInView
     LaunchedEffect(challenge.challengeId) { focus.requestFocus() }
     val by = if (challenge.channel == CodeChannel.Sms) "by text" else "on WhatsApp"
     Heading("Enter your code", "We sent a 6-digit code to ${challenge.phoneHint} $by.")
-    OutlinedTextField(
+    TextField(
         value = state.code,
         onValueChange = viewModel::onCodeChange,
         singleLine = true,

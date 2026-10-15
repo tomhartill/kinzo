@@ -1,7 +1,6 @@
 package com.tomhartill.kinzo.ui.screens.exercises
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -308,8 +307,7 @@ internal fun ExerciseRow(exercise: ExerciseSummary, trend: Trend?, selected: Boo
                     modifier = Modifier
                         .size(24.dp)
                         .clip(MaterialTheme.shapes.extraSmall)
-                        .background(if (selected) colors.primary else colors.background)
-                        .border(1.5.dp, if (selected) colors.primary else colors.outline, MaterialTheme.shapes.extraSmall),
+                        .background(if (selected) colors.primary else colors.surfaceContainerHigh),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (selected) {

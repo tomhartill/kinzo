@@ -3,8 +3,7 @@ package com.tomhartill.kinzo.ui.components
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,18 +68,14 @@ fun TextInputDialog(
         onDismissRequest = onDismiss,
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
-            OutlinedTextField(
+            TextField(
                 value = value,
                 onValueChange = { value = it },
                 singleLine = true,
                 modifier = Modifier.focusRequester(focusRequester),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                 shape = MaterialTheme.shapes.small,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colors.onSurface,
-                    unfocusedBorderColor = colors.outline,
-                    cursorColor = colors.onSurface,
-                ),
+                colors = kinzoTextFieldColors(),
             )
         },
         confirmButton = {

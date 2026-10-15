@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -67,7 +66,6 @@ fun RestBar(
     }
     val colors = MaterialTheme.colorScheme
     Column(modifier.fillMaxWidth().background(colors.surfaceContainer).windowInsetsPadding(WindowInsets.navigationBars)) {
-        HorizontalDivider(thickness = 0.5.dp, color = colors.outlineVariant)
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = KinzoTheme.spacing.screen, vertical = KinzoTheme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically,

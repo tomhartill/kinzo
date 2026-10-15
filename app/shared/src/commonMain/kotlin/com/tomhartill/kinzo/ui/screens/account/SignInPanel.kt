@@ -1,7 +1,6 @@
 package com.tomhartill.kinzo.ui.screens.account
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,7 +57,8 @@ fun SignInPanel(
         viewModel.signedIn.collect { signedIn(it.newUser) }
     }
     val colors = MaterialTheme.colorScheme
-    val dark = isSystemInDarkTheme()
+    // The app's own mode, which can differ from the phone's.
+    val dark = KinzoTheme.isDark
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md)) {
         // Google's sign-in guidelines: white with a grey outline, or near-black in dark mode.
@@ -89,9 +89,9 @@ fun SignInPanel(
                 label = "Continue with email",
                 icon = Icons.Outlined.Email,
                 iconTint = colors.onSurface,
-                container = colors.surface,
+                container = colors.surfaceContainerHigh,
                 content = colors.onSurface,
-                border = colors.outline,
+                border = null,
                 busy = false,
                 enabled = state.busy == null,
                 onClick = onEmail,

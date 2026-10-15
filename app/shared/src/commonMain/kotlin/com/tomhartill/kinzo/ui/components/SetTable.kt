@@ -500,14 +500,19 @@ private fun SetInput(
 @Composable
 private fun DoneToggle(label: String, done: Boolean, problem: String?, onToggle: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val fill by animateColorAsState(if (done) colors.primary else Color.Transparent)
+    val fill by animateColorAsState(
+        when {
+            done -> colors.primary
+            problem != null -> colors.errorContainer
+            else -> colors.surfaceContainerHigh
+        },
+    )
     Box(
         modifier = Modifier
             .size(DoneColumnWidth)
             .padding(2.dp)
             .clip(MaterialTheme.shapes.small)
             .background(fill)
-            .border(1.dp, if (done) colors.primary else if (problem != null) colors.error else colors.outline, MaterialTheme.shapes.small)
             // toggleable exposes the checked state to TalkBack and VoiceOver.
             .toggleable(value = done, role = Role.Checkbox, onValueChange = { onToggle() })
             .semantics {

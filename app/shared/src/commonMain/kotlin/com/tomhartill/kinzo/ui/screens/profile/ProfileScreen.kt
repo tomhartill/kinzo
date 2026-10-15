@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.domain.Format
 import com.tomhartill.kinzo.domain.Settings
+import com.tomhartill.kinzo.domain.ThemeMode
 import com.tomhartill.kinzo.domain.WeightUnit
 import com.tomhartill.kinzo.ui.components.Avatar
 import com.tomhartill.kinzo.ui.components.ChoiceRow
@@ -19,6 +20,7 @@ import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.MenuSettingRow
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
+import com.tomhartill.kinzo.ui.components.ThemePicker
 import com.tomhartill.kinzo.ui.screens.EmptyState
 import com.tomhartill.kinzo.ui.screens.TitledScreen
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
@@ -86,6 +88,15 @@ fun ProfileScreen(
                     color = colors.onSurfaceVariant,
                 )
             }
+
+            SectionHeader("Appearance")
+            ThemePicker(selected = current.theme, onSelect = viewModel::setTheme)
+            ChoiceRow(
+                options = ThemeMode.entries,
+                selected = current.themeMode,
+                optionLabel = { it.label },
+                onSelect = viewModel::setThemeMode,
+            )
 
             SectionHeader("Workouts")
             MenuSettingRow(

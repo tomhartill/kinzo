@@ -64,11 +64,11 @@ fun ProgressChart(
         CartesianChartModel(LineCartesianLayerModel.build { series(x = points.indices.toList(), y = points.map { it.value }) })
     }
     val line = LineCartesianLayer.rememberLine(
-        fill = remember(colors.onSurface) { LineCartesianLayer.LineFill.single(Fill(colors.onSurface)) },
+        fill = remember(colors.primary) { LineCartesianLayer.LineFill.single(Fill(colors.primary)) },
         stroke = LineCartesianLayer.LineStroke.Continuous(thickness = 2.dp, cap = StrokeCap.Round),
-        areaFill = remember(colors.onSurface) {
+        areaFill = remember(colors.primary) {
             LineCartesianLayer.AreaFill.single(
-                Fill(Brush.verticalGradient(listOf(colors.onSurface.copy(alpha = 0.12f), colors.onSurface.copy(alpha = 0f)))),
+                Fill(Brush.verticalGradient(listOf(colors.primary.copy(alpha = 0.12f), colors.primary.copy(alpha = 0f)))),
             )
         },
         pointProvider = LineCartesianLayer.PointProvider.single(
@@ -76,7 +76,7 @@ fun ProgressChart(
                 rememberShapeComponent(
                     fill = Fill(colors.surface),
                     shape = CircleShape,
-                    strokeFill = Fill(colors.onSurface),
+                    strokeFill = Fill(colors.primary),
                     strokeThickness = 2.dp,
                 ),
                 size = 8.dp,

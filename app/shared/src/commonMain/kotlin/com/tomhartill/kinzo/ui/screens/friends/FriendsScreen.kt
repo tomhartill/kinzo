@@ -31,7 +31,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,6 +52,7 @@ import com.tomhartill.kinzo.ui.components.ConfirmDialog
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
 import com.tomhartill.kinzo.ui.components.PrimaryButton
+import com.tomhartill.kinzo.ui.components.secondaryButtonColors
 import com.tomhartill.kinzo.ui.components.SearchField
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
@@ -308,12 +308,12 @@ private fun SmallButton(text: String, busy: Boolean, filled: Boolean = false, on
             content = content,
         )
     } else {
-        OutlinedButton(
+        Button(
             onClick = onClick,
             enabled = !busy,
             shape = MaterialTheme.shapes.medium,
             contentPadding = padding,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+            colors = secondaryButtonColors(),
             modifier = modifier,
             content = content,
         )

@@ -4,6 +4,8 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.tomhartill.kinzo.db.KinzoDatabase
 import com.tomhartill.kinzo.domain.Settings
+import com.tomhartill.kinzo.domain.ThemeMode
+import com.tomhartill.kinzo.domain.ThemeName
 import com.tomhartill.kinzo.domain.WeightUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -25,12 +27,21 @@ class SettingsRepository(
             Settings(
                 weightUnit = WeightUnit.fromKey(values[WEIGHT_UNIT]),
                 restSeconds = values[REST_SECONDS]?.toIntOrNull() ?: Settings.DEFAULT_REST_SECONDS,
+                theme = ThemeName.fromKey(values[THEME]),
+                themeMode = ThemeMode.fromKey(values[THEME_MODE]),
+                tipsEnabled = values[TIPS_ENABLED] != "false",
             )
         }.distinctUntilChanged()
 
     suspend fun setWeightUnit(unit: WeightUnit) = put(WEIGHT_UNIT, unit.key)
 
     suspend fun setRestSeconds(seconds: Int) = put(REST_SECONDS, seconds.coerceAtLeast(0).toString())
+
+    suspend fun setTheme(theme: ThemeName) = put(THEME, theme.key)
+
+    suspend fun setThemeMode(mode: ThemeMode) = put(THEME_MODE, mode.key)
+
+    suspend fun setTipsEnabled(enabled: Boolean) = put(TIPS_ENABLED, enabled.toString())
 
     private suspend fun put(key: String, value: String) = withContext(io) {
         queries.putSetting(key = key, value = value)
@@ -39,5 +50,8 @@ class SettingsRepository(
     private companion object {
         const val WEIGHT_UNIT = "weight_unit"
         const val REST_SECONDS = "rest_seconds"
+        const val THEME = "appearance.theme"
+        const val THEME_MODE = "appearance.mode"
+        const val TIPS_ENABLED = "tips.enabled"
     }
 }

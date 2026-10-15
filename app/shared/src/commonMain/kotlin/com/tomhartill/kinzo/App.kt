@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -46,6 +47,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tomhartill.kinzo.data.SettingsRepository
 import com.tomhartill.kinzo.domain.ActiveWorkoutInfo
 import com.tomhartill.kinzo.domain.RestTimer
 import com.tomhartill.kinzo.resources.Res
@@ -92,6 +94,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 // In the same order as Tab. The AI coach gets its own tab here in phase 2.
@@ -106,7 +109,12 @@ private const val TRANSITION_MILLIS = 300
 
 @Composable
 fun App() {
-    KinzoTheme {
+    val settingsRepository = koinInject<SettingsRepository>()
+    val settings by remember(settingsRepository) { settingsRepository.settings() }.collectAsStateWithLifecycle(initialValue = null)
+    // Nothing draws for the moment it takes to read the settings, rather than flashing the
+    // default theme at someone who chose another.
+    val current = settings ?: return
+    KinzoTheme(theme = current.theme, mode = current.themeMode) {
         val navigator = rememberNavigator()
         CompositionLocalProvider(LocalExerciseIcons provides rememberExerciseIcons()) {
             ProvideScreenStores { stores ->

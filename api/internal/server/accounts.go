@@ -72,6 +72,8 @@ func (s *Server) accountRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/invites/{code}", s.signedIn(s.getInvite))
 	mux.HandleFunc("POST /v1/invites/{code}/accept", s.signedIn(s.acceptInvite))
 	mux.HandleFunc("GET /i/{code}", s.invitePage)
+
+	mux.HandleFunc("POST /v1/scan/machine", s.signedIn(s.scanMachine))
 }
 
 // session is the signed-in caller of a request.

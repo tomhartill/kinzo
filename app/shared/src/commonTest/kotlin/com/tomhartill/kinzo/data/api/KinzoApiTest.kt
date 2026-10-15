@@ -91,4 +91,30 @@ class KinzoApiTest {
             api.signInStartUrl("google", "kinzo://auth/callback", "abc"),
         )
     }
+
+    @Test
+    fun aMachineScanSendsThePhotoAsJpeg() = runTest {
+        var contentType: String? = null
+        var path = ""
+        var sent = 0
+        val engine = MockEngine { request ->
+            path = request.url.encodedPath
+            contentType = request.body.contentType?.toString()
+            sent = (request.body as io.ktor.http.content.ByteArrayContent).bytes().size
+            respond(
+                """{"matches":[{"machine_id":"m1","confidence":"high"}],"exercise_id":"ex-incline","description":"An incline press."}""",
+                HttpStatusCode.OK,
+                json,
+            )
+        }
+        val api = KinzoApi("https://kinzo.test", token = { "kz_abc" }, onSignedOut = {}, engine = engine)
+
+        val scan = api.scanMachine(ByteArray(10))
+
+        assertEquals("/v1/scan/machine", path)
+        assertEquals("image/jpeg", contentType)
+        assertEquals(10, sent)
+        assertEquals(listOf(MachineMatch("m1", "high")), scan.matches)
+        assertEquals("ex-incline", scan.exerciseId)
+    }
 }

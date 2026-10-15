@@ -22,6 +22,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -33,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +44,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tomhartill.kinzo.domain.Equipment
+import com.tomhartill.kinzo.domain.ExerciseListRow
 import com.tomhartill.kinzo.domain.ExerciseSummary
 import com.tomhartill.kinzo.domain.Muscle
 import com.tomhartill.kinzo.domain.Trend
@@ -53,7 +57,9 @@ import com.tomhartill.kinzo.ui.theme.KinzoTheme
 /**
  * Search box, muscle and equipment filters, and the exercise list. With [selectedIds] the
  * rows show a tick for picking several exercises; without it a tap opens the exercise.
- * Exercises with two or more sessions show a sparkline of their recent progress.
+ * Exercises with two or more sessions show a sparkline of their recent progress. Variations of
+ * one movement fold into a group row that opens in place; a search lists them directly.
+ * [header] goes above the list, under the filters, for example a button to scan a machine.
  */
 @Composable
 fun ExerciseBrowser(
@@ -66,8 +72,11 @@ fun ExerciseBrowser(
     modifier: Modifier = Modifier,
     selectedIds: List<String>? = null,
     contentPadding: PaddingValues = PaddingValues(),
+    header: (@Composable () -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
+    // Groups the user has opened. A list rather than a set, so it saves on every platform.
+    var expanded by rememberSaveable { mutableStateOf(listOf<String>()) }
     // A new search or filter starts back at the top, so the best matches aren't scrolled past.
     // Only on a change: coming back to the list keeps its place.
     val filters = listOf(state.query, state.muscle?.key, state.equipment?.id)
@@ -107,6 +116,7 @@ fun ExerciseBrowser(
                     onSelect = onEquipmentChange,
                 )
             }
+            header?.invoke()
         }
         LazyColumn(
             state = listState,
@@ -122,7 +132,18 @@ fun ExerciseBrowser(
                         exerciseRows(state.recent, "recent", state.trends, selectedIds, onExerciseClick)
                         section("All exercises")
                     }
-                    exerciseRows(state.results, "all", state.trends, selectedIds, onExerciseClick)
+                    if (state.query.isBlank()) {
+                        groupedRows(
+                            rows = state.rows,
+                            expanded = expanded,
+                            onToggle = { id -> expanded = if (id in expanded) expanded - id else expanded + id },
+                            trends = state.trends,
+                            selectedIds = selectedIds,
+                            onClick = onExerciseClick,
+                        )
+                    } else {
+                        exerciseRows(state.results, "all", state.trends, selectedIds, onExerciseClick)
+                    }
                 }
             }
         }
@@ -160,9 +181,98 @@ private fun LazyListScope.exerciseRows(
     }
 }
 
+/** The list with groups of variations as rows that open in place to show their exercises. */
+private fun LazyListScope.groupedRows(
+    rows: List<ExerciseListRow>,
+    expanded: List<String>,
+    onToggle: (String) -> Unit,
+    trends: Map<String, Trend>,
+    selectedIds: List<String>?,
+    onClick: (ExerciseSummary) -> Unit,
+) {
+    rows.forEach { row ->
+        when (row) {
+            is ExerciseListRow.Single -> item(key = "all-${row.exercise.id}") {
+                ExerciseRow(
+                    exercise = row.exercise,
+                    trend = trends[row.exercise.id],
+                    selected = selectedIds?.contains(row.exercise.id),
+                    onClick = { onClick(row.exercise) },
+                )
+            }
+            is ExerciseListRow.Group -> {
+                val open = row.id in expanded
+                item(key = "all-${row.key}") {
+                    GroupRow(
+                        group = row,
+                        open = open,
+                        selectedCount = selectedIds?.count { id -> row.exercises.any { it.id == id } } ?: 0,
+                        onClick = { onToggle(row.id) },
+                    )
+                }
+                if (open) {
+                    items(row.exercises, key = { "all-${row.key}-${it.id}" }) { exercise ->
+                        ExerciseRow(
+                            exercise = exercise,
+                            trend = trends[exercise.id],
+                            selected = selectedIds?.contains(exercise.id),
+                            onClick = { onClick(exercise) },
+                            indent = true,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
-private fun ExerciseRow(exercise: ExerciseSummary, trend: Trend?, selected: Boolean?, onClick: () -> Unit) {
+private fun GroupRow(group: ExerciseListRow.Group, open: Boolean, selectedCount: Int, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val details = buildString {
+        append("${group.exercises.size} variations")
+        if (selectedCount > 0) append(" · $selectedCount picked")
+    }
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 64.dp)
+                .clickable(onClickLabel = if (open) "Hide variations" else "Show variations", onClick = onClick)
+                .background(colors.background)
+                .padding(horizontal = KinzoTheme.spacing.screen, vertical = KinzoTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md),
+        ) {
+            ExerciseIcon(group.icon)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(group.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    details,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (selectedCount > 0) colors.primary else colors.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            Icon(
+                if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                contentDescription = null,
+                tint = colors.onSurfaceVariant,
+            )
+        }
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = colors.outlineVariant,
+            modifier = Modifier.padding(start = KinzoTheme.spacing.screen + 44.dp + KinzoTheme.spacing.md),
+        )
+    }
+}
+
+@Composable
+internal fun ExerciseRow(exercise: ExerciseSummary, trend: Trend?, selected: Boolean?, onClick: () -> Unit, indent: Boolean = false) {
+    val colors = MaterialTheme.colorScheme
+    // Variations inside an open group sit in from the edge, under their group.
+    val start = if (indent) KinzoTheme.spacing.screen + KinzoTheme.spacing.lg else KinzoTheme.spacing.screen
     val details = listOfNotNull(
         exercise.primaryMuscles.joinToString(", ") { it.label }.ifEmpty { null },
         exercise.equipmentName,
@@ -181,7 +291,7 @@ private fun ExerciseRow(exercise: ExerciseSummary, trend: Trend?, selected: Bool
                     },
                 )
                 .background(if (selected == true) colors.surfaceContainerHigh else colors.background)
-                .padding(horizontal = KinzoTheme.spacing.screen, vertical = KinzoTheme.spacing.md),
+                .padding(start = start, end = KinzoTheme.spacing.screen, top = KinzoTheme.spacing.md, bottom = KinzoTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md),
         ) {
@@ -212,7 +322,7 @@ private fun ExerciseRow(exercise: ExerciseSummary, trend: Trend?, selected: Bool
         HorizontalDivider(
             thickness = 0.5.dp,
             color = colors.outlineVariant,
-            modifier = Modifier.padding(start = KinzoTheme.spacing.screen + 44.dp + KinzoTheme.spacing.md),
+            modifier = Modifier.padding(start = start + 44.dp + KinzoTheme.spacing.md),
         )
     }
 }

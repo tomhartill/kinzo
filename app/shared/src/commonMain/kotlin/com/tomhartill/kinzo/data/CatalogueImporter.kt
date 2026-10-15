@@ -35,9 +35,17 @@ class CatalogueImporter(
         val queries = db.catalogueQueries
         db.transaction {
             // Anything the new version dropped stays deleted; everything else is revived below.
-            queries.softDeleteExercisesFromSource(now = now, source = SOURCE)
-            queries.softDeleteEquipmentFromSource(now = now, source = SOURCE)
-            queries.deleteMusclesFromSource(source = SOURCE)
+            SOURCES.forEach { source ->
+                queries.softDeleteExercisesFromSource(now = now, source = source)
+                queries.softDeleteEquipmentFromSource(now = now, source = source)
+                queries.deleteMusclesFromSource(source = source)
+                queries.softDeleteGroupsFromSource(now = now, source = source)
+                queries.deleteMachineExercisesFromSource(source = source)
+                queries.softDeleteMachinesFromSource(now = now, source = source)
+            }
+            file.groups.forEach { group ->
+                queries.upsertGroup(id = group.id, name = group.name, icon = group.icon, source = KINZO_SOURCE, updatedAt = now)
+            }
             file.equipment.forEach { equipment ->
                 queries.upsertEquipment(
                     id = equipment.id,
@@ -54,13 +62,28 @@ class CatalogueImporter(
                     instructions = exercise.instructions.joinToString("\n"),
                     equipmentId = exercise.equipmentId,
                     measurementType = exercise.measurementType,
-                    source = SOURCE,
+                    source = exercise.source ?: SOURCE,
                     sourceRef = exercise.sourceRef,
                     icon = exercise.icon,
                     updatedAt = now,
+                    groupId = exercise.groupId,
                 )
                 exercise.primaryMuscles.forEach { queries.insertMuscle(exerciseId = exercise.id, muscle = it, isPrimary = 1) }
                 exercise.secondaryMuscles.forEach { queries.insertMuscle(exerciseId = exercise.id, muscle = it, isPrimary = 0) }
+            }
+            file.machines.forEach { machine ->
+                queries.upsertMachine(
+                    id = machine.id,
+                    name = machine.name,
+                    equipmentId = machine.equipmentId,
+                    aliases = machine.aliases.joinToString("\n"),
+                    description = machine.description,
+                    source = KINZO_SOURCE,
+                    updatedAt = now,
+                )
+                machine.exerciseIds.forEachIndexed { position, exerciseId ->
+                    queries.insertMachineExercise(machineId = machine.id, exerciseId = exerciseId, position = position.toLong())
+                }
             }
             db.settingQueries.putSetting(key = VERSION_KEY, value = file.version.toString())
         }
@@ -68,6 +91,10 @@ class CatalogueImporter(
 
     companion object {
         const val SOURCE = "free-exercise-db"
+
+        /** Kinzo's own machines, machine exercises and groups. */
+        const val KINZO_SOURCE = "kinzo"
+        private val SOURCES = listOf(SOURCE, KINZO_SOURCE)
         const val RESOURCE_PATH = "files/catalogue.json"
         internal const val VERSION_KEY = "catalogue_version"
         private val VERSION_PATTERN = Regex(""""version"\s*:\s*(\d+)""")
@@ -80,6 +107,21 @@ internal data class CatalogueFile(
     val version: Int,
     val equipment: List<CatalogueEquipment>,
     val exercises: List<CatalogueExercise>,
+    val groups: List<CatalogueGroup> = emptyList(),
+    val machines: List<CatalogueMachine> = emptyList(),
+)
+
+@Serializable
+internal data class CatalogueGroup(val id: String, val name: String, val icon: String? = null)
+
+@Serializable
+internal data class CatalogueMachine(
+    val id: String,
+    val name: String,
+    val equipmentId: String? = null,
+    val aliases: List<String> = emptyList(),
+    val description: String? = null,
+    val exerciseIds: List<String> = emptyList(),
 )
 
 @Serializable
@@ -96,4 +138,7 @@ internal data class CatalogueExercise(
     val instructions: List<String> = emptyList(),
     val sourceRef: String? = null,
     val icon: String? = null,
+    /** Null for free-exercise-db rows; "kinzo" for Kinzo's own. */
+    val source: String? = null,
+    val groupId: String? = null,
 )

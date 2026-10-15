@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -26,6 +27,12 @@ type Config struct {
 	FacebookAppID        string
 	FacebookAppSecret    string
 	FacebookGraphVersion string
+
+	// The machine scan: a Claude API key, the vision model, and scans per user per day. Leave
+	// the key empty to turn scanning off.
+	AnthropicAPIKey string
+	ScanModel       string
+	ScanDailyLimit  int
 }
 
 func Load() (Config, error) {
@@ -39,7 +46,14 @@ func Load() (Config, error) {
 		FacebookAppID:        os.Getenv("FACEBOOK_APP_ID"),
 		FacebookAppSecret:    os.Getenv("FACEBOOK_APP_SECRET"),
 		FacebookGraphVersion: os.Getenv("FACEBOOK_GRAPH_VERSION"),
+		AnthropicAPIKey:      os.Getenv("ANTHROPIC_API_KEY"),
+		ScanModel:            os.Getenv("KINZO_SCAN_MODEL"),
 	}
+	limit, err := strconv.Atoi(getenv("KINZO_SCAN_DAILY_LIMIT", "30"))
+	if err != nil || limit < 0 {
+		return Config{}, errors.New("KINZO_SCAN_DAILY_LIMIT must be a whole number")
+	}
+	cfg.ScanDailyLimit = limit
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is not set")
 	}

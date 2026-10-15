@@ -28,6 +28,7 @@ class DestinationTest {
             Destination.Username(welcome = false),
             Destination.Account,
             Destination.Friends,
+            Destination.ProgressPhotos,
             Destination.Invite("aB3dE5fG7h"),
             Destination.CodeSignIn(),
             Destination.CodeSignIn(addPhone = true),

@@ -1,5 +1,6 @@
 -- The exercise and equipment catalogue. Rows from the bundled catalogue have source
--- 'free-exercise-db'; user-created custom rows arrive in milestone 3 with source 'custom'.
+-- 'free-exercise-db', or 'kinzo' for Kinzo's own machines, machine exercises and groups;
+-- user-created custom rows arrive later with source 'custom'.
 -- Columns mirror the server schema so sync can map them one to one. Times are epoch
 -- milliseconds.
 
@@ -27,7 +28,40 @@ CREATE TABLE exercise (
     -- The key of its pictogram in files/exercise_icons.json, such as 'squat'.
     icon                TEXT,
     updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER,
+    -- The group of variations it belongs to, such as every bench press, or null.
+    group_id            TEXT
+);
+
+-- Variations of one movement shown together, such as every bench press or chest press.
+CREATE TABLE exercise_group (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    icon                TEXT,
+    source              TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
     deleted_at          INTEGER
+);
+
+-- Named gym machines, such as a leg press or a pec deck, for the machine scan. Each belongs to
+-- one generic equipment type (machine, cable and so on) and supports several exercises.
+CREATE TABLE machine (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    equipment_id        TEXT,
+    -- Other names people use for it, one per line.
+    aliases             TEXT NOT NULL,
+    description         TEXT,
+    source              TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE machine_exercise (
+    machine_id          TEXT NOT NULL,
+    exercise_id         TEXT NOT NULL,
+    position            INTEGER NOT NULL,
+    PRIMARY KEY (machine_id, exercise_id)
 );
 
 CREATE TABLE exercise_muscle (
@@ -42,8 +76,32 @@ INSERT OR REPLACE INTO equipment(id, name, type, description, setup_instructions
 VALUES (:id, :name, :type, NULL, NULL, :source, :updatedAt, NULL);
 
 upsertExercise:
-INSERT OR REPLACE INTO exercise(id, name, description, instructions, equipment_id, measurement_type, source, source_ref, icon, updated_at, deleted_at)
-VALUES (:id, :name, NULL, :instructions, :equipmentId, :measurementType, :source, :sourceRef, :icon, :updatedAt, NULL);
+INSERT OR REPLACE INTO exercise(id, name, description, instructions, equipment_id, measurement_type, source, source_ref, icon, updated_at, deleted_at, group_id)
+VALUES (:id, :name, NULL, :instructions, :equipmentId, :measurementType, :source, :sourceRef, :icon, :updatedAt, NULL, :groupId);
+
+upsertGroup:
+INSERT OR REPLACE INTO exercise_group(id, name, icon, source, updated_at, deleted_at)
+VALUES (:id, :name, :icon, :source, :updatedAt, NULL);
+
+upsertMachine:
+INSERT OR REPLACE INTO machine(id, name, equipment_id, aliases, description, source, updated_at, deleted_at)
+VALUES (:id, :name, :equipmentId, :aliases, :description, :source, :updatedAt, NULL);
+
+insertMachineExercise:
+INSERT OR REPLACE INTO machine_exercise(machine_id, exercise_id, position)
+VALUES (:machineId, :exerciseId, :position);
+
+softDeleteGroupsFromSource:
+UPDATE exercise_group SET deleted_at = :now, updated_at = :now
+WHERE source = :source AND deleted_at IS NULL;
+
+softDeleteMachinesFromSource:
+UPDATE machine SET deleted_at = :now, updated_at = :now
+WHERE source = :source AND deleted_at IS NULL;
+
+deleteMachineExercisesFromSource:
+DELETE FROM machine_exercise
+WHERE machine_id IN (SELECT id FROM machine WHERE source = :source);
 
 insertMuscle:
 INSERT OR REPLACE INTO exercise_muscle(exercise_id, muscle, is_primary)
@@ -70,9 +128,13 @@ SELECT
     eq.name AS equipment_name,
     e.icon,
     COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 1), '') AS primary_muscles,
-    COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 0), '') AS secondary_muscles
+    COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 0), '') AS secondary_muscles,
+    g.id AS group_id,
+    g.name AS group_name,
+    g.icon AS group_icon
 FROM exercise e
 LEFT JOIN equipment eq ON eq.id = e.equipment_id
+LEFT JOIN exercise_group g ON g.id = e.group_id AND g.deleted_at IS NULL
 WHERE e.deleted_at IS NULL
 ORDER BY e.name COLLATE NOCASE;
 
@@ -88,9 +150,11 @@ SELECT
     e.equipment_id,
     eq.name AS equipment_name,
     e.source,
-    e.icon
+    e.icon,
+    g.name AS group_name
 FROM exercise e
 LEFT JOIN equipment eq ON eq.id = e.equipment_id
+LEFT JOIN exercise_group g ON g.id = e.group_id AND g.deleted_at IS NULL
 WHERE e.id = :id;
 
 musclesForExercise:
@@ -107,3 +171,22 @@ ORDER BY name COLLATE NOCASE;
 
 countActiveExercises:
 SELECT COUNT(*) FROM exercise WHERE deleted_at IS NULL;
+
+machineList:
+SELECT id, name, aliases, description
+FROM machine
+WHERE deleted_at IS NULL
+ORDER BY name COLLATE NOCASE;
+
+machineById:
+SELECT id, name, aliases, description
+FROM machine
+WHERE id = :id;
+
+-- The exercises a machine supports, in the catalogue's order.
+machineExerciseIds:
+SELECT me.exercise_id
+FROM machine_exercise me
+JOIN exercise e ON e.id = me.exercise_id AND e.deleted_at IS NULL
+WHERE me.machine_id = :machineId
+ORDER BY me.position;

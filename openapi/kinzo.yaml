@@ -512,6 +512,52 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Person" }
         "404": { $ref: "#/components/responses/Error" }
+  /v1/scan/machine:
+    post:
+      summary: Say which gym machine a photo shows
+      description: |
+        The body is the photo itself, at most 5 MB (the app sends about 1280 pixels on the long
+        edge). Each scan is a paid vision-model call, so a person gets a daily allowance
+        (`KINZO_SCAN_DAILY_LIMIT`, 30 by default). Machine and exercise IDs are the catalogue's,
+        so the phone already has them.
+      operationId: scanMachine
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/png:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: What the photo could show. `matches` is empty when it's no machine Kinzo knows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MachineScan" }
+              example:
+                matches:
+                  - { machine_id: 6f1c2a9e-4b1d-5c3e-9a7f-1e2d3c4b5a69, confidence: high }
+                exercise_id: 0a9b8c7d-6e5f-5a4b-8c3d-2e1f0a9b8c7d
+                description: A plate-loaded incline chest press with independent arms.
+        "413": { $ref: "#/components/responses/Error" }
+        "415": { $ref: "#/components/responses/Error" }
+        "422":
+          description: The photo couldn't be read (`unreadable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Today's scans are used up (`scan_limit`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+        "503":
+          description: Scanning isn't set up on this server (`scan_unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 components:
   securitySchemes:
     session:
@@ -545,6 +591,25 @@ components:
                 properties:
                   attempts_left: { type: integer }
   schemas:
+    MachineScan:
+      type: object
+      required: [matches, description]
+      properties:
+        matches:
+          type: array
+          maxItems: 3
+          description: Best first.
+          items:
+            type: object
+            required: [machine_id, confidence]
+            properties:
+              machine_id: { type: string, format: uuid }
+              confidence: { type: string, enum: [high, medium, low] }
+        exercise_id:
+          type: string
+          format: uuid
+          description: The variation the photo most likely shows, from the first match. Absent when unclear.
+        description: { type: string, description: One sentence on what the photo shows. }
     Error:
       type: object
       required: [error]

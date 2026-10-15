@@ -21,6 +21,8 @@ type Server struct {
 
 	// Accounts and friends; nil when the server runs without them, as in the health tests.
 	accounts *accounts
+	// The machine scan; nil when no vision model is set up.
+	scan *machineScan
 }
 
 // Option configures optional parts of the server.

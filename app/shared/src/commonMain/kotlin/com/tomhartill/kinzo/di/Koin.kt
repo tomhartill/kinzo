@@ -7,6 +7,7 @@ import com.tomhartill.kinzo.data.CatalogueRepository
 import com.tomhartill.kinzo.data.DriverFactory
 import com.tomhartill.kinzo.data.KinzoWorkoutsImporter
 import com.tomhartill.kinzo.data.MesocycleRepository
+import com.tomhartill.kinzo.data.ProgressPhotoRepository
 import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.data.SessionStore
 import com.tomhartill.kinzo.data.SettingsRepository
@@ -24,6 +25,7 @@ import com.tomhartill.kinzo.ui.screens.account.SignInViewModel
 import com.tomhartill.kinzo.ui.screens.account.UsernameViewModel
 import com.tomhartill.kinzo.ui.screens.exercises.ExerciseBrowserViewModel
 import com.tomhartill.kinzo.ui.screens.exercises.ExerciseDetailViewModel
+import com.tomhartill.kinzo.ui.screens.exercises.MachineScanViewModel
 import com.tomhartill.kinzo.ui.screens.friends.FriendsViewModel
 import com.tomhartill.kinzo.ui.screens.friends.InviteViewModel
 import com.tomhartill.kinzo.ui.screens.history.HistoryViewModel
@@ -33,6 +35,7 @@ import com.tomhartill.kinzo.ui.screens.library.MesocycleViewModel
 import com.tomhartill.kinzo.ui.screens.library.RoutineDetailViewModel
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorViewModel
 import com.tomhartill.kinzo.ui.screens.profile.ProfileViewModel
+import com.tomhartill.kinzo.ui.screens.progress.ProgressPhotosViewModel
 import com.tomhartill.kinzo.ui.screens.today.TodayViewModel
 import com.tomhartill.kinzo.ui.screens.workout.ActiveWorkoutViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -57,6 +60,7 @@ internal fun dataModule(driverFactory: DriverFactory): Module = module {
     single { RoutineRepository(get(), get()) }
     single { SplitRepository(get(), get()) }
     single { MesocycleRepository(get(), get()) }
+    single { ProgressPhotoRepository(get(), get(), get(), get()) }
     // One rest timer for the whole app, so it keeps counting when you leave the workout.
     single { RestTimer(get(), CoroutineScope(SupervisorJob() + Dispatchers.Default)) }
     single {
@@ -80,7 +84,9 @@ internal val viewModelModule: Module = module {
     viewModelOf(::TodayViewModel)
     viewModelOf(::HistoryViewModel)
     viewModelOf(::ExerciseBrowserViewModel)
+    viewModelOf(::MachineScanViewModel)
     viewModelOf(::ProfileViewModel)
+    viewModelOf(::ProgressPhotosViewModel)
     // No parameter for the workout in progress; a workout ID to edit a finished one.
     viewModel { params -> ActiveWorkoutViewModel(params.getOrNull(), get(), get(), get()) }
     viewModelOf(::LibraryViewModel)
@@ -100,7 +106,8 @@ internal val viewModelModule: Module = module {
 /**
  * Called once at startup by each platform, which supplies its own SQLite driver and a
  * [platformModule] with its sign-in and share sheet ([com.tomhartill.kinzo.account.BrowserSignIn],
- * [com.tomhartill.kinzo.account.NativeGoogleSignIn], [com.tomhartill.kinzo.account.Sharer]).
+ * [com.tomhartill.kinzo.account.NativeGoogleSignIn], [com.tomhartill.kinzo.account.Sharer]) and
+ * its camera and photo storage ([com.tomhartill.kinzo.photos.Camera], [com.tomhartill.kinzo.photos.PhotoFiles]).
  */
 fun initKoin(driverFactory: DriverFactory, platformModule: Module) {
     startKoin {

@@ -9,9 +9,12 @@ talking to each other.
 Usage:
     python3 tools/catalogue/build_catalogue.py path/to/exercises.json
 
-The input is free-exercise-db's dist/exercises.json. Re-running on the same input gives the
-same output byte for byte. Bump CATALOGUE_VERSION whenever the output changes, so installed
-apps re-import it.
+The input is free-exercise-db's dist/exercises.json. Kinzo's own additions (named machines,
+extra machine exercises and the groups that gather variations) come from kinzo_catalogue.py.
+Re-running on the same input gives the same output byte for byte. Bump CATALOGUE_VERSION
+whenever the output changes, so installed apps re-import it.
+
+It also writes the machine list the API's machine scan matches photos against.
 """
 
 import hashlib
@@ -21,9 +24,13 @@ import sys
 import uuid
 from pathlib import Path
 
-CATALOGUE_VERSION = 2
+import kinzo_catalogue
 
-OUTPUT = Path(__file__).resolve().parents[2] / "app/shared/src/commonMain/composeResources/files/catalogue.json"
+CATALOGUE_VERSION = 3
+
+ROOT = Path(__file__).resolve().parents[2]
+OUTPUT = ROOT / "app/shared/src/commonMain/composeResources/files/catalogue.json"
+MACHINES_OUTPUT = ROOT / "api/internal/scan/machines.json"
 
 # Fixed namespace for catalogue IDs. Never change it: every installed app and the server
 # would see a whole new catalogue.
@@ -307,6 +314,96 @@ def stable_id(kind, key):
     return str(uuid.uuid5(NAMESPACE, f"{kind}:{key}"))
 
 
+def normalised_name(name):
+    return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
+
+
+GROUP_RULES = [(key, name, re.compile(pattern)) for key, name, pattern in kinzo_catalogue.GROUPS]
+GROUP_KEYS = {key for key, _, _ in kinzo_catalogue.GROUPS}
+
+
+def group_key_for(name):
+    """The key of the group an exercise belongs to, or None."""
+    if name in kinzo_catalogue.GROUP_OVERRIDES:
+        return kinzo_catalogue.GROUP_OVERRIDES[name]
+    text = normalised_name(name)
+    return next((key for key, _, pattern in GROUP_RULES if pattern.search(text)), None)
+
+
+def equipment_row(key):
+    source_value = next(value for value, (k, _, _) in EQUIPMENT.items() if k == key)
+    key, name, kind = EQUIPMENT[source_value]
+    return {"id": stable_id("equipment", key), "name": name, "type": kind}
+
+
+def kinzo_exercises():
+    rows = []
+    for key, name, equipment, measurement, primary, secondary, icon, steps in kinzo_catalogue.EXERCISES:
+        if measurement not in ("weight_reps", "reps", "duration", "distance_duration"):
+            raise ValueError(f"unknown measurement {measurement!r} for {key}")
+        if icon not in ICONS:
+            raise ValueError(f"unknown icon {icon!r} for {key}")
+        primary = [muscle_key(m.replace("_", " ")) for m in primary]
+        secondary = [muscle_key(m.replace("_", " ")) for m in secondary if m not in primary]
+        rows.append({
+            "id": stable_id("kinzo", key),
+            "name": name,
+            "equipmentId": equipment_row(equipment)["id"],
+            "measurementType": measurement,
+            "primaryMuscles": primary,
+            "secondaryMuscles": secondary,
+            "instructions": steps,
+            "source": "kinzo",
+            "sourceRef": key,
+            "icon": icon,
+        })
+    return rows
+
+
+def add_groups(exercises):
+    """Files each exercise under its group, and returns the groups that have two or more."""
+    members = {}
+    for exercise in exercises:
+        key = group_key_for(exercise["name"])
+        if key is not None:
+            if key not in GROUP_KEYS:
+                raise ValueError(f"unknown group {key!r} for {exercise['name']}")
+            members.setdefault(key, []).append(exercise)
+    groups = []
+    for key, name, _ in kinzo_catalogue.GROUPS:
+        group_exercises = members.get(key, [])
+        if len(group_exercises) < 2:
+            continue
+        group_id = stable_id("group", key)
+        for exercise in group_exercises:
+            exercise["groupId"] = group_id
+        # The group shows the pictogram most of its exercises use.
+        icons = [e["icon"] for e in group_exercises]
+        icon = max(sorted(set(icons)), key=icons.count)
+        groups.append({"id": group_id, "name": name, "icon": icon})
+    return sorted(groups, key=lambda g: g["name"].lower())
+
+
+def machines(exercises):
+    by_name = {e["name"]: e for e in exercises}
+    rows = []
+    for key, name, equipment, aliases, description, exercise_names in kinzo_catalogue.MACHINES:
+        missing = [n for n in exercise_names if n not in by_name]
+        if missing:
+            raise ValueError(f"machine {key} names exercises that aren't in the catalogue: {missing}")
+        if len(set(exercise_names)) != len(exercise_names):
+            raise ValueError(f"machine {key} lists an exercise twice")
+        rows.append({
+            "id": stable_id("machine", key),
+            "name": name,
+            "equipmentId": equipment_row(equipment)["id"],
+            "aliases": aliases,
+            "description": description,
+            "exerciseIds": [by_name[n]["id"] for n in exercise_names],
+        })
+    return rows
+
+
 def build(source_bytes):
     source = json.loads(source_bytes)
     equipment = {}
@@ -327,10 +424,19 @@ def build(source_bytes):
             "sourceRef": ex["id"],
             "icon": icon_for(ex),
         })
+    names = {e["name"].lower() for e in exercises}
+    for exercise in kinzo_exercises():
+        if exercise["name"].lower() in names:
+            raise ValueError(f"{exercise['name']} is already in free-exercise-db")
+        equipment_id = exercise["equipmentId"]
+        if equipment_id not in {e["id"] for e in equipment.values()}:
+            raise ValueError(f"{exercise['name']} uses equipment free-exercise-db doesn't")
+        exercises.append(exercise)
     exercises.sort(key=lambda e: (e["name"].lower(), e["id"]))
     ids = [e["id"] for e in exercises]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate exercise IDs")
+    groups = add_groups(exercises)
     return {
         "version": CATALOGUE_VERSION,
         "source": {
@@ -340,7 +446,27 @@ def build(source_bytes):
             "sha256": hashlib.sha256(source_bytes).hexdigest(),
         },
         "equipment": sorted(equipment.values(), key=lambda e: e["name"]),
+        "groups": groups,
+        "machines": machines(exercises),
         "exercises": exercises,
+    }
+
+
+def scan_machines(catalogue):
+    """What the API's machine scan needs: each machine with its exercises' IDs and names."""
+    by_id = {e["id"]: e for e in catalogue["exercises"]}
+    return {
+        "version": catalogue["version"],
+        "machines": [
+            {
+                "id": m["id"],
+                "name": m["name"],
+                "aliases": m["aliases"],
+                "description": m["description"],
+                "exercises": [{"id": i, "name": by_id[i]["name"]} for i in m["exerciseIds"]],
+            }
+            for m in catalogue["machines"]
+        ],
     }
 
 
@@ -350,7 +476,13 @@ def main():
     catalogue = build(Path(sys.argv[1]).read_bytes())
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(catalogue, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-    print(f"wrote {len(catalogue['exercises'])} exercises and {len(catalogue['equipment'])} equipment rows to {OUTPUT}")
+    MACHINES_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    MACHINES_OUTPUT.write_text(json.dumps(scan_machines(catalogue), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(
+        f"wrote {len(catalogue['exercises'])} exercises, {len(catalogue['groups'])} groups, "
+        f"{len(catalogue['machines'])} machines and {len(catalogue['equipment'])} equipment rows to {OUTPUT}, "
+        f"and the scan's machine list to {MACHINES_OUTPUT}"
+    )
 
 
 if __name__ == "__main__":

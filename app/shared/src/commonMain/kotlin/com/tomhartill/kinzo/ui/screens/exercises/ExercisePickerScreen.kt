@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,28 +40,39 @@ fun ExercisePickerScreen(
     workoutId: String?,
     onClose: () -> Unit,
     onAdded: () -> Unit,
+    onSignIn: () -> Unit,
     viewModel: ExerciseBrowserViewModel = koinViewModel(),
 ) {
     ExercisePicker(
         onClose = onClose,
         onConfirm = { picked -> viewModel.addToWorkout(workoutId, picked.map { it.id }, onAdded) },
+        onSignIn = onSignIn,
         viewModel = viewModel,
     )
 }
 
 /**
  * The exercise library with a tick on each row. [onConfirm] gets the picked exercises in the
- * order they were tapped, once.
+ * order they were tapped, once. "Scan a machine" picks from a photo; [onSignIn] opens sign-in
+ * when scanning needs it, where the screen can.
  */
 @Composable
 fun ExercisePicker(
     onClose: () -> Unit,
     onConfirm: (List<ExerciseSummary>) -> Unit,
     modifier: Modifier = Modifier,
+    onSignIn: (() -> Unit)? = null,
     viewModel: ExerciseBrowserViewModel = koinViewModel(),
+    scanViewModel: MachineScanViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val scan by scanViewModel.state.collectAsStateWithLifecycle()
     var selected by rememberSaveable { mutableStateOf(listOf<String>()) }
+    // The variation a scan thinks it is comes ticked, once per scan.
+    LaunchedEffect(scan) {
+        val suggested = (scan as? MachineScanState.Found)?.suggestedExerciseId ?: return@LaunchedEffect
+        if (suggested !in selected) selected = selected + suggested
+    }
     var confirmed by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
 
@@ -89,6 +101,7 @@ fun ExercisePicker(
             },
             selectedIds = selected,
             modifier = Modifier.weight(1f),
+            header = { ScanMachineButton(onClick = scanViewModel::scan) },
         )
         if (selected.isNotEmpty()) {
             HorizontalDivider(thickness = 0.5.dp, color = colors.outlineVariant)
@@ -104,4 +117,24 @@ fun ExercisePicker(
         }
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
     }
+
+    MachineScanSheet(
+        state = scan,
+        exercises = state.byId,
+        selectedIds = selected,
+        onToggle = { exercise ->
+            selected = if (exercise.id in selected) selected - exercise.id else selected + exercise.id
+        },
+        onRetry = {
+            scanViewModel.dismiss()
+            scanViewModel.scan()
+        },
+        onSignIn = onSignIn?.let { signIn ->
+            {
+                scanViewModel.dismiss()
+                signIn()
+            }
+        },
+        onDismiss = scanViewModel::dismiss,
+    )
 }

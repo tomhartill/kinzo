@@ -14,6 +14,7 @@ import (
 	"github.com/tomhartill/kinzo/api/internal/auth"
 	"github.com/tomhartill/kinzo/api/internal/config"
 	"github.com/tomhartill/kinzo/api/internal/database"
+	"github.com/tomhartill/kinzo/api/internal/scan"
 	"github.com/tomhartill/kinzo/api/internal/server"
 	"github.com/tomhartill/kinzo/api/internal/store"
 )
@@ -65,9 +66,20 @@ func run(logger *slog.Logger) error {
 	}
 	logger.Info("sign-in providers", "count", len(providers), "public_url", cfg.PublicURL)
 
+	options := []server.Option{server.WithAccounts(store.New(pool), cfg.PublicURL, providers, googleIDTokens)}
+	if cfg.AnthropicAPIKey != "" {
+		machines, err := scan.LoadCatalogue()
+		if err != nil {
+			return err
+		}
+		recogniser := scan.NewRecogniser(cfg.AnthropicAPIKey, cfg.ScanModel, machines)
+		options = append(options, server.WithMachineScan(recogniser, cfg.ScanDailyLimit))
+		logger.Info("machine scan on", "machines", len(machines.Machines), "daily_limit", cfg.ScanDailyLimit)
+	}
+
 	httpServer := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           server.New(pool, logger, server.WithAccounts(store.New(pool), cfg.PublicURL, providers, googleIDTokens)).Handler(),
+		Handler:           server.New(pool, logger, options...).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

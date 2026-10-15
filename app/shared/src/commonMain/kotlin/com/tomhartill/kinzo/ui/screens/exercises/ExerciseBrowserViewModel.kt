@@ -10,6 +10,8 @@ import com.tomhartill.kinzo.data.CatalogueRepository
 import com.tomhartill.kinzo.data.TrendRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.domain.Equipment
+import com.tomhartill.kinzo.domain.ExerciseGroups
+import com.tomhartill.kinzo.domain.ExerciseListRow
 import com.tomhartill.kinzo.domain.ExerciseSearch
 import com.tomhartill.kinzo.domain.ExerciseSummary
 import com.tomhartill.kinzo.domain.Muscle
@@ -33,6 +35,11 @@ data class ExerciseBrowserState(
     /** Recently used exercises, shown above the full list when nothing is being searched. */
     val recent: List<ExerciseSummary> = emptyList(),
     val results: List<ExerciseSummary> = emptyList(),
+    /**
+     * [results] with variations folded into their groups, such as every bench press under
+     * Bench press. Used when nothing is typed; a search lists matching variations directly.
+     */
+    val rows: List<ExerciseListRow> = emptyList(),
     /** Every exercise, to look up the ones picked whatever the current search shows. */
     val byId: Map<String, ExerciseSummary> = emptyMap(),
     /** Recent progress by exercise ID, for the sparkline on each row. Read from a small cache. */
@@ -69,6 +76,7 @@ class ExerciseBrowserViewModel(
         combine(snapshotFlow { query }, muscle, equipmentId, ::Filters),
     ) { library, filters ->
         val byId = library.exercises.associateBy { it.id }
+        val results = ExerciseSearch.filter(library.exercises, filters.query, filters.muscle, filters.equipmentId)
         ExerciseBrowserState(
             loading = library.exercises.isEmpty(),
             query = filters.query,
@@ -76,7 +84,8 @@ class ExerciseBrowserViewModel(
             equipment = library.equipment.firstOrNull { it.id == filters.equipmentId },
             equipmentOptions = library.equipment,
             recent = library.recentIds.mapNotNull { byId[it] },
-            results = ExerciseSearch.filter(library.exercises, filters.query, filters.muscle, filters.equipmentId),
+            results = results,
+            rows = if (filters.query.isBlank()) ExerciseGroups.rows(results) else emptyList(),
             byId = byId,
             trends = library.trends,
         )

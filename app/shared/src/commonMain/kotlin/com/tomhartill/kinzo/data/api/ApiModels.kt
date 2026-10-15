@@ -152,3 +152,17 @@ internal data class AddPhoneRequest(val phone: String, val channel: CodeChannel)
 
 @Serializable
 internal data class CodeAttempt(@SerialName("challenge_id") val challengeId: String, val code: String)
+
+/** What a machine scan found; see `MachineScan` in openapi/kinzo.yaml. */
+@Serializable
+data class MachineScan(
+    val matches: List<MachineMatch> = emptyList(),
+    @SerialName("exercise_id") val exerciseId: String? = null,
+    val description: String = "",
+)
+
+@Serializable
+data class MachineMatch(
+    @SerialName("machine_id") val machineId: String,
+    val confidence: String,
+)

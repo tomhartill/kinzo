@@ -30,6 +30,7 @@ fun ProfileScreen(
     onSignIn: () -> Unit,
     onOpenAccount: () -> Unit,
     onOpenFriends: () -> Unit,
+    onOpenProgressPhotos: () -> Unit,
     onOpenDesignSystem: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel(),
@@ -98,11 +99,19 @@ fun ProfileScreen(
         }
 
         SectionHeader("Body")
+        KinzoCard(onClick = onOpenProgressPhotos) {
+            Text("Progress photos", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "A photo a week shows changes the scales miss. They stay private to this phone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+            )
+        }
         EmptyState(title = "Body stats", body = "Height, weight and body fat tracking arrive with progression.")
 
         SectionHeader("About")
         Text(
-            "Exercise library from free-exercise-db, released into the public domain.",
+            "Exercise library from free-exercise-db, released into the public domain, plus Kinzo's own machine variations.",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurfaceVariant,
         )

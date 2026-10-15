@@ -134,6 +134,9 @@ private fun Header(exercise: ExerciseDetail) {
     ).joinToString(" · ")
     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
         ExerciseIcon(exercise.icon, size = 72.dp, modifier = Modifier.padding(bottom = KinzoTheme.spacing.sm))
+        exercise.groupName?.let { group ->
+            Text("A variation of ${group.lowercase()}", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+        }
         Text(exercise.name, style = MaterialTheme.typography.headlineSmall)
         if (works.isNotEmpty()) {
             Text(works, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)

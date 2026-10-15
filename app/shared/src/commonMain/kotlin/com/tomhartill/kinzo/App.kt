@@ -84,6 +84,7 @@ import com.tomhartill.kinzo.ui.screens.library.RoutineDetailScreen
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorScreen
 import com.tomhartill.kinzo.ui.screens.library.RoutineEditorViewModel
 import com.tomhartill.kinzo.ui.screens.profile.ProfileScreen
+import com.tomhartill.kinzo.ui.screens.progress.ProgressPhotosScreen
 import com.tomhartill.kinzo.ui.screens.today.TodayScreen
 import com.tomhartill.kinzo.ui.screens.workout.ActiveWorkoutScreen
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
@@ -274,6 +275,7 @@ private fun Tabs(navigator: Navigator, activeWorkout: ActiveWorkoutInfo?, rest: 
                     onSignIn = { open(Destination.SignIn) },
                     onOpenAccount = { open(Destination.Account) },
                     onOpenFriends = { open(Destination.Friends) },
+                    onOpenProgressPhotos = { open(Destination.ProgressPhotos) },
                     onOpenDesignSystem = { open(Destination.DesignSystem) },
                     modifier = modifier,
                 )
@@ -312,7 +314,12 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             onClosed = back,
             editWorkoutId = destination.workoutId,
         )
-        is Destination.AddExercises -> ExercisePickerScreen(workoutId = destination.workoutId, onClose = back, onAdded = back)
+        is Destination.AddExercises -> ExercisePickerScreen(
+            workoutId = destination.workoutId,
+            onClose = back,
+            onAdded = back,
+            onSignIn = { ifCurrent { navigator.push(Destination.SignIn) } },
+        )
         is Destination.ExerciseDetail -> ExerciseDetailScreen(exerciseId = destination.exerciseId, onBack = back)
         is Destination.WorkoutDetail -> WorkoutDetailScreen(
             workoutId = destination.workoutId,
@@ -376,6 +383,7 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             onOpenFriends = { ifCurrent { navigator.push(Destination.Friends) } },
             onAddPhone = { ifCurrent { navigator.push(Destination.CodeSignIn(addPhone = true)) } },
         )
+        Destination.ProgressPhotos -> ProgressPhotosScreen(onBack = back)
         Destination.Friends -> FriendsScreen(onBack = back, onSignedIn = signedInHere, onEmail = openCodeSignIn)
         is Destination.Invite -> InviteScreen(
             code = destination.code,

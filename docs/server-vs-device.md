@@ -30,7 +30,7 @@ keeps health data private. Mid-workout, the network is never on the critical pat
 | Progress charts, estimated 1RM, best sets | Phone | Pure maths over local rows (`domain/Progression.kt`). |
 | Trend sparklines in lists (exercises now; muscles, groups, upper/lower later) | Phone, cached | A small `trend` table, refreshed when a workout finishes or is deleted, so a long list never reads the whole history. See [`specs/strength-trends.md`](specs/strength-trends.md). |
 | PR detection | Phone, then synced | Shown the moment a set is completed, so it can't wait for a round trip. The server stores the synced PR rows so friends can see them. |
-| Exercise library, search, filters | Phone | About 870 exercises fits easily in SQLite; search is a local filter. |
+| Exercise library, search, filters, variation groups | Phone | About 915 exercises and 52 named machines fit easily in SQLite; search is a local filter. |
 | Catalogue updates (new exercises, machine notes, muscle scores) | Built offline, bundled with the app; later also served as a versioned download | Versioned so the phone only imports when it changes (`CatalogueImporter`). |
 | Routines, splits, mesocycles | Phone, synced | The user's own data, edited offline. |
 | Rule-based progression ("next time try 82.5 kg x 5") | Phone | The spec calls for it to be cheap, instant and offline. |
@@ -42,9 +42,9 @@ keeps health data private. Mid-workout, the network is never on the critical pat
 | Feed and a friend's profile | Server queries, phone renders and caches | The server filters by the connection's scope on every request; the phone caches the last result so the screen opens instantly. |
 | Sync (push, then pull changes since a cursor) | Both | The phone decides what changed; the server is the store of record and resolves conflicts (last write wins per row). |
 | AI coach chat, AI programme generation | Server proxy to the model | Needs a secret key, costs money and must be rate-limited. The phone sends a compact summary, not the raw history. |
-| Scan a machine (first version) | Server proxy to a vision model | Same reasons as the coach. |
+| Scan a machine (first version, built) | Server proxy to a vision model (`POST /v1/scan/machine`) | Same reasons as the coach. The server sends the photo and the machine list to Claude Haiku and answers with catalogue IDs, so the phone needs no extra data. Capped per user per day. |
 | Scan a machine (later, on-device model) | Phone | The spec's plan once a small model exists: instant and free. |
-| Progress photos | Phone, with encrypted upload to object storage | Most sensitive data in the app; only leaves the phone when the user wants backup or sharing. |
+| Progress photos | Phone (built: taking and browsing); encrypted upload to object storage later | Most sensitive data in the app; only leaves the phone when the user wants backup or sharing. Files sit in the app's private storage, never the gallery. |
 | Push notifications | Server | Only the server knows a friend just finished a workout. |
 | Analytics and model training data | Server, consented only | Aggregates many users; runs as a batch job, never on a request path. |
 

@@ -7,6 +7,7 @@ import com.tomhartill.kinzo.db.KinzoDatabase
 import com.tomhartill.kinzo.domain.Equipment
 import com.tomhartill.kinzo.domain.ExerciseDetail
 import com.tomhartill.kinzo.domain.ExerciseSummary
+import com.tomhartill.kinzo.domain.Machine
 import com.tomhartill.kinzo.domain.MeasurementType
 import com.tomhartill.kinzo.domain.Muscle
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
 /** Read access to exercises and equipment. */
@@ -35,6 +37,9 @@ class CatalogueRepository(
                     primaryMuscles = Muscle.parseList(row.primary_muscles),
                     secondaryMuscles = Muscle.parseList(row.secondary_muscles),
                     icon = row.icon,
+                    groupId = row.group_id,
+                    groupName = row.group_name,
+                    groupIcon = row.group_icon,
                 )
             }
         }
@@ -54,6 +59,20 @@ class CatalogueRepository(
                 primaryMuscles = muscles.filter { m -> m.is_primary == 1L }.mapNotNull { m -> Muscle.fromKey(m.muscle) },
                 secondaryMuscles = muscles.filter { m -> m.is_primary == 0L }.mapNotNull { m -> Muscle.fromKey(m.muscle) },
                 icon = it.icon,
+                groupName = it.group_name,
+            )
+        }
+    }
+
+    /** Every named machine, for the machine scan's results and its "not found" list. */
+    suspend fun machines(): List<Machine> = withContext(io) {
+        queries.machineList().executeAsList().map { row ->
+            Machine(
+                id = row.id,
+                name = row.name,
+                aliases = row.aliases.lines().filter(String::isNotBlank),
+                description = row.description,
+                exerciseIds = queries.machineExerciseIds(row.id).executeAsList(),
             )
         }
     }

@@ -21,12 +21,13 @@ finish something on the roadmap below, update "Where things stand" in the same c
 
 | Area | What works |
 | --- | --- |
-| App: logging | Exercise library (about 870 exercises with pictograms), live workout screen with sets, rest timer, reorder, swipe to delete, history with workout detail; edit any past workout, or resume one finished in the last three hours |
+| App: logging | Exercise library (about 915 exercises with pictograms, variations folded into groups such as Chest press, and 52 named machines), scan a machine with the camera to pick its exercise, live workout screen with sets, rest timer, reorder, swipe to delete, history with workout detail; edit any past workout, or resume one finished in the last three hours |
 | App: planning | Saved workouts (routines) with ready-made ones, workout types, splits, mesocycles |
 | App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database; a cached trend sparkline per exercise in the exercise list ([plan for muscles and regions](docs/specs/strength-trends.md)) |
+| App: body | Progress photos from Profile: take one by pose (front, side, back), browse by day, delete. Private to the phone |
 | App: accounts | Optional sign-in with Google or Facebook, or email and a phone code (waiting on the API); username and name picker; account screen (add a phone, sign out, delete) |
 | App: friends | Search by name or username, requests, remove, block, invite links (`kinzo://invite/CODE`, `https://<api>/i/CODE`) |
-| API | Health check; Google and Facebook sign-in (browser with PKCE, plus Android ID tokens); sessions; profile; friends, blocks and invites |
+| API | Health check; Google and Facebook sign-in (browser with PKCE, plus Android ID tokens); sessions; profile; friends, blocks and invites; machine scan through Claude (needs `ANTHROPIC_API_KEY`, 30 scans a day each) |
 | CI | Android APK (published at a fixed link), desktop build, shared tests, iOS simulator build; API vet, race tests and a Postgres smoke test |
 
 Everything the app logs lives only on the phone. **There is no sync yet**, so friends can't see
@@ -96,6 +97,7 @@ read failures from the job logs. Go and plain Kotlin checks run locally.
 | `…/ui/navigation/Navigator.kt` | The back stack; every `Destination` has a route that survives process death |
 | `…/data` | Repositories over SQLDelight; `data/api` is the Ktor client for the API |
 | `…/account` | Sign-in plumbing: PKCE, deep links, platform interfaces |
+| `…/photos` | Camera and private photo storage interfaces; each platform implements them |
 | `…/domain` | Plain Kotlin logic (units, progression, rest timer), tested in `commonTest` |
 | `…/di/Koin.kt` | Dependency injection; each platform adds its own module (`initKoinAndroid`, `initKoinIos`, `initKoinDesktop`) |
 | `app/shared/src/commonMain/sqldelight` | The phone's database schema and queries |
@@ -104,6 +106,7 @@ read failures from the job logs. Go and plain Kotlin checks run locally.
 | `api/internal/server` | Routes and handlers |
 | `api/internal/store` | Database queries |
 | `api/internal/auth` | Google and Facebook sign-in, tokens |
+| `api/internal/scan` | Machine recognition: the machine list (`machines.json`, built by `tools/catalogue`) and the Claude call |
 | `api/migrations` | Postgres schema |
 | `tools/` | Python scripts that build the exercise catalogue and the pictograms |
 | `docs/` | Setup guides and feature specs |

@@ -87,6 +87,10 @@ sealed interface Destination {
         override val route = "friends"
     }
 
+    data object ProgressPhotos : Destination {
+        override val route = "progress-photos"
+    }
+
     /** A friend's invite link. */
     data class Invite(val code: String) : Destination {
         override val route = "invite/$code"
@@ -106,6 +110,7 @@ sealed interface Destination {
                 route == SignIn.route -> SignIn
                 route == Account.route -> Account
                 route == Friends.route -> Friends
+                route == ProgressPhotos.route -> ProgressPhotos
                 parts.size == 2 && parts[0] == "username" -> Username(welcome = parts[1] == "welcome")
                 parts.size == 2 && parts[0] == "invite" -> Invite(parts[1])
                 parts.size == 2 && parts[0] == "code-sign-in" -> CodeSignIn(addPhone = parts[1] == "add-phone")

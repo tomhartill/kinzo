@@ -65,6 +65,19 @@ data class ExerciseSummary(
     val secondaryMuscles: List<Muscle>,
     /** The key of its pictogram, such as "squat", if it has one. */
     val icon: String? = null,
+    /** The group of variations it belongs to, such as Bench press, if any. */
+    val groupId: String? = null,
+    val groupName: String? = null,
+    val groupIcon: String? = null,
+)
+
+/** A named gym machine, such as a leg press, and the exercises it supports in order. */
+data class Machine(
+    val id: String,
+    val name: String,
+    val aliases: List<String>,
+    val description: String?,
+    val exerciseIds: List<String>,
 )
 
 data class ExerciseDetail(
@@ -77,6 +90,8 @@ data class ExerciseDetail(
     val primaryMuscles: List<Muscle>,
     val secondaryMuscles: List<Muscle>,
     val icon: String? = null,
+    /** The group of variations it belongs to, such as Bench press, if any. */
+    val groupName: String? = null,
 )
 
 /**
@@ -374,3 +389,24 @@ data class Settings(
         val REST_OPTIONS = listOf(0, 15, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300)
     }
 }
+
+/** Which way the person faces in a progress photo, so like can be compared with like. */
+enum class Pose(val key: String, val label: String) {
+    Front("front", "Front"),
+    Side("side", "Side"),
+    Back("back", "Back"),
+    ;
+
+    companion object {
+        fun fromKey(key: String): Pose = entries.firstOrNull { it.key == key } ?: Front
+    }
+}
+
+/** A progress photo. [takenAt] is epoch milliseconds; the files are in the app's private storage. */
+data class ProgressPhoto(
+    val id: String,
+    val takenAt: Long,
+    val pose: Pose,
+    val fileName: String,
+    val thumbnailFileName: String,
+)

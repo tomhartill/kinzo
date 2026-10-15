@@ -3,6 +3,7 @@ package com.tomhartill.kinzo.data.api
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.header
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
@@ -12,6 +13,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.URLBuilder
 import io.ktor.http.appendPathSegments
+import io.ktor.http.content.ByteArrayContent
+import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.encodeURLPathPart
 import io.ktor.http.encodeURLQueryComponent
@@ -144,6 +147,21 @@ class KinzoApi(
     suspend fun acceptInvite(code: String): Person =
         call(HttpMethod.Post, "/v1/invites/${code.encodeURLPathPart()}/accept", null, auth = true)
 
+    // Machine scan
+
+    /** Asks which machine a photo shows. [jpeg] should be about 1280 pixels on the long edge. */
+    suspend fun scanMachine(jpeg: ByteArray): MachineScan = decode(
+        serializer(),
+        requestText(
+            HttpMethod.Post,
+            "/v1/scan/machine",
+            ByteArrayContent(jpeg, ContentType.Image.JPEG),
+            auth = true,
+            // The vision model can take a while on a slow connection.
+            timeoutMillis = 60_000,
+        ),
+    )
+
     // Plumbing
 
     private suspend inline fun <reified T> get(path: String, auth: Boolean = true): T =
@@ -168,7 +186,16 @@ class KinzoApi(
         throw ApiException("bad_response", "Kinzo sent back something unexpected. Try again.")
     }
 
-    private suspend fun requestText(method: HttpMethod, path: String, body: String?, auth: Boolean): String {
+    private suspend fun requestText(method: HttpMethod, path: String, body: String?, auth: Boolean): String =
+        requestText(method, path, body?.let { TextContent(it, ContentType.Application.Json) }, auth)
+
+    private suspend fun requestText(
+        method: HttpMethod,
+        path: String,
+        content: OutgoingContent?,
+        auth: Boolean,
+        timeoutMillis: Long? = null,
+    ): String {
         if (!isConfigured) {
             throw ApiException(ApiException.NOT_CONFIGURED, "This build of Kinzo isn't connected to a server yet.")
         }
@@ -177,7 +204,8 @@ class KinzoApi(
             client.request(baseUrl.trimEnd('/') + path) {
                 this.method = method
                 if (sessionToken != null) header(HttpHeaders.Authorization, "Bearer $sessionToken")
-                if (body != null) setBody(TextContent(body, ContentType.Application.Json))
+                if (content != null) setBody(content)
+                if (timeoutMillis != null) timeout { requestTimeoutMillis = timeoutMillis }
             }
         } catch (e: CancellationException) {
             throw e

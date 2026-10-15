@@ -207,7 +207,8 @@ A coach that helps plan and adjust your training. Needs an account.
 **Status:** Shipped
 
 Seven colour themes (a black-and-white default plus pastels), each in light and dark, picked in
-Profile. Light and dark can also follow your phone's setting.
+Profile. The whole app changes colour as you tap one. Light and dark can also follow your
+phone's setting.
 
 ### Kilograms or pounds
 **Status:** Shipped
@@ -219,7 +220,7 @@ Use whichever unit you prefer; switch any time in Profile.
 
 A short introduction the first time you open Kinzo: what it is, kilograms or pounds, rest
 between sets, and a colour theme, then straight into training or the ready-made workouts. It
-can be skipped.
+can be skipped, and replayed any time from Profile → Help.
 
 ### First-time tips
 **Status:** Shipped

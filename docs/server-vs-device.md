@@ -28,6 +28,7 @@ keeps health data private. Mid-workout, the network is never on the critical pat
 | Logging sets, rest timer, reorder, undo | Phone | Must be instant with no signal. Writes go to SQLite first; sync later. |
 | Workout history and detail | Phone | It's the user's own data, already local. |
 | Progress charts, estimated 1RM, best sets | Phone | Pure maths over local rows (`domain/Progression.kt`). |
+| Trend sparklines in lists (exercises now; muscles, groups, upper/lower later) | Phone, cached | A small `trend` table, refreshed when a workout finishes or is deleted, so a long list never reads the whole history. See [`specs/strength-trends.md`](specs/strength-trends.md). |
 | PR detection | Phone, then synced | Shown the moment a set is completed, so it can't wait for a round trip. The server stores the synced PR rows so friends can see them. |
 | Exercise library, search, filters | Phone | About 870 exercises fits easily in SQLite; search is a local filter. |
 | Catalogue updates (new exercises, machine notes, muscle scores) | Built offline, bundled with the app; later also served as a versioned download | Versioned so the phone only imports when it changes (`CatalogueImporter`). |

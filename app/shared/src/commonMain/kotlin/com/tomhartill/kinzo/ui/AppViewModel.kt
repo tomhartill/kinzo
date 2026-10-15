@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.tomhartill.kinzo.data.CatalogueImporter
 import com.tomhartill.kinzo.data.KinzoWorkoutsImporter
 import com.tomhartill.kinzo.data.MesocycleRepository
+import com.tomhartill.kinzo.data.TrendRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.domain.ActiveWorkoutInfo
 import com.tomhartill.kinzo.domain.RestTimer
@@ -22,6 +23,7 @@ class AppViewModel(
     catalogueImporter: CatalogueImporter,
     workoutsImporter: KinzoWorkoutsImporter,
     mesocycles: MesocycleRepository,
+    trends: TrendRepository,
 ) : ViewModel() {
     val activeWorkout: StateFlow<ActiveWorkoutInfo?> =
         workouts.activeWorkoutInfo().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -39,6 +41,8 @@ class AppViewModel(
         viewModelScope.launch {
             runSafely("exercise library import") { catalogueImporter.importIfNeeded() }
             runSafely("ready-made workouts import") { workoutsImporter.importIfNeeded() }
+            // After the import, since a trend needs each exercise's measurement type.
+            runSafely("building exercise trends") { trends.rebuildIfNeeded() }
         }
         // The first mesocycle starts the first time this version runs, and takes in the
         // workouts saved before mesocycles existed.

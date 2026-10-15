@@ -1,0 +1,61 @@
+-- Cached trends for the little sparklines beside lists of exercises (and later muscles, muscle
+-- groups and upper or lower body). Each row is a handful of recent values, so a list of
+-- hundreds of exercises reads one small table instead of every set ever logged.
+--
+-- This is derived data and never synced: the app rewrites a subject's row when a workout that
+-- touches it is finished or deleted, and rebuilds the whole table when the trend maths changes.
+-- subject_kind is 'exercise' for now. recent_values holds up to a dozen session values, oldest
+-- first, comma-separated, in the metric's base unit (kilograms, reps, seconds or metres).
+
+CREATE TABLE trend (
+    subject_kind        TEXT NOT NULL,
+    subject_id          TEXT NOT NULL,
+    metric              TEXT NOT NULL,
+    recent_values       TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    PRIMARY KEY (subject_kind, subject_id)
+);
+
+trendsOfKind:
+SELECT subject_id, metric, recent_values FROM trend WHERE subject_kind = :kind;
+
+upsertTrend:
+INSERT OR REPLACE INTO trend(subject_kind, subject_id, metric, recent_values, updated_at)
+VALUES (:kind, :subjectId, :metric, :recentValues, :now);
+
+deleteTrend:
+DELETE FROM trend WHERE subject_kind = :kind AND subject_id = :subjectId;
+
+deleteTrendsOfKind:
+DELETE FROM trend WHERE subject_kind = :kind;
+
+-- Every exercise with at least one finished, undeleted session.
+exercisesWithHistory:
+SELECT DISTINCT we.exercise_id
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.deleted_at IS NULL AND w.deleted_at IS NULL AND w.ended_at IS NOT NULL;
+
+exerciseMeasurementType:
+SELECT measurement_type FROM exercise WHERE id = :exerciseId;
+
+-- The completed sets of an exercise's most recent :sessions finished workouts. Bounded, so
+-- refreshing a trend costs the same after ten sessions or a thousand.
+recentExerciseSets:
+SELECT w.id AS workout_id, w.started_at, s.reps, s.weight_kg, s.duration_s, s.distance_m, s.is_warmup
+FROM workout_set s
+JOIN workout_exercise we ON we.id = s.workout_exercise_id
+JOIN workout w ON w.id = we.workout_id
+WHERE we.exercise_id = :exerciseId
+  AND s.deleted_at IS NULL AND we.deleted_at IS NULL AND s.completed_at IS NOT NULL
+  AND w.id IN (
+      SELECT w2.id
+      FROM workout_exercise we2
+      JOIN workout w2 ON w2.id = we2.workout_id
+      WHERE we2.exercise_id = :exerciseId AND we2.deleted_at IS NULL
+        AND w2.deleted_at IS NULL AND w2.ended_at IS NOT NULL
+      GROUP BY w2.id
+      ORDER BY w2.started_at DESC
+      LIMIT :sessions
+  )
+ORDER BY w.started_at, we.position, s.position;

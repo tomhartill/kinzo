@@ -23,7 +23,7 @@ finish something on the roadmap below, update "Where things stand" in the same c
 | --- | --- |
 | App: logging | Exercise library (about 870 exercises with pictograms), live workout screen with sets, rest timer, reorder, swipe to delete, history with workout detail |
 | App: planning | Saved workouts (routines) with ready-made ones, workout types, splits, mesocycles |
-| App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database |
+| App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database; a cached trend sparkline per exercise in the exercise list ([plan for muscles and regions](docs/specs/strength-trends.md)) |
 | App: accounts | Optional sign-in with Google or Facebook, or email and a phone code (waiting on the API); username and name picker; account screen (add a phone, sign out, delete) |
 | App: friends | Search by name or username, requests, remove, block, invite links (`kinzo://invite/CODE`, `https://<api>/i/CODE`) |
 | API | Health check; Google and Facebook sign-in (browser with PKCE, plus Android ID tokens); sessions; profile; friends, blocks and invites |

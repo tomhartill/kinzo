@@ -7,11 +7,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tomhartill.kinzo.data.CatalogueRepository
+import com.tomhartill.kinzo.data.TrendRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.domain.Equipment
 import com.tomhartill.kinzo.domain.ExerciseSearch
 import com.tomhartill.kinzo.domain.ExerciseSummary
 import com.tomhartill.kinzo.domain.Muscle
+import com.tomhartill.kinzo.domain.Trend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +35,8 @@ data class ExerciseBrowserState(
     val results: List<ExerciseSummary> = emptyList(),
     /** Every exercise, to look up the ones picked whatever the current search shows. */
     val byId: Map<String, ExerciseSummary> = emptyMap(),
+    /** Recent progress by exercise ID, for the sparkline on each row. Read from a small cache. */
+    val trends: Map<String, Trend> = emptyMap(),
 ) {
     val isFiltering: Boolean get() = query.isNotBlank() || muscle != null || equipment != null
 }
@@ -41,6 +45,7 @@ data class ExerciseBrowserState(
 class ExerciseBrowserViewModel(
     catalogue: CatalogueRepository,
     private val workouts: WorkoutRepository,
+    trends: TrendRepository,
 ) : ViewModel() {
     /**
      * The search text. Plain Compose state, not a flow, so the text field always shows what
@@ -51,11 +56,16 @@ class ExerciseBrowserViewModel(
     private val muscle = MutableStateFlow<Muscle?>(null)
     private val equipmentId = MutableStateFlow<String?>(null)
 
-    private data class Library(val exercises: List<ExerciseSummary>, val recentIds: List<String>, val equipment: List<Equipment>)
+    private data class Library(
+        val exercises: List<ExerciseSummary>,
+        val recentIds: List<String>,
+        val equipment: List<Equipment>,
+        val trends: Map<String, Trend>,
+    )
     private data class Filters(val query: String, val muscle: Muscle?, val equipmentId: String?)
 
     val state: StateFlow<ExerciseBrowserState> = combine(
-        combine(catalogue.exercises(), workouts.recentExerciseIds(), catalogue.equipment(), ::Library),
+        combine(catalogue.exercises(), workouts.recentExerciseIds(), catalogue.equipment(), trends.exerciseTrends(), ::Library),
         combine(snapshotFlow { query }, muscle, equipmentId, ::Filters),
     ) { library, filters ->
         val byId = library.exercises.associateBy { it.id }
@@ -68,6 +78,7 @@ class ExerciseBrowserViewModel(
             recent = library.recentIds.mapNotNull { byId[it] },
             results = ExerciseSearch.filter(library.exercises, filters.query, filters.muscle, filters.equipmentId),
             byId = byId,
+            trends = library.trends,
         )
     }.flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseBrowserState())

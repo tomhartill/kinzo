@@ -11,6 +11,7 @@ import com.tomhartill.kinzo.data.RoutineRepository
 import com.tomhartill.kinzo.data.SessionStore
 import com.tomhartill.kinzo.data.SettingsRepository
 import com.tomhartill.kinzo.data.SplitRepository
+import com.tomhartill.kinzo.data.TrendRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.data.api.KinzoApi
 import com.tomhartill.kinzo.data.createDatabase
@@ -52,6 +53,7 @@ internal fun dataModule(driverFactory: DriverFactory): Module = module {
     single { CatalogueRepository(get()) }
     single { SettingsRepository(get()) }
     single { WorkoutRepository(get(), get()) }
+    single { TrendRepository(get(), get()) }
     single { RoutineRepository(get(), get()) }
     single { SplitRepository(get(), get()) }
     single { MesocycleRepository(get(), get()) }

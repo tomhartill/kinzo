@@ -43,14 +43,17 @@ import androidx.compose.ui.unit.dp
 import com.tomhartill.kinzo.domain.Equipment
 import com.tomhartill.kinzo.domain.ExerciseSummary
 import com.tomhartill.kinzo.domain.Muscle
+import com.tomhartill.kinzo.domain.Trend
 import com.tomhartill.kinzo.ui.components.ExerciseIcon
 import com.tomhartill.kinzo.ui.components.SearchField
 import com.tomhartill.kinzo.ui.components.SectionHeader
+import com.tomhartill.kinzo.ui.components.TrendSparkline
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
 /**
  * Search box, muscle and equipment filters, and the exercise list. With [selectedIds] the
  * rows show a tick for picking several exercises; without it a tap opens the exercise.
+ * Exercises with two or more sessions show a sparkline of their recent progress.
  */
 @Composable
 fun ExerciseBrowser(
@@ -116,10 +119,10 @@ fun ExerciseBrowser(
                 else -> {
                     if (!state.isFiltering && state.recent.isNotEmpty()) {
                         section("Recent")
-                        exerciseRows(state.recent, "recent", selectedIds, onExerciseClick)
+                        exerciseRows(state.recent, "recent", state.trends, selectedIds, onExerciseClick)
                         section("All exercises")
                     }
-                    exerciseRows(state.results, "all", selectedIds, onExerciseClick)
+                    exerciseRows(state.results, "all", state.trends, selectedIds, onExerciseClick)
                 }
             }
         }
@@ -143,12 +146,14 @@ private fun LazyListScope.section(title: String) {
 private fun LazyListScope.exerciseRows(
     exercises: List<ExerciseSummary>,
     group: String,
+    trends: Map<String, Trend>,
     selectedIds: List<String>?,
     onClick: (ExerciseSummary) -> Unit,
 ) {
     items(exercises, key = { "$group-${it.id}" }) { exercise ->
         ExerciseRow(
             exercise = exercise,
+            trend = trends[exercise.id],
             selected = selectedIds?.contains(exercise.id),
             onClick = { onClick(exercise) },
         )
@@ -156,7 +161,7 @@ private fun LazyListScope.exerciseRows(
 }
 
 @Composable
-private fun ExerciseRow(exercise: ExerciseSummary, selected: Boolean?, onClick: () -> Unit) {
+private fun ExerciseRow(exercise: ExerciseSummary, trend: Trend?, selected: Boolean?, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val details = listOfNotNull(
         exercise.primaryMuscles.joinToString(", ") { it.label }.ifEmpty { null },
@@ -187,6 +192,7 @@ private fun ExerciseRow(exercise: ExerciseSummary, selected: Boolean?, onClick: 
                     Text(details, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+            if (trend != null) TrendSparkline(trend)
             if (selected != null) {
                 Box(
                     modifier = Modifier

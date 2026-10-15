@@ -43,6 +43,7 @@ class WorkoutRepository(
     private val io: CoroutineContext = Dispatchers.IO,
 ) {
     private val queries get() = db.workoutQueries
+    private val trends = TrendCache(db, clock)
 
     private fun now(): Long = clock.now().toEpochMilliseconds()
 
@@ -392,6 +393,7 @@ class WorkoutRepository(
             renumberExercises(workoutId, now)
             queries.workoutExerciseIds(workoutId).executeAsList().forEach { renumberSets(it, now) }
             queries.finishWorkout(endedAt = now, id = workoutId)
+            trends.refreshExercises(exerciseIdsOf(workoutId))
             true
         }
     }
@@ -400,11 +402,16 @@ class WorkoutRepository(
     suspend fun deleteWorkout(workoutId: String) = withContext(io) {
         db.transaction {
             val now = now()
+            val exerciseIds = exerciseIdsOf(workoutId)
             queries.softDeleteAllSetsOfWorkout(now = now, workoutId = workoutId)
             queries.softDeleteAllExercisesOfWorkout(now = now, workoutId = workoutId)
             queries.softDeleteWorkout(now = now, id = workoutId)
+            trends.refreshExercises(exerciseIds)
         }
     }
+
+    private fun exerciseIdsOf(workoutId: String): List<String> =
+        queries.workoutExercises(workoutId).executeAsList().map { it.exercise_id }
 
     private fun insertSet(workoutExerciseId: String, position: Int, isWarmup: Boolean, now: Long, values: SetValues = SetValues()) {
         queries.insertSet(

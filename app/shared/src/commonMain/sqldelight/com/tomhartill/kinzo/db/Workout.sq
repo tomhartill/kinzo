@@ -78,6 +78,11 @@ UPDATE workout SET name = :name, updated_at = :now WHERE id = :id;
 finishWorkout:
 UPDATE workout SET ended_at = :endedAt, updated_at = :endedAt WHERE id = :id;
 
+-- Back in progress. The start moves on by the time it sat finished, so the timer carries on
+-- from where it stopped rather than counting the break.
+resumeWorkout:
+UPDATE workout SET started_at = :startedAt, ended_at = NULL, updated_at = :now WHERE id = :id;
+
 softDeleteWorkout:
 UPDATE workout SET deleted_at = :now, updated_at = :now WHERE id = :id;
 
@@ -125,9 +130,10 @@ WHERE workout_id = :workoutId AND deleted_at IS NULL
 ORDER BY position;
 
 workoutExerciseById:
-SELECT id, workout_id, exercise_id, position
-FROM workout_exercise
-WHERE id = :id AND deleted_at IS NULL;
+SELECT we.id, we.workout_id, we.exercise_id, we.position, w.ended_at
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.id = :id AND we.deleted_at IS NULL;
 
 insertWorkoutExercise:
 INSERT INTO workout_exercise(id, workout_id, exercise_id, position, rest_s, updated_at, deleted_at)
@@ -220,8 +226,8 @@ softDeleteSetsOfWorkoutExercise:
 UPDATE workout_set SET deleted_at = :now, updated_at = :now
 WHERE workout_exercise_id = :workoutExerciseId AND deleted_at IS NULL;
 
--- The completed sets from the most recent finished workout that included this exercise,
--- shown as "previous" beside each set.
+-- The completed sets from the most recent finished workout before this one that included this
+-- exercise, shown as "previous" beside each set. "Before" matters when editing an old workout.
 previousSets:
 SELECT s.reps, s.weight_kg, s.duration_s, s.distance_m, s.is_warmup
 FROM workout_set s
@@ -231,6 +237,7 @@ WHERE s.workout_exercise_id = (
     JOIN workout w ON w.id = we.workout_id
     WHERE we.exercise_id = :exerciseId AND we.deleted_at IS NULL
       AND w.deleted_at IS NULL AND w.ended_at IS NOT NULL AND w.id != :excludeWorkoutId
+      AND w.started_at <= (SELECT started_at FROM workout WHERE id = :excludeWorkoutId)
     ORDER BY w.started_at DESC, we.position ASC
     LIMIT 1
 )

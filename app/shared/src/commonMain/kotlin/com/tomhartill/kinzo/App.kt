@@ -299,17 +299,28 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
     when (val destination = entry.destination) {
         Destination.ActiveWorkout -> ActiveWorkoutScreen(
             onMinimise = back,
-            onAddExercises = { ifCurrent { navigator.push(Destination.AddExercises) } },
+            onAddExercises = { ifCurrent { navigator.push(Destination.AddExercises()) } },
             onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
             onFinished = { id -> ifCurrent { navigator.replace(Destination.WorkoutDetail(id, justFinished = true)) } },
             onClosed = back,
         )
-        Destination.AddExercises -> ExercisePickerScreen(onClose = back, onAdded = back)
+        is Destination.EditWorkout -> ActiveWorkoutScreen(
+            onMinimise = back,
+            onAddExercises = { ifCurrent { navigator.push(Destination.AddExercises(destination.workoutId)) } },
+            onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
+            onFinished = { back() },
+            onClosed = back,
+            editWorkoutId = destination.workoutId,
+        )
+        is Destination.AddExercises -> ExercisePickerScreen(workoutId = destination.workoutId, onClose = back, onAdded = back)
         is Destination.ExerciseDetail -> ExerciseDetailScreen(exerciseId = destination.exerciseId, onBack = back)
         is Destination.WorkoutDetail -> WorkoutDetailScreen(
             workoutId = destination.workoutId,
             justFinished = destination.justFinished,
             onClose = back,
+            // The resumed workout replaces everything, as starting one does.
+            onResumed = { ifCurrent { navigator.resetTo(Destination.ActiveWorkout) } },
+            onEdit = { ifCurrent { navigator.push(Destination.EditWorkout(destination.workoutId)) } },
         )
         is Destination.RoutineDetail -> RoutineDetailScreen(
             routineId = destination.routineId,

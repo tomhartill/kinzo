@@ -95,11 +95,14 @@ class ExerciseBrowserViewModel(
         equipmentId.value = value?.id
     }
 
-    /** Adds the picked exercises, in the order they were picked, to the workout in progress. */
-    fun addToActiveWorkout(exerciseIds: List<String>, onAdded: () -> Unit) {
+    /**
+     * Adds the picked exercises, in the order they were picked, to [workoutId], or to the
+     * workout in progress when that's null.
+     */
+    fun addToWorkout(workoutId: String?, exerciseIds: List<String>, onAdded: () -> Unit) {
         viewModelScope.launch {
-            val workoutId = workouts.activeWorkoutId()
-            if (workoutId != null && exerciseIds.isNotEmpty()) workouts.addExercises(workoutId, exerciseIds)
+            val target = workoutId ?: workouts.activeWorkoutId()
+            if (target != null && exerciseIds.isNotEmpty()) workouts.addExercises(target, exerciseIds)
             onAdded()
         }
     }

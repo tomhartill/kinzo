@@ -28,6 +28,21 @@ class WorkoutDetailViewModel(
             WorkoutDetailState(loading = false, workout = workout, unit = settingsValue.weightUnit)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WorkoutDetailState())
 
+    /**
+     * Puts the workout back in progress. [onBusy] when another workout is in progress, and
+     * [onTooLate] when it has just passed the time limit for resuming.
+     */
+    fun resume(onResumed: () -> Unit, onBusy: () -> Unit, onTooLate: () -> Unit) {
+        viewModelScope.launch {
+            when (workouts.resumeWorkout(workoutId)) {
+                WorkoutRepository.ResumeResult.Resumed -> onResumed()
+                is WorkoutRepository.ResumeResult.AlreadyInProgress -> onBusy()
+                WorkoutRepository.ResumeResult.TooLate -> onTooLate()
+                WorkoutRepository.ResumeResult.NotFound -> Unit
+            }
+        }
+    }
+
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
             workouts.deleteWorkout(workoutId)

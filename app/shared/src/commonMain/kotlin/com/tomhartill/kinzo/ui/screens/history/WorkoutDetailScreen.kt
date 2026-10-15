@@ -43,9 +43,11 @@ import com.tomhartill.kinzo.ui.components.ConfirmDialog
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
 import com.tomhartill.kinzo.ui.components.PrimaryButton
+import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.components.SetSummaryRow
 import com.tomhartill.kinzo.ui.components.StatTile
+import com.tomhartill.kinzo.ui.components.rememberNow
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
@@ -54,13 +56,16 @@ import kotlin.math.roundToLong
 
 /**
  * A finished workout, set by set. Straight after finishing ([justFinished]) it doubles as the
- * end-of-workout summary, with a Done button back to the tabs.
+ * end-of-workout summary, with a Done button back to the tabs. A workout finished in the last
+ * few hours can be resumed; an older one can be edited.
  */
 @Composable
 fun WorkoutDetailScreen(
     workoutId: String,
     justFinished: Boolean,
     onClose: () -> Unit,
+    onResumed: () -> Unit,
+    onEdit: () -> Unit,
     viewModel: WorkoutDetailViewModel = koinViewModel { parametersOf(workoutId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -69,6 +74,11 @@ fun WorkoutDetailScreen(
     val spacing = KinzoTheme.spacing
     var menuOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    // Once a minute is enough to swap Resume for Edit when the time runs out.
+    val now by rememberNow(intervalMillis = 60_000)
+    val canResume = workout?.canResume(now) == true
+    val resume = { viewModel.resume(onResumed = onResumed, onBusy = { busy = true }, onTooLate = onEdit) }
 
     // Deleted, here or elsewhere: nothing left to show.
     LaunchedEffect(state.loading, workout == null) {
@@ -87,6 +97,13 @@ fun WorkoutDetailScreen(
                         Icon(Icons.Filled.MoreVert, contentDescription = "Workout options")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        // Resuming is the button; editing without the clock is here too.
+                        if (canResume) {
+                            DropdownMenuItem(text = { Text("Edit workout") }, onClick = {
+                                menuOpen = false
+                                onEdit()
+                            })
+                        }
                         DropdownMenuItem(text = { Text("Delete workout", color = colors.error) }, onClick = {
                             menuOpen = false
                             confirmDelete = true
@@ -109,12 +126,42 @@ fun WorkoutDetailScreen(
             ) {
                 item(key = "header") { Header(workout, justFinished) }
                 item(key = "stats") { Stats(workout, state.unit) }
-                items(workout.exercises, key = { it.id }) { exercise -> ExerciseSummary(exercise, state.unit) }
+                if (!justFinished) {
+                    item(key = "change") {
+                        if (canResume) {
+                            PrimaryButton(text = "Resume workout", onClick = resume)
+                        } else {
+                            SecondaryButton(text = "Edit workout", onClick = onEdit)
+                        }
+                    }
+                }
+                // Sets left unticked by an edit that wasn't finished aren't part of the workout.
+                items(workout.exercises.filter { exercise -> exercise.sets.any { it.isCompleted } }, key = { it.id }) { exercise ->
+                    ExerciseSummary(exercise, state.unit)
+                }
                 if (justFinished) {
-                    item(key = "done") { PrimaryButton(text = "Done", onClick = onClose) }
+                    item(key = "done") {
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                            PrimaryButton(text = "Done", onClick = onClose)
+                            if (canResume) SecondaryButton(text = "Resume workout", onClick = resume)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    if (busy) {
+        ConfirmDialog(
+            title = "A workout is in progress",
+            message = "Finish or discard it before resuming this one.",
+            confirmLabel = "Open it",
+            onConfirm = {
+                busy = false
+                onResumed()
+            },
+            onDismiss = { busy = false },
+        )
     }
 
     if (confirmDelete) {
@@ -171,10 +218,11 @@ private fun Stats(workout: Workout, unit: WeightUnit) {
 
 @Composable
 private fun ExerciseSummary(exercise: WorkoutExercise, unit: WeightUnit) {
-    val labels = SetRules.labels(exercise.sets.map { it.isWarmup })
+    val sets = exercise.sets.filter { it.isCompleted }
+    val labels = SetRules.labels(sets.map { it.isWarmup })
     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
         Text(exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = KinzoTheme.spacing.xs))
-        exercise.sets.forEachIndexed { index, set ->
+        sets.forEachIndexed { index, set ->
             SetSummaryRow(
                 label = labels[index],
                 text = Format.set(exercise.measurementType, set.values, unit),

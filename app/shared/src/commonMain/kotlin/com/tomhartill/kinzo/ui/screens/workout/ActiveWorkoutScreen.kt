@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
@@ -62,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tomhartill.kinzo.domain.Dates
 import com.tomhartill.kinzo.domain.Format
 import com.tomhartill.kinzo.domain.LoggedSet
 import com.tomhartill.kinzo.domain.SetRules
@@ -80,9 +82,12 @@ import com.tomhartill.kinzo.ui.components.SetEditorRow
 import com.tomhartill.kinzo.ui.components.SetTableHeader
 import com.tomhartill.kinzo.ui.components.TextInputDialog
 import com.tomhartill.kinzo.ui.components.rememberNow
+import com.tomhartill.kinzo.ui.navigation.SystemBackHandler
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 private sealed interface WorkoutDialog {
     data object Rename : WorkoutDialog
@@ -92,7 +97,10 @@ private sealed interface WorkoutDialog {
     data class RemoveExercise(val exercise: WorkoutExercise) : WorkoutDialog
 }
 
-/** The workout in progress: one section per exercise with its sets, and the rest timer. */
+/**
+ * The workout in progress: one section per exercise with its sets, and the rest timer. With
+ * [editWorkoutId] it edits a finished workout instead: no timers, and Done in place of Finish.
+ */
 @Composable
 fun ActiveWorkoutScreen(
     onMinimise: () -> Unit,
@@ -100,12 +108,16 @@ fun ActiveWorkoutScreen(
     onOpenExercise: (exerciseId: String) -> Unit,
     onFinished: (workoutId: String) -> Unit,
     onClosed: () -> Unit,
-    viewModel: ActiveWorkoutViewModel = koinViewModel(),
+    editWorkoutId: String? = null,
+    viewModel: ActiveWorkoutViewModel = koinViewModel {
+        if (editWorkoutId == null) parametersOf() else parametersOf(editWorkoutId)
+    },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val rest by viewModel.rest.collectAsStateWithLifecycle()
     val workout = state.workout
     val colors = MaterialTheme.colorScheme
+    val editing = viewModel.editing
 
     // The workout can end elsewhere (finished, discarded): there is nothing left to show.
     LaunchedEffect(state.loading, workout == null) {
@@ -120,6 +132,8 @@ fun ActiveWorkoutScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var reordering by remember { mutableStateOf(false) }
     val now by rememberNow()
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val discardLabel = if (editing) "Delete workout" else "Discard workout"
     val unit = state.settings.weightUnit
     val focusManager = LocalFocusManager.current
     val snackbar = remember { SnackbarHostState() }
@@ -150,22 +164,38 @@ fun ActiveWorkoutScreen(
         }
     }
 
+    // Edits save as they're made; leaving just drops the sets that weren't ticked.
+    fun requestDone() {
+        if (workout.completedSetCount == 0) {
+            dialog = WorkoutDialog.NothingCompleted
+        } else {
+            viewModel.saveEdits { onFinished(workout.id) }
+        }
+    }
+
+    // Back while editing tidies up on the way out, the same as Done.
+    SystemBackHandler(enabled = editing) { requestDone() }
+
     Column(Modifier.fillMaxSize().background(colors.background).imePadding()) {
         KinzoTopBar(
             title = workout.name,
-            subtitle = Format.elapsed(now - workout.startedAt),
-            onBack = onMinimise,
-            backIcon = Icons.Filled.KeyboardArrowDown,
-            backLabel = "Minimise workout",
+            subtitle = if (editing) {
+                "Editing · ${Dates.longDayLabel(workout.startedAt, zone)}"
+            } else {
+                Format.elapsed(now - workout.startedAt)
+            },
+            onBack = { if (editing) requestDone() else onMinimise() },
+            backIcon = if (editing) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.KeyboardArrowDown,
+            backLabel = if (editing) "Done" else "Minimise workout",
             onTitleClick = { dialog = WorkoutDialog.Rename },
             actions = {
                 Button(
-                    onClick = ::requestFinish,
+                    onClick = { if (editing) requestDone() else requestFinish() },
                     shape = MaterialTheme.shapes.medium,
                     contentPadding = PaddingValues(horizontal = KinzoTheme.spacing.lg),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.primary, contentColor = colors.onPrimary),
                 ) {
-                    Text("Finish", style = MaterialTheme.typography.labelLarge)
+                    Text(if (editing) "Done" else "Finish", style = MaterialTheme.typography.labelLarge)
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
@@ -182,7 +212,7 @@ fun ActiveWorkoutScreen(
                                 reordering = true
                             })
                         }
-                        DropdownMenuItem(text = { Text("Discard workout", color = colors.error) }, onClick = {
+                        DropdownMenuItem(text = { Text(discardLabel, color = colors.error) }, onClick = {
                             menuOpen = false
                             dialog = WorkoutDialog.Discard
                         })
@@ -216,7 +246,7 @@ fun ActiveWorkoutScreen(
                     ExerciseSection(
                         exercise = exercise,
                         unit = unit,
-                        restSeconds = viewModel.restFor(exercise),
+                        restSeconds = viewModel.restFor(exercise).takeUnless { editing },
                         canReorder = workout.exercises.size > 1,
                         onOpenInfo = { onOpenExercise(exercise.exerciseId) },
                         onRestChange = { viewModel.setRest(exercise, it) },
@@ -240,7 +270,7 @@ fun ActiveWorkoutScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm)) {
                         PrimaryButton(text = "Add exercises", onClick = onAddExercises)
                         TextButton(onClick = { dialog = WorkoutDialog.Discard }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Discard workout", color = colors.error, style = MaterialTheme.typography.labelLarge)
+                            Text(discardLabel, color = colors.error, style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -248,7 +278,7 @@ fun ActiveWorkoutScreen(
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(horizontal = KinzoTheme.spacing.md))
         }
 
-        if (currentExercise != null || rest != null) {
+        if (!editing && (currentExercise != null || rest != null)) {
             val currentRest = currentExercise?.let(viewModel::restFor) ?: state.settings.restSeconds
             RestBar(
                 running = rest,
@@ -292,9 +322,13 @@ fun ActiveWorkoutScreen(
             onDismiss = { dialog = null },
         )
         WorkoutDialog.Discard -> ConfirmDialog(
-            title = "Discard workout?",
-            message = "Everything logged in this workout will be deleted.",
-            confirmLabel = "Discard",
+            title = if (editing) "Delete workout?" else "Discard workout?",
+            message = if (editing) {
+                "It will be removed from your history and stats."
+            } else {
+                "Everything logged in this workout will be deleted."
+            },
+            confirmLabel = if (editing) "Delete" else "Discard",
             destructive = true,
             onConfirm = {
                 dialog = null
@@ -303,10 +337,14 @@ fun ActiveWorkoutScreen(
             onDismiss = { dialog = null },
         )
         WorkoutDialog.NothingCompleted -> ConfirmDialog(
-            title = "No sets ticked yet",
-            message = "Tick the sets you've done before finishing, or discard this workout.",
-            confirmLabel = "Discard workout",
-            dismissLabel = "Keep going",
+            title = if (editing) "No sets ticked" else "No sets ticked yet",
+            message = if (editing) {
+                "Tick the sets you did, or delete this workout."
+            } else {
+                "Tick the sets you've done before finishing, or discard this workout."
+            },
+            confirmLabel = discardLabel,
+            dismissLabel = if (editing) "Keep editing" else "Keep going",
             destructive = true,
             onConfirm = {
                 dialog = null
@@ -346,7 +384,8 @@ fun ActiveWorkoutScreen(
 private fun ExerciseSection(
     exercise: WorkoutExercise,
     unit: WeightUnit,
-    restSeconds: Int,
+    // Null hides the rest choice, as when editing a finished workout.
+    restSeconds: Int?,
     canReorder: Boolean,
     onOpenInfo: () -> Unit,
     onRestChange: (seconds: Int) -> Unit,
@@ -401,7 +440,7 @@ private fun ExerciseSection(
                 }
             }
         }
-        RestChip(seconds = restSeconds, onSelect = onRestChange)
+        if (restSeconds != null) RestChip(seconds = restSeconds, onSelect = onRestChange)
         SetTableHeader(type = exercise.measurementType, unit = unit)
         exercise.sets.forEachIndexed { index, set ->
             key(set.id) {

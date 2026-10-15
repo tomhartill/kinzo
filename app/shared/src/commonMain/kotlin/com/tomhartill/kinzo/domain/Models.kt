@@ -143,6 +143,14 @@ data class Workout(
         get() = exercises.sumOf { exercise ->
             exercise.sets.filter { it.isCompleted && !it.isWarmup }.sumOf { it.values.volumeKg }
         }
+
+    /** Whether a finished workout can still be picked up where it left off, rather than edited. */
+    fun canResume(now: Long): Boolean = endedAt != null && now - endedAt < RESUME_WINDOW_MS
+
+    companion object {
+        /** How long after finishing a workout it can be resumed, with its timer running again. */
+        const val RESUME_WINDOW_MS: Long = 3 * 60 * 60 * 1000L
+    }
 }
 
 /** Just enough about the workout in progress to show it above the tabs. */

@@ -81,7 +81,8 @@ internal val viewModelModule: Module = module {
     viewModelOf(::HistoryViewModel)
     viewModelOf(::ExerciseBrowserViewModel)
     viewModelOf(::ProfileViewModel)
-    viewModelOf(::ActiveWorkoutViewModel)
+    // No parameter for the workout in progress; a workout ID to edit a finished one.
+    viewModel { params -> ActiveWorkoutViewModel(params.getOrNull(), get(), get(), get()) }
     viewModelOf(::LibraryViewModel)
     viewModelOf(::SignInViewModel)
     viewModelOf(::UsernameViewModel)

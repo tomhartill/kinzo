@@ -11,7 +11,9 @@ class DestinationTest {
         val id = "0199e3a1-7c2b-7d3e-9f00-123456789abc"
         val destinations = listOf(
             Destination.ActiveWorkout,
-            Destination.AddExercises,
+            Destination.AddExercises(),
+            Destination.AddExercises(id),
+            Destination.EditWorkout(id),
             Destination.DesignSystem,
             Destination.ExerciseDetail(id),
             Destination.WorkoutDetail(id),

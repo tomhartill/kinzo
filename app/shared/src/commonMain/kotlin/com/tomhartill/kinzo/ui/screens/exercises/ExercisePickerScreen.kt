@@ -30,16 +30,20 @@ import com.tomhartill.kinzo.ui.components.PrimaryButton
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import org.koin.compose.viewmodel.koinViewModel
 
-/** Picks one or more exercises to add to the workout in progress, in the order tapped. */
+/**
+ * Picks one or more exercises to add, in the order tapped, to [workoutId] or to the workout
+ * in progress when that's null.
+ */
 @Composable
 fun ExercisePickerScreen(
+    workoutId: String?,
     onClose: () -> Unit,
     onAdded: () -> Unit,
     viewModel: ExerciseBrowserViewModel = koinViewModel(),
 ) {
     ExercisePicker(
         onClose = onClose,
-        onConfirm = { picked -> viewModel.addToActiveWorkout(picked.map { it.id }, onAdded) },
+        onConfirm = { picked -> viewModel.addToWorkout(workoutId, picked.map { it.id }, onAdded) },
         viewModel = viewModel,
     )
 }

@@ -258,4 +258,80 @@ class WorkoutRepositoryTest {
         workouts.setExerciseRest(curl.id, null)
         assertNull(active().exercises.last().restSeconds)
     }
+
+    @Test
+    fun aWorkoutFinishedRecentlyCanBeResumedAndItsTimerCarriesOn() = runTest {
+        val id = workouts.startWorkout("Push")
+        val startedAt = clock.millis
+        workouts.addExercises(id, listOf("ex-bench"))
+        workouts.completeSet(active().exercises.single().sets.single().id, SetValues(weightKg = 60.0, reps = 5))
+        clock.advance(40 * 60 * 1000)
+        assertTrue(workouts.finishWorkout(id))
+
+        clock.advance(2 * 60 * 60 * 1000)
+        assertEquals(WorkoutRepository.ResumeResult.Resumed, workouts.resumeWorkout(id))
+        val resumed = active()
+        assertEquals(id, resumed.id)
+        assertNull(resumed.endedAt)
+        // 40 minutes in, as when it was finished: the break doesn't count.
+        assertEquals(40 * 60 * 1000L, clock.millis - resumed.startedAt)
+        assertEquals(startedAt + 2 * 60 * 60 * 1000, resumed.startedAt)
+        assertTrue(workouts.history().first().isEmpty())
+    }
+
+    @Test
+    fun anOldWorkoutCantBeResumed() = runTest {
+        val id = logBench(60.0 to 5)
+        assertEquals(WorkoutRepository.ResumeResult.TooLate, workouts.resumeWorkout(id))
+        assertNull(workouts.activeWorkout().first())
+    }
+
+    @Test
+    fun resumingWaitsForTheWorkoutInProgress() = runTest {
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-bench"))
+        workouts.completeSet(active().exercises.single().sets.single().id, SetValues(weightKg = 60.0, reps = 5))
+        assertTrue(workouts.finishWorkout(id))
+        val other = workouts.startWorkout("Pull")
+        assertEquals(WorkoutRepository.ResumeResult.AlreadyInProgress(other), workouts.resumeWorkout(id))
+    }
+
+    @Test
+    fun editingAFinishedWorkoutKeepsOnlyTickedSets() = runTest {
+        val id = logBench(60.0 to 5)
+        val workout = assertNotNull(workouts.workout(id).first())
+        val endedAt = workout.endedAt
+        val bench = workout.exercises.single()
+        workouts.updateSet(bench.sets.single().id, SetValues(weightKg = 62.5, reps = 5))
+        workouts.addSet(bench.id)
+        workouts.addExercises(id, listOf("ex-plank"))
+        val added = assertNotNull(workouts.workout(id).first()).exercises.first().sets.last()
+        workouts.completeSet(added.id, SetValues(weightKg = 62.5, reps = 4))
+
+        assertTrue(workouts.saveEditedWorkout(id))
+        val saved = assertNotNull(workouts.workout(id).first())
+        assertEquals(endedAt, saved.endedAt)
+        assertEquals(listOf("Bench Press"), saved.exercises.map { it.name })
+        assertEquals(listOf(5, 4), saved.exercises.single().sets.map { it.values.reps })
+        assertEquals(62.5 * 9, workouts.history().first().single().volumeKg)
+    }
+
+    @Test
+    fun anEditedWorkoutNeedsATickedSet() = runTest {
+        val id = logBench(60.0 to 5)
+        val set = assertNotNull(workouts.workout(id).first()).exercises.single().sets.single()
+        workouts.uncompleteSet(set.id)
+        assertFalse(workouts.saveEditedWorkout(id))
+        assertEquals(1, assertNotNull(workouts.workout(id).first()).exercises.single().sets.size)
+    }
+
+    @Test
+    fun editingAnOldWorkoutShowsTheSessionBeforeItAsPrevious() = runTest {
+        logBench(50.0 to 5)
+        logBench(70.0 to 5)
+        logBench(80.0 to 5)
+        val second = workouts.history().first()[1].id
+        val previous = assertNotNull(workouts.workout(second, withPrevious = true).first()).exercises.single().previous
+        assertEquals(listOf(50.0), previous.map { it.values.weightKg })
+    }
 }

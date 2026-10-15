@@ -24,8 +24,14 @@ sealed interface Destination {
         override val route = "workout"
     }
 
-    data object AddExercises : Destination {
-        override val route = "workout/add"
+    /** Adds exercises to the workout in progress, or with [workoutId] to one being edited. */
+    data class AddExercises(val workoutId: String? = null) : Destination {
+        override val route = if (workoutId == null) "workout/add" else "workout/add/$workoutId"
+    }
+
+    /** A finished workout, open for changes. */
+    data class EditWorkout(val workoutId: String) : Destination {
+        override val route = "edit-workout/$workoutId"
     }
 
     data class ExerciseDetail(val exerciseId: String) : Destination {
@@ -93,7 +99,9 @@ sealed interface Destination {
             val parts = route.split('/')
             return when {
                 route == ActiveWorkout.route -> ActiveWorkout
-                route == AddExercises.route -> AddExercises
+                route == AddExercises().route -> AddExercises()
+                parts.size == 3 && parts[0] == "workout" && parts[1] == "add" -> AddExercises(parts[2])
+                parts.size == 2 && parts[0] == "edit-workout" -> EditWorkout(parts[1])
                 route == DesignSystem.route -> DesignSystem
                 route == SignIn.route -> SignIn
                 route == Account.route -> Account

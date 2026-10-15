@@ -23,13 +23,22 @@ data class ActiveWorkoutState(
     val settings: Settings = Settings(),
 )
 
+/**
+ * The workout in progress, or with [editWorkoutId] a finished one being edited. Editing works
+ * the same way, minus the clock: no rest timer, and Done tidies up instead of finishing.
+ */
 class ActiveWorkoutViewModel(
+    private val editWorkoutId: String?,
     private val workouts: WorkoutRepository,
     settings: SettingsRepository,
     private val restTimer: RestTimer,
 ) : ViewModel() {
+    val editing: Boolean get() = editWorkoutId != null
+
+    private val source = editWorkoutId?.let { workouts.workout(it, withPrevious = true) } ?: workouts.activeWorkout()
+
     val state: StateFlow<ActiveWorkoutState> =
-        combine(workouts.activeWorkout(), settings.settings()) { workout, settingsValue ->
+        combine(source, settings.settings()) { workout, settingsValue ->
             ActiveWorkoutState(loading = false, workout = workout, settings = settingsValue)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutState())
 
@@ -74,7 +83,7 @@ class ActiveWorkoutViewModel(
         val previous = exercise.previous.getOrNull(index)?.values
         val values = SetRules.resolveForCompletion(exercise.measurementType, entered, previous) ?: return false
         viewModelScope.launch { workouts.completeSet(set.id, values) }
-        restTimer.start(restFor(exercise))
+        if (!editing) restTimer.start(restFor(exercise))
         return true
     }
 
@@ -127,11 +136,20 @@ class ActiveWorkoutViewModel(
         }
     }
 
+    /** Done editing: tidies up and reports back, or does nothing if no set is ticked. */
+    fun saveEdits(onSaved: () -> Unit) {
+        val id = workoutId ?: return
+        viewModelScope.launch {
+            if (workouts.saveEditedWorkout(id)) onSaved()
+        }
+    }
+
+    /** Throws away the workout in progress, or deletes the one being edited. */
     fun discard(onDiscarded: () -> Unit) {
         val id = workoutId ?: return
         viewModelScope.launch {
             workouts.deleteWorkout(id)
-            restTimer.skip()
+            if (!editing) restTimer.skip()
             onDiscarded()
         }
     }

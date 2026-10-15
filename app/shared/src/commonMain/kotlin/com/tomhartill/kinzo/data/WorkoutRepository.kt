@@ -231,6 +231,53 @@ class WorkoutRepository(
         }
     }
 
+    /** What happened when asked to resume a finished workout. */
+    sealed interface ResumeResult {
+        data object Resumed : ResumeResult
+
+        /** Another workout is in progress; finish or discard it first. */
+        data class AlreadyInProgress(val workoutId: String) : ResumeResult
+
+        /** It finished too long ago ([Workout.RESUME_WINDOW_MS]); edit it instead. */
+        data object TooLate : ResumeResult
+
+        /** The workout is gone, or was never finished. */
+        data object NotFound : ResumeResult
+    }
+
+    /**
+     * Puts a workout finished in the last few hours back in progress, so more can be logged
+     * and the timer runs again from where it stopped.
+     */
+    suspend fun resumeWorkout(workoutId: String): ResumeResult = withContext(io) {
+        db.transactionWithResult {
+            val workout = queries.workoutById(workoutId).executeAsOneOrNull() ?: return@transactionWithResult ResumeResult.NotFound
+            val endedAt = workout.ended_at ?: return@transactionWithResult ResumeResult.NotFound
+            queries.activeWorkoutId().executeAsOneOrNull()?.let { return@transactionWithResult ResumeResult.AlreadyInProgress(it) }
+            val now = now()
+            if (now - endedAt >= Workout.RESUME_WINDOW_MS) return@transactionWithResult ResumeResult.TooLate
+            queries.resumeWorkout(startedAt = workout.started_at + (now - endedAt).coerceAtLeast(0), now = now, id = workoutId)
+            // Its sets stop counting towards trends until it is finished again.
+            trends.refreshExercises(exerciseIdsOf(workoutId))
+            ResumeResult.Resumed
+        }
+    }
+
+    /**
+     * Tidies up after editing a finished workout, as finishing does: sets left unticked are
+     * dropped, along with any exercise left with none, and trends catch up with the changes.
+     * Returns false, and changes nothing, if no set is ticked at all.
+     */
+    suspend fun saveEditedWorkout(workoutId: String): Boolean = withContext(io) {
+        db.transactionWithResult {
+            if (queries.countCompletedSetsOfWorkout(workoutId).executeAsOne() == 0L) return@transactionWithResult false
+            val now = now()
+            tidyUp(workoutId, now)
+            trends.refreshExercises(exerciseIdsOf(workoutId))
+            true
+        }
+    }
+
     suspend fun renameWorkout(workoutId: String, name: String) = withContext(io) {
         val trimmed = name.trim()
         if (trimmed.isNotEmpty()) queries.renameWorkout(name = trimmed, now = now(), id = workoutId)
@@ -348,6 +395,8 @@ class WorkoutRepository(
             queries.softDeleteSetsOfWorkoutExercise(now = now, workoutExerciseId = workoutExerciseId)
             queries.softDeleteWorkoutExercise(now = now, id = workoutExerciseId)
             renumberExercises(exercise.workout_id, now)
+            // Taken out of a finished workout (while editing it): its trend loses that session.
+            if (exercise.ended_at != null) trends.refreshExercises(listOf(exercise.exercise_id))
         }
     }
 
@@ -388,10 +437,7 @@ class WorkoutRepository(
         db.transactionWithResult {
             if (queries.countCompletedSetsOfWorkout(workoutId).executeAsOne() == 0L) return@transactionWithResult false
             val now = now()
-            queries.softDeleteIncompleteSetsOfWorkout(now = now, workoutId = workoutId)
-            queries.softDeleteEmptyExercisesOfWorkout(now = now, workoutId = workoutId)
-            renumberExercises(workoutId, now)
-            queries.workoutExerciseIds(workoutId).executeAsList().forEach { renumberSets(it, now) }
+            tidyUp(workoutId, now)
             queries.finishWorkout(endedAt = now, id = workoutId)
             trends.refreshExercises(exerciseIdsOf(workoutId))
             true
@@ -408,6 +454,14 @@ class WorkoutRepository(
             queries.softDeleteWorkout(now = now, id = workoutId)
             trends.refreshExercises(exerciseIds)
         }
+    }
+
+    /** Drops unticked sets and the exercises left empty, then closes up the gaps. */
+    private fun tidyUp(workoutId: String, now: Long) {
+        queries.softDeleteIncompleteSetsOfWorkout(now = now, workoutId = workoutId)
+        queries.softDeleteEmptyExercisesOfWorkout(now = now, workoutId = workoutId)
+        renumberExercises(workoutId, now)
+        queries.workoutExerciseIds(workoutId).executeAsList().forEach { renumberSets(it, now) }
     }
 
     private fun exerciseIdsOf(workoutId: String): List<String> =

@@ -85,8 +85,8 @@ Fix or fill in any older workout. Progress and trends update to match.
 ### Exercise library
 **Status:** Shipped
 
-About 915 exercises with search and filters, each with instructions and a simple pictogram of
-the movement. Variations such as every kind of chest press fold into one row to keep the list
+About 915 exercises with search and filters, each with a simple pictogram of the movement and
+nearly all with step-by-step instructions. Variations such as every kind of chest press fold into one row to keep the list
 short, and 52 named gym machines list the exercises each one supports.
 
 ### Progress charts
@@ -94,8 +94,8 @@ short, and 52 named gym machines list the exercises each one supports.
 
 Each exercise's page shows a chart of your progress once you've done it twice: estimated
 one-rep max, heaviest set or total volume for weighted lifts, and reps, time or distance for
-the rest. Press a point to see its value and date. The page also shows your stats and personal
-records.
+the rest. Press a point to see its value and date. The page also shows your best set and how
+many sessions you've done.
 
 ### Trend lines in the exercise list
 **Status:** Shipped
@@ -149,8 +149,8 @@ of how well each one trains each muscle. Works offline with no account.
 ### Progress photos
 **Status:** Shipped
 
-Take progress photos by pose (front, side and back), browse them by day, and delete them. They
-stay private on your phone and are never shared.
+Take progress photos by pose (front, side and back), browse them by day, and delete them. They're
+kept private inside Kinzo, out of your photo gallery, and never shared with friends.
 
 ### Compare progress photos
 **Status:** Planned
@@ -162,11 +162,11 @@ phone.
 ## Friends and accounts
 
 ### Optional account
-**Status:** Shipped
+**Status:** In progress
 
 Kinzo works fully without an account. Signing in with Google or Facebook unlocks friends, and
 later sync and the AI coach. You pick a username and can sign out or delete your account at any
-time.
+time. Built in the app; nobody can sign in until the Kinzo server is live.
 
 ### Sign in with email and a text code
 **Status:** In progress
@@ -175,10 +175,11 @@ Sign in with your email and a six-digit code sent by text or WhatsApp, no passwo
 the app; waiting on the server side.
 
 ### Friends
-**Status:** Shipped
+**Status:** In progress
 
 Find friends by name or username, send and answer requests, remove or block people, and share
-an invite link. Opening someone's invite link makes you friends straight away.
+an invite link. Opening someone's invite link makes you friends straight away. Built in the
+app; it switches on with sign-in once the Kinzo server is live.
 
 ### Sync across devices
 **Status:** Planned

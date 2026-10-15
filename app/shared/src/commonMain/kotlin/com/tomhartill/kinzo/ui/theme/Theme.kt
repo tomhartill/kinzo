@@ -3,6 +3,7 @@ package com.tomhartill.kinzo.ui.theme
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -45,8 +46,11 @@ fun KinzoTheme(
             colorScheme = scheme,
             typography = KinzoTypography,
             shapes = KinzoShapes,
-            content = content,
-        )
+        ) {
+            // Screens paint their own backgrounds rather than sitting on a Surface, so icons and
+            // text without an explicit colour would otherwise fall back to black in dark mode.
+            CompositionLocalProvider(LocalContentColor provides colors.text, content = content)
+        }
     }
 }
 

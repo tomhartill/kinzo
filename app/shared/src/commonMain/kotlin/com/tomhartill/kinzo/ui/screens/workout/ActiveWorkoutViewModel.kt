@@ -51,8 +51,13 @@ class ActiveWorkoutViewModel(
         viewModelScope.launch { workouts.renameWorkout(id, name) }
     }
 
-    fun addSet(exercise: WorkoutExercise) {
-        viewModelScope.launch { workouts.addSet(exercise.id) }
+    /**
+     * Adds a set with the last set's numbers filled in, so most sets need no typing. [percent]
+     * changes the weight from the add set slider, rounded to a weight that can be loaded.
+     */
+    fun addSet(exercise: WorkoutExercise, percent: Double = 0.0) {
+        val values = exercise.nextSetValues(percent, state.value.settings.weightUnit)
+        viewModelScope.launch { workouts.addSet(exercise.id, values) }
     }
 
     /**

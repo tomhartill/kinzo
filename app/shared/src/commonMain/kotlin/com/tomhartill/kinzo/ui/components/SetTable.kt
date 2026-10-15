@@ -1,6 +1,10 @@
 package com.tomhartill.kinzo.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -293,6 +297,70 @@ fun SetEditorRow(
                     haptics.performHapticFeedback(HapticFeedbackType.Reject)
                 }
             },
+        )
+    }
+}
+
+/**
+ * The weight change from the set above, such as "−15%": a small grey pill with an arrowhead
+ * pointing up to one weight and down to the other. It lines up with the weight column of
+ * [SetEditorRow] and is meant to be drawn over the gap between two rows.
+ */
+@Composable
+fun SetChangeMarker(text: String, type: MeasurementType, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val fields = SetField.forType(type)
+    val arrow = colors.onSurfaceVariant.copy(alpha = 0.6f)
+    Row(
+        modifier = modifier.fillMaxWidth().padding(horizontal = KinzoTheme.spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm),
+    ) {
+        Box(Modifier.width(SetColumnWidth))
+        Box(Modifier.weight(1f))
+        fields.forEach { field ->
+            Box(Modifier.width(fieldWidth(fields.size)), contentAlignment = Alignment.Center) {
+                if (field == SetField.Weight) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = "$text from the set above" },
+                    ) {
+                        Arrowhead(color = arrow, pointsUp = true)
+                        Box(
+                            modifier = Modifier
+                                .height(16.dp)
+                                .background(colors.surfaceContainerHigh, CircleShape)
+                                .padding(horizontal = 6.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
+                        Arrowhead(color = arrow, pointsUp = false)
+                    }
+                }
+            }
+        }
+        Box(Modifier.width(DoneColumnWidth))
+    }
+}
+
+@Composable
+private fun Arrowhead(color: Color, pointsUp: Boolean) {
+    Canvas(Modifier.size(width = 8.dp, height = 3.dp)) {
+        val tip = if (pointsUp) 0f else size.height
+        val base = if (pointsUp) size.height else 0f
+        drawPath(
+            Path().apply {
+                moveTo(0f, base)
+                lineTo(size.width, base)
+                lineTo(size.width / 2, tip)
+                close()
+            },
+            color,
         )
     }
 }

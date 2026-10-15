@@ -142,6 +142,32 @@ data class WorkoutExercise(
 ) {
     /** The rest that applies, given the default from settings. */
     fun rest(defaultSeconds: Int): Int = restSeconds ?: defaultSeconds
+
+    /** What set [index] counts as: what's been entered, with blanks taken from last time as when ticking. */
+    fun effectiveValues(index: Int): SetValues? =
+        sets.getOrNull(index)?.let { SetRules.fillBlanks(measurementType, it.values, previous.getOrNull(index)?.values) }
+
+    /**
+     * How set [index]'s weight differs from the set above, such as "−15%", or null when it's the
+     * same, when this set has no weight of its own yet, or when one is a warm-up and the other isn't.
+     */
+    fun weightChange(index: Int): String? {
+        if (measurementType != MeasurementType.WeightReps || index <= 0) return null
+        val set = sets.getOrNull(index) ?: return null
+        if (set.isWarmup != sets[index - 1].isWarmup) return null
+        val to = set.values.weightKg ?: return null
+        val from = effectiveValues(index - 1)?.weightKg ?: return null
+        return WeightChange.label(from, to)
+    }
+
+    /**
+     * The numbers a set added now starts with: the last set's, with the weight changed by
+     * [percent] and rounded to a loadable step. Empty when there's no set to copy.
+     */
+    fun nextSetValues(percent: Double, unit: WeightUnit): SetValues {
+        val last = effectiveValues(sets.lastIndex) ?: return SetValues()
+        return last.copy(weightKg = last.weightKg?.let { WeightChange.adjust(it, percent, unit) })
+    }
 }
 
 data class Workout(

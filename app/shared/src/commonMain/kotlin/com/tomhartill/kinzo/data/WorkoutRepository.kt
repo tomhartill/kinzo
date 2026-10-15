@@ -317,10 +317,11 @@ class WorkoutRepository(
         }
     }
 
-    suspend fun addSet(workoutExerciseId: String) = withContext(io) {
+    /** Adds a working set at the end, starting with [values] (not done yet). */
+    suspend fun addSet(workoutExerciseId: String, values: SetValues = SetValues()) = withContext(io) {
         db.transaction {
             val position = queries.setIdsOfWorkoutExercise(workoutExerciseId).executeAsList().size
-            insertSet(workoutExerciseId = workoutExerciseId, position = position, isWarmup = false, now = now())
+            insertSet(workoutExerciseId = workoutExerciseId, position = position, isWarmup = false, now = now(), values = values)
         }
     }
 

@@ -12,17 +12,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Info
@@ -56,20 +53,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.domain.Dates
 import com.tomhartill.kinzo.domain.Format
 import com.tomhartill.kinzo.domain.LoggedSet
+import com.tomhartill.kinzo.domain.MeasurementType
 import com.tomhartill.kinzo.domain.SetRules
 import com.tomhartill.kinzo.domain.SetValues
 import com.tomhartill.kinzo.domain.WeightUnit
 import com.tomhartill.kinzo.domain.WorkoutExercise
+import com.tomhartill.kinzo.ui.components.AddSetBar
 import com.tomhartill.kinzo.ui.components.ConfirmDialog
 import com.tomhartill.kinzo.ui.components.KinzoIcons
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
@@ -78,6 +79,7 @@ import com.tomhartill.kinzo.ui.components.ReorderItem
 import com.tomhartill.kinzo.ui.components.ReorderSheet
 import com.tomhartill.kinzo.ui.components.RestBar
 import com.tomhartill.kinzo.ui.components.RestChip
+import com.tomhartill.kinzo.ui.components.SetChangeMarker
 import com.tomhartill.kinzo.ui.components.SetEditorRow
 import com.tomhartill.kinzo.ui.components.SetTableHeader
 import com.tomhartill.kinzo.ui.components.TextInputDialog
@@ -258,7 +260,7 @@ fun ActiveWorkoutScreen(
                                 viewModel.removeExercise(exercise)
                             }
                         },
-                        onAddSet = { viewModel.addSet(exercise) },
+                        onAddSet = { percent -> viewModel.addSet(exercise, percent) },
                         onValuesChange = { set, values -> viewModel.updateSet(exercise, set, values) },
                         onToggleDone = { set, entered -> viewModel.toggleDone(exercise, set, entered) },
                         onToggleWarmup = viewModel::toggleWarmup,
@@ -391,7 +393,7 @@ private fun ExerciseSection(
     onRestChange: (seconds: Int) -> Unit,
     onReorder: () -> Unit,
     onRemove: () -> Unit,
-    onAddSet: () -> Unit,
+    onAddSet: (percent: Double) -> Unit,
     onValuesChange: (LoggedSet, SetValues) -> Unit,
     onToggleDone: (LoggedSet, SetValues) -> Boolean,
     onToggleWarmup: (LoggedSet) -> Unit,
@@ -442,32 +444,57 @@ private fun ExerciseSection(
         }
         if (restSeconds != null) RestChip(seconds = restSeconds, onSelect = onRestChange)
         SetTableHeader(type = exercise.measurementType, unit = unit)
-        exercise.sets.forEachIndexed { index, set ->
-            key(set.id) {
-                SwipeToDelete(label = "Delete set ${labels[index]}", onDelete = { onRemoveSet(set) }) {
-                    SetEditorRow(
-                        label = labels[index],
-                        set = set,
-                        previous = exercise.previous.getOrNull(index),
-                        type = exercise.measurementType,
-                        unit = unit,
-                        onValuesChange = { onValuesChange(set, it) },
-                        onToggleDone = { onToggleDone(set, it) },
-                        onToggleWarmup = { onToggleWarmup(set) },
-                        onRemove = { onRemoveSet(set) },
-                    )
+        // A wider gap between sets than the rest of the section, to fit the weight change marker.
+        Column(verticalArrangement = Arrangement.spacedBy(SetGap)) {
+            exercise.sets.forEachIndexed { index, set ->
+                key(set.id) {
+                    Box {
+                        SwipeToDelete(label = "Delete set ${labels[index]}", onDelete = { onRemoveSet(set) }) {
+                            SetEditorRow(
+                                label = labels[index],
+                                set = set,
+                                previous = exercise.previous.getOrNull(index),
+                                type = exercise.measurementType,
+                                unit = unit,
+                                onValuesChange = { onValuesChange(set, it) },
+                                onToggleDone = { onToggleDone(set, it) },
+                                onToggleWarmup = { onToggleWarmup(set) },
+                                onRemove = { onRemoveSet(set) },
+                            )
+                        }
+                        exercise.weightChange(index)?.let { change ->
+                            SetChangeMarker(
+                                text = change,
+                                type = exercise.measurementType,
+                                modifier = Modifier.centredOnGapAbove(SetGap),
+                            )
+                        }
+                    }
                 }
             }
         }
-        TextButton(
-            onClick = onAddSet,
-            modifier = Modifier.fillMaxWidth().heightIn(min = KinzoTheme.spacing.touchTarget),
-            shape = MaterialTheme.shapes.small,
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null, tint = colors.onSurface, modifier = Modifier.size(18.dp))
-            Text(" Add set", color = colors.onSurface, style = MaterialTheme.typography.labelLarge)
-        }
+        val lastIndex = exercise.sets.lastIndex
+        AddSetBar(
+            baseKg = exercise.effectiveValues(lastIndex)?.weightKg.takeIf { exercise.measurementType == MeasurementType.WeightReps },
+            unit = unit,
+            onAdd = onAddSet,
+            modifier = Modifier.padding(top = KinzoTheme.spacing.xs),
+        )
         HorizontalDivider(color = colors.outlineVariant, thickness = 0.5.dp, modifier = Modifier.padding(top = KinzoTheme.spacing.sm))
+    }
+}
+
+private val SetGap = 12.dp
+
+/**
+ * Draws this centred on the gap of [gap] above it, taking no space, so the rows don't move when
+ * it appears. Set rows inset their inputs equally top and bottom, so this is also the middle of
+ * the space between two rows' inputs.
+ */
+private fun Modifier.centredOnGapAbove(gap: Dp): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, 0) {
+        placeable.place(0, -placeable.height / 2 - (gap / 2).roundToPx())
     }
 }
 

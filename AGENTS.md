@@ -9,6 +9,9 @@ finish something on the roadmap below, update "Where things stand" in the same c
 
 - **Product spec:** [Kinzo Product Spec](https://claude.ai/code/artifact/9f224c53-837f-4f3b-94e7-79f157c1f88f)
   (a Claude Doc). Phases, data model, privacy rules and open questions.
+- **Feature log:** [`docs/features.md`](docs/features.md). Every app feature in plain words with its
+  status, read by the website's content writer. Add or update the entry in the same commit as any
+  user-facing app change.
 - **Feature specs:** [`docs/specs/`](docs/specs). One file per feature that's agreed but not built.
 - **What runs where:** [`docs/server-vs-device.md`](docs/server-vs-device.md). Which features run on
   the phone and which on the server, and the performance habits for each.

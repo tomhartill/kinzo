@@ -1,0 +1,10 @@
+-- Version 4 to 5: a small cached trend per exercise for the sparklines in the exercise list.
+-- The app fills it from history on the first launch of this version.
+CREATE TABLE trend (
+    subject_kind        TEXT NOT NULL,
+    subject_id          TEXT NOT NULL,
+    metric              TEXT NOT NULL,
+    recent_values       TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    PRIMARY KEY (subject_kind, subject_id)
+);

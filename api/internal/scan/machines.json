@@ -1,0 +1,1307 @@
+{
+ "version": 3,
+ "machines": [
+  {
+   "id": "7c8f0f19-84af-5588-9941-20dcb61a4560",
+   "name": "Chest press machine",
+   "aliases": [
+    "seated chest press",
+    "selectorised chest press"
+   ],
+   "description": "A seated pressing machine with handles at chest height and a weight stack.",
+   "exercises": [
+    {
+     "id": "41cf0165-bcd8-5305-a575-f9e8eefb010b",
+     "name": "Machine Bench Press"
+    },
+    {
+     "id": "a3c111d5-e249-51e8-b106-18dab1ab8375",
+     "name": "Seated Chest Press - Neutral Grip"
+    },
+    {
+     "id": "df7a8830-8f7b-57f5-a5a5-d552e4971195",
+     "name": "Wide-Grip Machine Chest Press"
+    },
+    {
+     "id": "bd1d9d90-8176-58c7-96ad-eafb986a8c01",
+     "name": "Single-Arm Machine Chest Press"
+    }
+   ]
+  },
+  {
+   "id": "cf063e49-ba61-54fe-8e2d-fdace58f90dd",
+   "name": "Incline chest press machine",
+   "aliases": [
+    "incline press machine"
+   ],
+   "description": "A seated pressing machine angled upwards, with handles starting at upper-chest height.",
+   "exercises": [
+    {
+     "id": "27286ec2-6f74-5c15-95cc-1b7850e044c6",
+     "name": "Machine Incline Chest Press"
+    },
+    {
+     "id": "0f4f5a04-0e74-5629-b776-a6d83c553c82",
+     "name": "Single-Arm Incline Machine Press"
+    }
+   ]
+  },
+  {
+   "id": "45c780d5-f155-5749-900d-b44810f1477f",
+   "name": "Decline chest press machine",
+   "aliases": [
+    "decline press machine"
+   ],
+   "description": "A seated pressing machine angled downwards, with handles starting at lower-chest height.",
+   "exercises": [
+    {
+     "id": "009bb60e-f98c-5485-83a0-5826fb387ee7",
+     "name": "Machine Decline Chest Press"
+    }
+   ]
+  },
+  {
+   "id": "f83a0a32-7078-5baf-a81c-e571b8c03e55",
+   "name": "Plate-loaded chest press",
+   "aliases": [
+    "Hammer Strength chest press",
+    "iso-lateral chest press",
+    "leverage chest press"
+   ],
+   "description": "Lever-arm pressing machines loaded with weight plates on horn pegs, often with independent arms, in flat, incline and decline versions.",
+   "exercises": [
+    {
+     "id": "88fc39ad-bc4d-5a4a-bec4-a9dc76113076",
+     "name": "Leverage Chest Press"
+    },
+    {
+     "id": "840e9f69-dadf-5c2f-badf-f247670a9a19",
+     "name": "Leverage Incline Chest Press"
+    },
+    {
+     "id": "2085a1cd-4268-59b7-bf0f-fae45374f19c",
+     "name": "Leverage Decline Chest Press"
+    }
+   ]
+  },
+  {
+   "id": "f66d3dca-8858-5e71-a787-646e1b393f28",
+   "name": "Pec deck",
+   "aliases": [
+    "pec fly",
+    "butterfly machine",
+    "rear delt fly machine",
+    "reverse fly machine"
+   ],
+   "description": "A seated machine with two arms that swing together in front of the chest, or apart for the rear shoulders.",
+   "exercises": [
+    {
+     "id": "cfbbae0c-34c3-53e3-b0b0-35e8a051afa1",
+     "name": "Butterfly"
+    },
+    {
+     "id": "ee7d38b2-7ce4-5ea8-87c2-2f11d104884d",
+     "name": "Reverse Machine Flyes"
+    }
+   ]
+  },
+  {
+   "id": "5acc85d6-552c-53fb-a23d-2a362a568198",
+   "name": "Shoulder press machine",
+   "aliases": [
+    "overhead press machine",
+    "military press machine"
+   ],
+   "description": "A seated machine with handles at shoulder height that press overhead.",
+   "exercises": [
+    {
+     "id": "7690f003-d5fe-50a7-862e-db3a64fae8f6",
+     "name": "Machine Shoulder (Military) Press"
+    },
+    {
+     "id": "35955598-c81a-592d-9a74-a6559dc64f69",
+     "name": "Leverage Shoulder Press"
+    },
+    {
+     "id": "0f990f5b-2c05-5f22-b2f3-4267244ecc9d",
+     "name": "Neutral-Grip Machine Shoulder Press"
+    },
+    {
+     "id": "f9eaa644-88e3-529e-abf4-d8ca1c50bbf5",
+     "name": "Single-Arm Machine Shoulder Press"
+    }
+   ]
+  },
+  {
+   "id": "c49b0754-4a8e-5978-b246-0acb547f52de",
+   "name": "Lateral raise machine",
+   "aliases": [
+    "side raise machine",
+    "deltoid raise machine"
+   ],
+   "description": "A seated machine with pads against the outside of the upper arms that lift out to the sides.",
+   "exercises": [
+    {
+     "id": "b3a7b12a-d1f7-569d-b70d-560da8e080e6",
+     "name": "Machine Lateral Raise"
+    },
+    {
+     "id": "4545e671-593e-5bc5-9e36-72408ab451a4",
+     "name": "Single-Arm Machine Lateral Raise"
+    }
+   ]
+  },
+  {
+   "id": "991e0469-1438-5b6b-80ca-efb4029e999b",
+   "name": "Lat pulldown",
+   "aliases": [
+    "pulldown machine",
+    "lat pull down"
+   ],
+   "description": "A seated cable station with a thigh pad and a bar hanging from a high pulley.",
+   "exercises": [
+    {
+     "id": "fd038f9c-d204-52f6-90c0-3c43fc69771a",
+     "name": "Wide-Grip Lat Pulldown"
+    },
+    {
+     "id": "29e0b9f4-2a09-548c-9c4b-e98c75003a55",
+     "name": "Close-Grip Front Lat Pulldown"
+    },
+    {
+     "id": "e5021ebe-4891-5a21-adc6-5eb2a6853516",
+     "name": "Neutral-Grip Lat Pulldown"
+    },
+    {
+     "id": "867ae054-a61d-55f5-b33c-4794c1faad26",
+     "name": "V-Bar Pulldown"
+    },
+    {
+     "id": "7d34c0f7-a707-58ae-8c0c-4710a3958718",
+     "name": "Underhand Cable Pulldowns"
+    },
+    {
+     "id": "672dcb98-7b6e-5fd7-8a52-f0874fb07fc3",
+     "name": "Wide-Grip Pulldown Behind The Neck"
+    },
+    {
+     "id": "a44b5360-26c5-52e8-802a-711466c1a686",
+     "name": "Full Range-Of-Motion Lat Pulldown"
+    },
+    {
+     "id": "6a602b77-475b-5cd5-bd97-279700043994",
+     "name": "One Arm Lat Pulldown"
+    },
+    {
+     "id": "cc759561-3ee1-5052-90e7-299559d58414",
+     "name": "Straight-Arm Pulldown"
+    },
+    {
+     "id": "b4a23b5e-09f6-5196-9a91-af68c0f100cd",
+     "name": "Rope Straight-Arm Pulldown"
+    }
+   ]
+  },
+  {
+   "id": "fa190452-cd6c-597e-b01b-02e4a9ef9da3",
+   "name": "Plate-loaded pulldown",
+   "aliases": [
+    "Hammer Strength pulldown",
+    "iso-lateral pulldown",
+    "front pulldown machine"
+   ],
+   "description": "A lever-arm pulldown loaded with plates, with separate handles for each arm.",
+   "exercises": [
+    {
+     "id": "8cb03774-118a-5cdb-99f1-f7de068ec1e9",
+     "name": "Plate-Loaded Lat Pulldown"
+    },
+    {
+     "id": "ad5841cd-09a1-54f1-bf7f-977f84f80664",
+     "name": "Single-Arm Plate-Loaded Pulldown"
+    }
+   ]
+  },
+  {
+   "id": "c4fe6ce4-4f76-5539-99ba-5dc0ea0b0e5c",
+   "name": "Seated cable row",
+   "aliases": [
+    "low row",
+    "cable row station"
+   ],
+   "description": "A low cable pulley with a bench and a foot platform for rowing.",
+   "exercises": [
+    {
+     "id": "d9177fff-abe9-5536-beee-ffb137b23e49",
+     "name": "Seated Cable Rows"
+    },
+    {
+     "id": "a8096dce-7751-5fa5-909e-6199004d9142",
+     "name": "Wide-Grip Seated Cable Row"
+    },
+    {
+     "id": "4be3b95f-d6bf-5229-b075-930a21eeca22",
+     "name": "Seated One-arm Cable Pulley Rows"
+    },
+    {
+     "id": "07495598-3792-5106-a606-9c727465e2c8",
+     "name": "Low Pulley Row To Neck"
+    },
+    {
+     "id": "73f751b6-4959-5513-b310-928e42d11b79",
+     "name": "Elevated Cable Rows"
+    }
+   ]
+  },
+  {
+   "id": "8e725758-e3c3-598e-bd38-e873411214c7",
+   "name": "Seated row machine",
+   "aliases": [
+    "chest-supported row",
+    "Hammer Strength row",
+    "iso-lateral row",
+    "high row machine"
+   ],
+   "description": "A seated rowing machine with a chest pad, as a weight stack or loaded with plates.",
+   "exercises": [
+    {
+     "id": "2c9e6470-694c-59c1-b657-25e57cf2dd28",
+     "name": "Chest-Supported Machine Row"
+    },
+    {
+     "id": "2621e01f-47ae-5cb8-853f-91fd1a2d7ad8",
+     "name": "Wide-Grip Machine Row"
+    },
+    {
+     "id": "a165c677-230b-5f06-baa4-4e86a1345eb3",
+     "name": "Single-Arm Machine Row"
+    },
+    {
+     "id": "439a7a2a-fe91-5605-ad9c-e8cebd0404d7",
+     "name": "Leverage Iso Row"
+    },
+    {
+     "id": "4a58ea5b-1123-55bf-babb-ffa75336f971",
+     "name": "Leverage High Row"
+    }
+   ]
+  },
+  {
+   "id": "ddf298fe-7db9-5aa0-aee6-0aef606e2c6a",
+   "name": "T-bar row",
+   "aliases": [
+    "T-bar row machine",
+    "landmine row"
+   ],
+   "description": "A bar fixed at one end and loaded with plates at the other, sometimes with a chest pad.",
+   "exercises": [
+    {
+     "id": "f12875a9-2f16-51c5-b77b-ab3fe69b646b",
+     "name": "Chest-Supported T-Bar Row"
+    },
+    {
+     "id": "d9494b35-9f2d-5bb8-8153-505b72e2816c",
+     "name": "Lying T-Bar Row"
+    },
+    {
+     "id": "6806ec0e-127f-5486-982b-7cdc13cf50c4",
+     "name": "T-Bar Row with Handle"
+    }
+   ]
+  },
+  {
+   "id": "2391de74-ba17-5f1e-8be8-e1dac3a7741b",
+   "name": "Assisted pull-up machine",
+   "aliases": [
+    "Gravitron",
+    "assisted dip machine",
+    "assisted chin-up machine"
+   ],
+   "description": "A tall frame with pull-up and dip handles and a platform that pushes you up with a weight stack.",
+   "exercises": [
+    {
+     "id": "7a72968a-7ec9-54ba-948c-438d20ede55c",
+     "name": "Machine-Assisted Pull-Up"
+    },
+    {
+     "id": "43da96af-96f9-575d-b913-83c1c1b2ef11",
+     "name": "Machine-Assisted Chin-Up"
+    },
+    {
+     "id": "c9274ec4-7cc5-5d5b-8874-9f646dbe68ed",
+     "name": "Machine-Assisted Dip"
+    }
+   ]
+  },
+  {
+   "id": "a420b901-ba04-59bb-afe3-780eb77ce18e",
+   "name": "Seated dip machine",
+   "aliases": [
+    "triceps dip machine",
+    "seated triceps press"
+   ],
+   "description": "A seated machine with handles at your sides that you press down.",
+   "exercises": [
+    {
+     "id": "c9d564d4-859c-5f62-8fda-b1fdf12d8a63",
+     "name": "Dip Machine"
+    }
+   ]
+  },
+  {
+   "id": "8a778f8b-5505-5f94-9c2a-b3df24ce0ae0",
+   "name": "Biceps curl machine",
+   "aliases": [
+    "preacher curl machine",
+    "arm curl machine"
+   ],
+   "description": "A seated machine with an angled arm pad and a curling handle.",
+   "exercises": [
+    {
+     "id": "cd56672c-0604-5efb-aaa3-43f9e047d8de",
+     "name": "Machine Bicep Curl"
+    },
+    {
+     "id": "b7c04034-af64-5c24-8812-4b9d9a88fe58",
+     "name": "Machine Preacher Curls"
+    },
+    {
+     "id": "1271aa14-f3ab-5ec2-badb-6e500809ccd2",
+     "name": "Single-Arm Machine Curl"
+    }
+   ]
+  },
+  {
+   "id": "200d5406-ceb0-5451-b343-9cd7d58fa9e9",
+   "name": "Triceps extension machine",
+   "aliases": [
+    "triceps machine",
+    "arm extension machine"
+   ],
+   "description": "A seated machine with an arm pad and handles that you straighten your arms against.",
+   "exercises": [
+    {
+     "id": "bdda54d4-3d93-5b72-af22-7d1e94ea1424",
+     "name": "Machine Triceps Extension"
+    },
+    {
+     "id": "27539211-5c0b-53b0-80b8-743dc5ac61e4",
+     "name": "Overhead Triceps Extension Machine"
+    }
+   ]
+  },
+  {
+   "id": "ec74a68c-37e1-53c8-92f4-c11f22f8cf6b",
+   "name": "Cable machine",
+   "aliases": [
+    "cable crossover",
+    "functional trainer",
+    "dual adjustable pulley",
+    "cable tower"
+   ],
+   "description": "One or two weight stacks with pulleys that slide up and down, used with handles, ropes, bars and straps.",
+   "exercises": [
+    {
+     "id": "161d73ea-45be-5b4d-9440-c19609fff4aa",
+     "name": "Cable Crossover"
+    },
+    {
+     "id": "63c39d86-aad8-5be2-84a6-27848df83f6f",
+     "name": "Low Cable Crossover"
+    },
+    {
+     "id": "88e5bff3-1214-5aa5-9327-45f0a7c41064",
+     "name": "Single-Arm Cable Crossover"
+    },
+    {
+     "id": "dc7bb4d0-4857-5c78-8782-6147aa670243",
+     "name": "Incline Cable Flye"
+    },
+    {
+     "id": "fa1f4739-89bc-5273-9773-4195969949d9",
+     "name": "Flat Bench Cable Flyes"
+    },
+    {
+     "id": "ad1b1051-bc82-5be5-a2a4-bcf8d1d1d165",
+     "name": "Cable Chest Press"
+    },
+    {
+     "id": "1598cefc-0ff2-50c8-92d6-8ac54d1e4136",
+     "name": "Standing Cable Chest Press"
+    },
+    {
+     "id": "cafd2df8-f207-5e50-8f9f-7b4d59fca724",
+     "name": "Incline Cable Chest Press"
+    },
+    {
+     "id": "e55ddbfb-db84-53a2-9eab-095837d8e7e3",
+     "name": "Triceps Pushdown"
+    },
+    {
+     "id": "461abb84-d784-57e1-8389-799442ae708c",
+     "name": "Triceps Pushdown - Rope Attachment"
+    },
+    {
+     "id": "432cd180-ef03-5082-a826-ed445deeee26",
+     "name": "Triceps Pushdown - V-Bar Attachment"
+    },
+    {
+     "id": "8a4a4429-cc20-5340-8c2f-d73d1984dc62",
+     "name": "Reverse Grip Triceps Pushdown"
+    },
+    {
+     "id": "8c30df04-26de-513e-b1aa-be84fd3a9182",
+     "name": "Triceps Overhead Extension with Rope"
+    },
+    {
+     "id": "2e31d415-87fb-5f40-b7cf-454577284a1a",
+     "name": "Cable Rope Overhead Triceps Extension"
+    },
+    {
+     "id": "a5c85214-6637-5953-a75a-2bfbb7896321",
+     "name": "Cable One Arm Tricep Extension"
+    },
+    {
+     "id": "0713a57f-2de0-54af-ae63-f131fe529f01",
+     "name": "Standing Biceps Cable Curl"
+    },
+    {
+     "id": "3e66f3aa-b010-5e40-b01d-8c6c932354f4",
+     "name": "Cable Hammer Curls - Rope Attachment"
+    },
+    {
+     "id": "1ee81f5b-f597-5344-ba37-36a6f102d544",
+     "name": "High Cable Curls"
+    },
+    {
+     "id": "ad8c52dd-a40e-5294-91e9-e92af6a5d4f2",
+     "name": "Overhead Cable Curl"
+    },
+    {
+     "id": "702f523d-59c7-5c9e-b448-64c0229e600b",
+     "name": "Standing One-Arm Cable Curl"
+    },
+    {
+     "id": "e03dcb8d-f998-53f7-8b32-c7bfccc7e290",
+     "name": "Cable Preacher Curl"
+    },
+    {
+     "id": "67e05122-d0b3-5cfd-842e-793d845bde7c",
+     "name": "Reverse Cable Curl"
+    },
+    {
+     "id": "a4c0c847-82fb-54d2-af46-0888192b543a",
+     "name": "Face Pull"
+    },
+    {
+     "id": "58f532cc-103d-55c5-8a66-dd8aec8482e3",
+     "name": "Cable Rear Delt Fly"
+    },
+    {
+     "id": "a8b28833-f251-5c62-b545-8043b81bcad6",
+     "name": "Front Cable Raise"
+    },
+    {
+     "id": "bf044d23-0d9d-59e5-9880-f7548830e7d0",
+     "name": "Standing Low-Pulley Deltoid Raise"
+    },
+    {
+     "id": "08d91c6d-d76a-5eb4-a0b3-49d8b97b776c",
+     "name": "Cable Seated Lateral Raise"
+    },
+    {
+     "id": "eb25095a-80e9-5db5-bcd0-94522fde6489",
+     "name": "Upright Cable Row"
+    },
+    {
+     "id": "5ad635d8-8055-5b40-8b5a-59114c517497",
+     "name": "Cable Shrugs"
+    },
+    {
+     "id": "f13de54c-393d-5f61-85f8-9ea3d1e4c23a",
+     "name": "Cable Shoulder Press"
+    },
+    {
+     "id": "0e1fc6e1-7330-5f0f-bdf0-6471efc6bce5",
+     "name": "Cable Crunch"
+    },
+    {
+     "id": "de0a8676-e8c3-57ab-b435-c459e1bdad59",
+     "name": "Rope Crunch"
+    },
+    {
+     "id": "327b4ebc-3374-5205-b88b-9c68b0532d0b",
+     "name": "Standing Rope Crunch"
+    },
+    {
+     "id": "aa89a7e3-55d8-5fde-8eb6-1a1b01012c36",
+     "name": "Pallof Press"
+    },
+    {
+     "id": "12579408-0432-5885-ba19-52d4030f694d",
+     "name": "Pallof Press With Rotation"
+    },
+    {
+     "id": "e0d2bc8c-8b41-5b47-8b0b-028583de37a2",
+     "name": "Standing Cable Wood Chop"
+    },
+    {
+     "id": "d227aa6a-a3f5-5290-8906-a32ee118ae75",
+     "name": "Standing Cable Lift"
+    },
+    {
+     "id": "07f17c22-cc78-52d6-ace5-b6157bde5c79",
+     "name": "Pull Through"
+    },
+    {
+     "id": "a7a66b0e-cb5a-5e20-b3b3-29d816a3f6ce",
+     "name": "Cable Deadlifts"
+    },
+    {
+     "id": "bdcfdb67-142b-5cbf-a7dd-f780eb315e2e",
+     "name": "One-Legged Cable Kickback"
+    },
+    {
+     "id": "1e39ab3a-5bfa-5042-9281-13f9e951951f",
+     "name": "Cable Hip Abduction"
+    },
+    {
+     "id": "a255bbac-941d-580d-8f61-b5d7f751647a",
+     "name": "Cable Hip Adduction"
+    },
+    {
+     "id": "5861dc78-ddfe-5bab-9c51-e9e2884e0cee",
+     "name": "External Rotation with Cable"
+    },
+    {
+     "id": "811f3de0-4fa6-5f69-9ada-6c9917f16cdd",
+     "name": "Cable Internal Rotation"
+    },
+    {
+     "id": "11874626-7a2a-5d76-ba40-9925e8db023a",
+     "name": "Cable Wrist Curl"
+    },
+    {
+     "id": "c8de041e-0cf9-59ed-9fb3-e693b3f4771c",
+     "name": "Kneeling High Pulley Row"
+    },
+    {
+     "id": "1313307f-fa1b-55e0-8de0-66260eaa0130",
+     "name": "Kneeling Single-Arm High Pulley Row"
+    }
+   ]
+  },
+  {
+   "id": "47db596a-becd-5238-a7ef-07f0b2a494ae",
+   "name": "Smith machine",
+   "aliases": [
+    "Smith rack",
+    "guided barbell"
+   ],
+   "description": "A barbell fixed on vertical rails, with hooks to rack it at any height.",
+   "exercises": [
+    {
+     "id": "139f039e-16d5-5b56-ac99-c5e4f18b31b9",
+     "name": "Smith Machine Squat"
+    },
+    {
+     "id": "d24b8f00-ecaa-5287-b9c3-4cdddd80f32d",
+     "name": "Smith Machine Bench Press"
+    },
+    {
+     "id": "adcab602-fb96-590f-9e57-b3a043af75f4",
+     "name": "Smith Machine Incline Bench Press"
+    },
+    {
+     "id": "eeca2844-9d69-5409-8af4-17dcb4530f30",
+     "name": "Smith Machine Decline Press"
+    },
+    {
+     "id": "459ddaa3-9951-5d52-a79b-dc7fe22b3e2b",
+     "name": "Decline Smith Press"
+    },
+    {
+     "id": "92a48513-181a-5a03-8602-9f11a86c03ff",
+     "name": "Smith Machine Close-Grip Bench Press"
+    },
+    {
+     "id": "b5e39543-1547-50eb-9654-fda597889997",
+     "name": "Smith Machine Overhead Shoulder Press"
+    },
+    {
+     "id": "ec27a8e0-aeaf-5957-ab22-a37d0486a198",
+     "name": "Smith Machine Bent Over Row"
+    },
+    {
+     "id": "7872ea82-c78c-548c-866c-4e9ad69f11f7",
+     "name": "Smith Machine Upright Row"
+    },
+    {
+     "id": "cb4a7300-1fb2-5d29-a62a-155dc27a5a7b",
+     "name": "Smith Machine One-Arm Upright Row"
+    },
+    {
+     "id": "bbe77e10-e6ef-5f66-9492-1a06159fca62",
+     "name": "Smith Machine Stiff-Legged Deadlift"
+    },
+    {
+     "id": "5f8b1908-87f0-50a3-a924-3f1168b5184e",
+     "name": "Smith Machine Hip Raise"
+    },
+    {
+     "id": "31de2a97-451a-5d9f-a01e-14407248d81a",
+     "name": "Smith Machine Calf Raise"
+    },
+    {
+     "id": "6b062a09-2f1d-5758-82ac-86a00a9ba7b9",
+     "name": "Smith Machine Reverse Calf Raises"
+    },
+    {
+     "id": "dd5c49f7-13ae-53b9-863f-ab303dac79b1",
+     "name": "Smith Machine Behind the Back Shrug"
+    },
+    {
+     "id": "810325c7-f032-553e-b167-de71d6c8b904",
+     "name": "Smith Single-Leg Split Squat"
+    },
+    {
+     "id": "90646d0a-8333-55e9-adfa-dcb167825e2e",
+     "name": "Smith Machine Pistol Squat"
+    },
+    {
+     "id": "023cbd43-d173-55c6-bf15-7c364dcb7614",
+     "name": "Smith Machine Leg Press"
+    },
+    {
+     "id": "b0a3a5c8-1cf1-56f8-863e-8306ceb63509",
+     "name": "Smith Machine Hang Power Clean"
+    },
+    {
+     "id": "9f83d060-85d8-59b7-91c1-278561718690",
+     "name": "Smith Incline Shoulder Raise"
+    }
+   ]
+  },
+  {
+   "id": "b1559a64-5898-5323-bdcb-d6e3518d1adf",
+   "name": "Leg press",
+   "aliases": [
+    "45-degree leg press",
+    "incline leg press",
+    "sled leg press"
+   ],
+   "description": "A seat reclined under a sliding platform loaded with plates, pushed with the feet at an angle.",
+   "exercises": [
+    {
+     "id": "bc0cabd2-8159-5555-a325-41996368b83a",
+     "name": "Leg Press"
+    },
+    {
+     "id": "2f0dc6a3-2a2b-5710-9bd9-522425b5399b",
+     "name": "Narrow Stance Leg Press"
+    },
+    {
+     "id": "600f18d9-d55b-58c7-8a11-81ca6cb06d24",
+     "name": "Wide-Stance Leg Press"
+    },
+    {
+     "id": "4bf4eba9-ec08-5308-8aea-c195a457db32",
+     "name": "Single-Leg Leg Press"
+    },
+    {
+     "id": "44be6c2c-2ef8-5604-8d37-0db4dd4ede13",
+     "name": "Calf Press On The Leg Press Machine"
+    }
+   ]
+  },
+  {
+   "id": "134a3fca-6e80-5227-b9f0-533871346a5c",
+   "name": "Seated leg press",
+   "aliases": [
+    "horizontal leg press",
+    "selectorised leg press"
+   ],
+   "description": "An upright seat with a footplate in front, pushed horizontally against a weight stack.",
+   "exercises": [
+    {
+     "id": "ed756b2c-2e64-5e33-aa35-778561d7a808",
+     "name": "Seated Leg Press Machine"
+    },
+    {
+     "id": "f99e5f46-b70c-5eee-8b68-396ecdd9267d",
+     "name": "Calf Press"
+    }
+   ]
+  },
+  {
+   "id": "c61ab347-44f9-56ad-bba8-c71e773efb50",
+   "name": "Hack squat machine",
+   "aliases": [
+    "hack squat",
+    "reverse hack squat"
+   ],
+   "description": "An angled sled with shoulder pads and a back pad, loaded with plates.",
+   "exercises": [
+    {
+     "id": "5e19d9e4-dee3-57e5-a4ad-703528775b1e",
+     "name": "Hack Squat"
+    },
+    {
+     "id": "763c5c65-191e-5c1c-997c-50ba5ca614f8",
+     "name": "Narrow Stance Hack Squats"
+    },
+    {
+     "id": "ce80c245-5896-5fc4-a96f-214bee379308",
+     "name": "Reverse Hack Squat"
+    }
+   ]
+  },
+  {
+   "id": "93c5d8e0-c179-5ae0-a66e-9a09e3f60395",
+   "name": "Pendulum squat",
+   "aliases": [
+    "pendulum squat machine"
+   ],
+   "description": "A swinging lever with shoulder pads, pivoting behind you as you squat.",
+   "exercises": [
+    {
+     "id": "e0028687-9c93-58af-8fdc-275f4f774827",
+     "name": "Pendulum Squat"
+    }
+   ]
+  },
+  {
+   "id": "31d9d86b-a34d-5fb0-981c-7484d27c2893",
+   "name": "Belt squat machine",
+   "aliases": [
+    "belt squat"
+   ],
+   "description": "A platform with a hip belt attached to a lever or cable, so you squat without load on your back.",
+   "exercises": [
+    {
+     "id": "ac1f7c89-cef9-5617-9056-bac41d1a5b51",
+     "name": "Belt Squat"
+    }
+   ]
+  },
+  {
+   "id": "2d28506e-66f4-5437-baec-a10afbf9586b",
+   "name": "Lever squat machine",
+   "aliases": [
+    "V-squat",
+    "power squat machine"
+   ],
+   "description": "A lever-arm squat machine where you lie or stand against pads and push a loaded arm.",
+   "exercises": [
+    {
+     "id": "6dbd5a02-6eca-585c-8921-0d2b7442fdf0",
+     "name": "Lying Machine Squat"
+    }
+   ]
+  },
+  {
+   "id": "0be2b4e1-a4ce-5e7c-a695-f9fe8d88e245",
+   "name": "Leg extension machine",
+   "aliases": [
+    "quad extension",
+    "knee extension machine"
+   ],
+   "description": "A seat with a padded bar in front of the shins that you straighten your legs against.",
+   "exercises": [
+    {
+     "id": "777adef6-58d0-57e8-9897-cdc50aa0cc96",
+     "name": "Leg Extensions"
+    },
+    {
+     "id": "89ab412e-d47e-52f8-b97d-1fa57a92957c",
+     "name": "Single-Leg Leg Extension"
+    }
+   ]
+  },
+  {
+   "id": "b3640c80-9619-5fa0-b85e-fb49fbfb4cf7",
+   "name": "Seated leg curl",
+   "aliases": [
+    "seated hamstring curl"
+   ],
+   "description": "A seat with a thigh pad on top and a padded bar under the ankles that you curl down.",
+   "exercises": [
+    {
+     "id": "fec6bf46-60e2-5bc9-aef7-e9d6a1454374",
+     "name": "Seated Leg Curl"
+    },
+    {
+     "id": "2102380e-6311-5719-a1b7-1ba5840fe5b2",
+     "name": "Single-Leg Seated Leg Curl"
+    }
+   ]
+  },
+  {
+   "id": "9d22c02c-edb7-5d0e-a9a4-ac49077fcbcf",
+   "name": "Lying leg curl",
+   "aliases": [
+    "prone leg curl",
+    "lying hamstring curl"
+   ],
+   "description": "A bench you lie face down on, with a padded bar behind the ankles that you curl up.",
+   "exercises": [
+    {
+     "id": "0ad813bb-78d7-529a-a9c9-2d901d479ed8",
+     "name": "Lying Leg Curls"
+    },
+    {
+     "id": "dff33b20-9d53-584c-b18c-3a32150e5463",
+     "name": "Single-Leg Lying Leg Curl"
+    }
+   ]
+  },
+  {
+   "id": "a735c74a-6a3f-5dde-b6d5-467a721b938d",
+   "name": "Standing leg curl",
+   "aliases": [
+    "standing hamstring curl"
+   ],
+   "description": "A standing machine with a pad behind one ankle that you curl up.",
+   "exercises": [
+    {
+     "id": "4283d29a-e440-516c-b94a-bf9b01da23dd",
+     "name": "Standing Leg Curl"
+    }
+   ]
+  },
+  {
+   "id": "d99f9044-18cc-58ea-be48-49d829368918",
+   "name": "Hip abductor machine",
+   "aliases": [
+    "outer thigh machine",
+    "abduction machine"
+   ],
+   "description": "A seat with pads on the outside of the knees that you push apart.",
+   "exercises": [
+    {
+     "id": "235d37ab-65ff-5f63-b9e5-1b96334a61b8",
+     "name": "Thigh Abductor"
+    }
+   ]
+  },
+  {
+   "id": "10c4863a-fa2d-5cfc-b48a-10fc4a578e8c",
+   "name": "Hip adductor machine",
+   "aliases": [
+    "inner thigh machine",
+    "adduction machine"
+   ],
+   "description": "A seat with pads on the inside of the knees that you squeeze together.",
+   "exercises": [
+    {
+     "id": "788c5254-f971-5b25-9d29-524b339f957f",
+     "name": "Thigh Adductor"
+    }
+   ]
+  },
+  {
+   "id": "c7188dbf-4772-5e0a-b3a8-836c3c8766cd",
+   "name": "Glute kickback machine",
+   "aliases": [
+    "glute machine",
+    "kickback machine"
+   ],
+   "description": "A machine with a chest pad and a footplate you push back with one leg.",
+   "exercises": [
+    {
+     "id": "cbfa6080-5256-5250-ae01-05ce0348709d",
+     "name": "Machine Glute Kickback"
+    }
+   ]
+  },
+  {
+   "id": "4d8a421a-7ebc-5e24-ac41-629f504918f2",
+   "name": "Hip thrust machine",
+   "aliases": [
+    "glute drive",
+    "glute bridge machine"
+   ],
+   "description": "A seat with a back pad and a pad or belt over the hips that you drive upwards.",
+   "exercises": [
+    {
+     "id": "33454c6d-d6c4-5275-9f99-e25933cbf2a3",
+     "name": "Machine Hip Thrust"
+    }
+   ]
+  },
+  {
+   "id": "a4b47e56-0e1c-5684-9f2b-f49b8d39777f",
+   "name": "Standing calf raise machine",
+   "aliases": [
+    "calf raise machine"
+   ],
+   "description": "Shoulder pads over a step, lifted by rising onto your toes.",
+   "exercises": [
+    {
+     "id": "9ccad768-fc9d-5469-974e-56d8096761c0",
+     "name": "Standing Calf Raises"
+    },
+    {
+     "id": "5cd209f2-c23b-575c-a8fa-435df7e2be20",
+     "name": "Single-Leg Standing Machine Calf Raise"
+    },
+    {
+     "id": "2ed69b78-deb9-5bd4-a668-5ef4fa8dc37e",
+     "name": "Calf-Machine Shoulder Shrug"
+    }
+   ]
+  },
+  {
+   "id": "b457aca5-0de4-5964-9b4d-6a0cca4f1692",
+   "name": "Seated calf raise machine",
+   "aliases": [
+    "seated calf machine"
+   ],
+   "description": "A seat with a pad across the knees and a step under the balls of the feet.",
+   "exercises": [
+    {
+     "id": "a20759d7-c700-56c4-ad31-64c6d888f66a",
+     "name": "Seated Calf Raise"
+    }
+   ]
+  },
+  {
+   "id": "e80429c0-d198-564b-9bbb-401fc9fc8580",
+   "name": "Ab crunch machine",
+   "aliases": [
+    "abdominal crunch machine",
+    "ab machine"
+   ],
+   "description": "A seat with chest pads or handles that you crunch forwards against a weight stack.",
+   "exercises": [
+    {
+     "id": "5c403ab1-c623-55bd-96ba-2995f6e89622",
+     "name": "Ab Crunch Machine"
+    }
+   ]
+  },
+  {
+   "id": "cb2df59f-b545-582f-8127-60b025f5274b",
+   "name": "Rotary torso machine",
+   "aliases": [
+    "torso rotation machine",
+    "oblique machine"
+   ],
+   "description": "A seat with a chest pad that rotates from side to side against a weight stack.",
+   "exercises": [
+    {
+     "id": "449739e2-7904-5f60-864c-359a8975789e",
+     "name": "Machine Torso Rotation"
+    }
+   ]
+  },
+  {
+   "id": "a610e863-26fa-5924-8f75-2423a0a34a1e",
+   "name": "Back extension machine",
+   "aliases": [
+    "lower back machine",
+    "seated back extension"
+   ],
+   "description": "A seat with a pad across the upper back that you push back against.",
+   "exercises": [
+    {
+     "id": "e5335ab0-248b-53fa-b058-e0c1a78c8f59",
+     "name": "Machine Back Extension"
+    }
+   ]
+  },
+  {
+   "id": "d36ee20a-28e9-5b81-8b18-f9bcacd4be17",
+   "name": "Hyperextension bench",
+   "aliases": [
+    "Roman chair",
+    "45-degree back extension",
+    "back extension bench"
+   ],
+   "description": "An angled bench with hip pads and ankle rollers for back extensions.",
+   "exercises": [
+    {
+     "id": "c463a3ad-fe5a-56c6-8ebb-a7690c9e8d33",
+     "name": "Hyperextensions (Back Extensions)"
+    },
+    {
+     "id": "c8d311a5-ccbc-559d-bf63-4c949267c500",
+     "name": "Weighted Ball Hyperextension"
+    }
+   ]
+  },
+  {
+   "id": "cd67194f-a1ba-54df-b39a-f16da9218f45",
+   "name": "Glute-ham developer",
+   "aliases": [
+    "GHD",
+    "glute ham raise bench"
+   ],
+   "description": "A long pad with a footplate and ankle rollers for glute-ham raises.",
+   "exercises": [
+    {
+     "id": "3965100a-9b93-59a5-8532-1d3089d4da57",
+     "name": "Glute Ham Raise"
+    }
+   ]
+  },
+  {
+   "id": "37a41760-340e-5688-bbf0-a135bea6d510",
+   "name": "Reverse hyper",
+   "aliases": [
+    "reverse hyperextension machine"
+   ],
+   "description": "A tall bench you lie face down on, swinging a loaded pendulum with your legs.",
+   "exercises": [
+    {
+     "id": "e3b37372-7652-5884-8a4a-0e1aec5f563c",
+     "name": "Reverse Hyperextension"
+    }
+   ]
+  },
+  {
+   "id": "06494a66-dbe0-5972-9848-a720dad95d14",
+   "name": "Dip station",
+   "aliases": [
+    "captain's chair",
+    "vertical knee raise",
+    "parallel bars"
+   ],
+   "description": "A frame with parallel handles and back and arm pads for dips and hanging knee raises.",
+   "exercises": [
+    {
+     "id": "14cf4884-5501-5bf3-8062-330edc634bcd",
+     "name": "Parallel Bar Dip"
+    },
+    {
+     "id": "c021614a-8a24-596c-994b-a68115fb7ea8",
+     "name": "Dips - Chest Version"
+    },
+    {
+     "id": "73ef79fa-65f6-5632-af84-8e268399db90",
+     "name": "Dips - Triceps Version"
+    },
+    {
+     "id": "54463327-1abe-5063-8227-4da0c867f6ea",
+     "name": "Knee/Hip Raise On Parallel Bars"
+    }
+   ]
+  },
+  {
+   "id": "749ac9c5-e031-5d0d-b08f-13b700e42a75",
+   "name": "Shrug machine",
+   "aliases": [
+    "leverage shrug",
+    "plate-loaded shrug"
+   ],
+   "description": "A lever machine with handles at your sides that you lift by shrugging.",
+   "exercises": [
+    {
+     "id": "1a0d7abb-ec2c-53cb-a68b-61760472f101",
+     "name": "Leverage Shrug"
+    }
+   ]
+  },
+  {
+   "id": "60f921bd-1b5a-59c1-bdbe-e450f40b273b",
+   "name": "Deadlift machine",
+   "aliases": [
+    "leverage deadlift",
+    "hip belt deadlift"
+   ],
+   "description": "A lever machine with low handles that you lift by standing up.",
+   "exercises": [
+    {
+     "id": "9212cf5c-211c-50dd-805a-d960fc5e479a",
+     "name": "Leverage Deadlift"
+    }
+   ]
+  },
+  {
+   "id": "00f8b7ad-4427-5d4b-b38e-c66e06b447f3",
+   "name": "Landmine",
+   "aliases": [
+    "landmine station",
+    "barbell pivot"
+   ],
+   "description": "A barbell with one end fixed in a pivot on the floor.",
+   "exercises": [
+    {
+     "id": "722d79fd-f9a0-5cc5-8102-358c5d40d899",
+     "name": "Landmine 180's"
+    },
+    {
+     "id": "0f6a044b-f320-53fe-9723-f82bc4be3bec",
+     "name": "Landmine Linear Jammer"
+    },
+    {
+     "id": "62209575-cb6e-5a82-852b-a9b798734291",
+     "name": "Single-Arm Linear Jammer"
+    }
+   ]
+  },
+  {
+   "id": "13f2de6b-6dd0-5a3c-af7c-cc28e1f5c590",
+   "name": "Sled",
+   "aliases": [
+    "prowler",
+    "push sled"
+   ],
+   "description": "A weighted sled with upright poles or a harness, pushed or dragged along the floor.",
+   "exercises": [
+    {
+     "id": "c76c7984-cf83-571a-b65d-e42fce4163cd",
+     "name": "Sled Push"
+    },
+    {
+     "id": "ba0d1b3b-a226-5266-85fa-715edabb2a61",
+     "name": "Sled Drag - Harness"
+    },
+    {
+     "id": "d8eb990e-fe81-5d10-9600-248ec98a89f0",
+     "name": "Sled Row"
+    },
+    {
+     "id": "92041ede-0e7a-527b-bfb5-e4710a14bd4b",
+     "name": "Sled Reverse Flye"
+    },
+    {
+     "id": "59ee1659-2c73-541e-91b7-c2b12a4c73f5",
+     "name": "Sled Overhead Backward Walk"
+    },
+    {
+     "id": "04c8d3b6-444d-5432-bd0c-bd2389778001",
+     "name": "Sled Overhead Triceps Extension"
+    },
+    {
+     "id": "958cee7f-8131-51aa-8573-27b1e54eb718",
+     "name": "Bear Crawl Sled Drags"
+    }
+   ]
+  },
+  {
+   "id": "de9e731f-a298-5fe9-8411-ea1475b0970a",
+   "name": "Treadmill",
+   "aliases": [
+    "running machine"
+   ],
+   "description": "A moving belt for walking and running.",
+   "exercises": [
+    {
+     "id": "d42d6b1e-48a1-572c-8f65-0e237ba353d7",
+     "name": "Walking, Treadmill"
+    },
+    {
+     "id": "c99dd850-2f49-5982-955f-609b1c388c9d",
+     "name": "Jogging, Treadmill"
+    },
+    {
+     "id": "2a77f4e9-c491-56aa-b660-ae0d44391eb3",
+     "name": "Running, Treadmill"
+    }
+   ]
+  },
+  {
+   "id": "170e4f48-acbb-5e9e-8ab9-20f4358aea7b",
+   "name": "Exercise bike",
+   "aliases": [
+    "stationary bike",
+    "spin bike",
+    "recumbent bike"
+   ],
+   "description": "A stationary bike, upright or with a reclined seat.",
+   "exercises": [
+    {
+     "id": "b4db7d29-4643-5cf8-918b-268d0e3324fe",
+     "name": "Bicycling, Stationary"
+    },
+    {
+     "id": "1b155f1a-cb70-5a04-bebb-45b6fe2b0104",
+     "name": "Recumbent Bike"
+    }
+   ]
+  },
+  {
+   "id": "0e7d1e39-8cd9-53d3-ae8f-db738b52d6b9",
+   "name": "Fan bike",
+   "aliases": [
+    "air bike",
+    "assault bike",
+    "echo bike"
+   ],
+   "description": "A stationary bike with a large fan and moving handles.",
+   "exercises": [
+    {
+     "id": "022c6c8e-be5e-5bcf-a1f5-5b7ffbb5dab2",
+     "name": "Fan Bike"
+    }
+   ]
+  },
+  {
+   "id": "ac1a6dee-fc73-53f2-8f77-ccc0d9bb66a6",
+   "name": "Rowing machine",
+   "aliases": [
+    "rower",
+    "erg",
+    "Concept2"
+   ],
+   "description": "A sliding seat, a foot stretcher and a handle on a chain or strap.",
+   "exercises": [
+    {
+     "id": "c3ff248f-f93a-55fe-b84e-dbdbbc069b03",
+     "name": "Rowing, Stationary"
+    }
+   ]
+  },
+  {
+   "id": "6ded4789-12cb-5fff-8bf0-7d28c17801b0",
+   "name": "Ski erg",
+   "aliases": [
+    "SkiErg",
+    "ski machine"
+   ],
+   "description": "A tall frame with two handles on cords that you pull down.",
+   "exercises": [
+    {
+     "id": "0d768bfe-b41d-5ba9-acc9-b66f70c33980",
+     "name": "Ski Erg"
+    }
+   ]
+  },
+  {
+   "id": "f663f80b-462a-5997-8f9c-f53ffc92a5df",
+   "name": "Elliptical trainer",
+   "aliases": [
+    "cross trainer",
+    "elliptical"
+   ],
+   "description": "Foot pedals that move in an oval, with moving handles.",
+   "exercises": [
+    {
+     "id": "a12d1546-a1a2-5328-bcb7-585f0a2f0748",
+     "name": "Elliptical Trainer"
+    }
+   ]
+  },
+  {
+   "id": "e5f4e43f-ec55-5f0b-9356-2978fa6c23dc",
+   "name": "Stair climber",
+   "aliases": [
+    "StairMaster",
+    "step mill",
+    "stepper"
+   ],
+   "description": "A machine with moving stairs or pedals you step on.",
+   "exercises": [
+    {
+     "id": "23190144-496e-5d3d-a340-761f64a2e2dd",
+     "name": "Stairmaster"
+    },
+    {
+     "id": "c8b8a3dd-16f8-5cec-9d3e-88ad25fdef5c",
+     "name": "Step Mill"
+    }
+   ]
+  }
+ ]
+}

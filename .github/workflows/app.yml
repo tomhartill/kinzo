@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths: ["app/**", ".github/workflows/app.yml"]
+  workflow_dispatch: {}  # "Run workflow" button on the Actions tab
   pull_request:
     paths: ["app/**", ".github/workflows/app.yml"]
 
@@ -15,6 +16,8 @@ jobs:
   android:
     name: Android build and shared tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # to publish the android-latest release
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -23,12 +26,28 @@ jobs:
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
       - name: Build Android debug APK, desktop app and run shared tests
+        env:
+          # Repository variables (Settings > Secrets and variables > Actions > Variables).
+          # Empty until the API is hosted; the app then says sign-in isn't set up.
+          KINZO_API_URL: ${{ vars.KINZO_API_URL }}
+          KINZO_GOOGLE_WEB_CLIENT_ID: ${{ vars.KINZO_GOOGLE_WEB_CLIENT_ID }}
         run: ./gradlew :androidApp:assembleDebug :desktopApp:assemble :shared:jvmTest --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: kinzo-debug-apk
           path: app/androidApp/build/outputs/apk/debug/*.apk
           retention-days: 14
+      # A stable phone-friendly link to the newest main build:
+      # https://github.com/tomhartill/kinzo/releases/download/android-latest/kinzo-debug.apk
+      - name: Publish the APK to the android-latest release
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp androidApp/build/outputs/apk/debug/*.apk kinzo-debug.apk
+          gh release delete android-latest --yes --cleanup-tag || true
+          gh release create android-latest kinzo-debug.apk --prerelease --target "$GITHUB_SHA" \
+            --title "Latest Android test build" --notes "Debug build of ${GITHUB_SHA::7} from main."
 
   ios:
     name: iOS simulator build

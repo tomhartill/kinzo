@@ -1,0 +1,25 @@
+-- Version 2 to 3: saved workouts (routines) to start from.
+CREATE TABLE routine (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    notes               TEXT,
+    created_by          TEXT NOT NULL,
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE routine_exercise (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    routine_id          TEXT NOT NULL,
+    exercise_id         TEXT NOT NULL,
+    position            INTEGER NOT NULL,
+    target_sets         INTEGER NOT NULL,
+    target_reps         INTEGER,
+    target_weight_kg    REAL,
+    target_duration_s   INTEGER,
+    rest_s              INTEGER,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+CREATE INDEX routine_exercise_routine ON routine_exercise(routine_id, position);

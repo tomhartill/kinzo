@@ -21,6 +21,8 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            // The SQLite driver needs JDBC, which the trimmed packaged runtime leaves out.
+            modules("java.sql")
             packageName = "Kinzo"
             packageVersion = "1.0.0"
         }

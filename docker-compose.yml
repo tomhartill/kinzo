@@ -23,6 +23,14 @@ services:
     restart: on-failure
     environment:
       DATABASE_URL: postgres://kinzo:kinzo@db:5432/kinzo?sslmode=disable
+      # Sign-in. Put these in a .env file next to this one; see docs/sign-in.md.
+      KINZO_PUBLIC_URL: ${KINZO_PUBLIC_URL:-http://localhost:8080}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      # Machine scanning. Leave it empty to turn scanning off; see api/README.md.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "8080:8080"
     depends_on:

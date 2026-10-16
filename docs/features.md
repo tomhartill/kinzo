@@ -109,6 +109,16 @@ flat mark.
 The same at-a-glance trend lines for each muscle, muscle group, and upper and lower body, so you
 can see which parts of you are getting stronger.
 
+### How well each exercise trains each muscle
+**Status:** Planned
+
+Every exercise shows which muscles it trains, each rated from 1 to 5 from published research,
+with how strong the evidence is and the studies behind it. Kinzo rates from training studies
+that measured muscle growth, not from muscle activation (EMG) readings, which don't reliably
+predict growth. Each exercise also gets a stability score from 1 to 5: a Smith machine press
+holds you steady and puts more of the effort into the muscle, while a dumbbell press asks you
+to balance too.
+
 ## Planning your training
 
 ### Saved workouts

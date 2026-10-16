@@ -38,6 +38,13 @@ A tap on Add set fills in the last set's weight and reps. Hold it and slide to m
 up to 50% lighter or heavier, in 1.25 kg (2.5 lb) steps. A small pill between sets shows how
 the weight changed from the set above.
 
+### Change a number by sliding
+**Status:** Shipped
+
+Hold a weight, reps or time box for a moment and slide left or right to change it a step at a
+time (1.25 kg or 2.5 lb, one rep, five seconds), with a small buzz on each step, so there's no
+need to type. A quick tap still opens the keyboard. Being tried out in practice, so it may change.
+
 ### Rest timer
 **Status:** Shipped
 

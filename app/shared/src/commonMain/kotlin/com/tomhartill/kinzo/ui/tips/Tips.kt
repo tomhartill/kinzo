@@ -44,9 +44,14 @@ object KinzoTips {
     )
 
     val LogSet = spotlight("workout.log-set", "Logging a set", "Type the weight and reps, then tick the box. Swipe a set left to delete it.")
+    val AddSet = spotlight(
+        "workout.add-set",
+        "Adding sets",
+        "Tap to copy the last set. Hold and slide to change the weight. You can also hold any weight or reps box and slide to change it.",
+    )
     val RestBar = spotlight("workout.rest-bar", "Rest between sets", "This shows the rest for the exercise you're on. It counts down when you tick a set.")
 
-    val ActiveWorkout = ScreenTips(screen = "active-workout", spotlights = listOf(LogSet, RestBar))
+    val ActiveWorkout = ScreenTips(screen = "active-workout", spotlights = listOf(LogSet, AddSet, RestBar))
 
     private fun page(id: String, title: String, body: String) = Tip(id, title, body, Tip.Kind.Page)
 

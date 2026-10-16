@@ -226,12 +226,12 @@ fun AddSetBar(
         if (active && baseKg != null) {
             val weightKg = WeightChange.adjust(baseKg, percent, unit)
             val pad = with(LocalDensity.current) { EdgePadding.toPx() }
-            WeightBubble(
-                weight = Weight.format(weightKg, unit),
+            ValueBubble(
+                value = Weight.format(weightKg, unit),
                 unit = unit.label,
-                change = WeightChange.label(baseKg, weightKg) ?: "Same weight",
+                caption = WeightChange.label(baseKg, weightKg) ?: "Same weight",
                 anchorX = barWidth / 2f + WeightChange.sliderPosition(percent) * (barWidth / 2f - pad),
-                barWidth = barWidth,
+                keepWithin = barWidth,
             )
         }
     }
@@ -275,15 +275,17 @@ private fun SliderTrack(position: Float, color: Color) {
 }
 
 /**
- * The bubble above the thumb while sliding. The new weight is what matters, so it's large; the
- * change from the set above sits small underneath.
+ * The bubble above the thumb while sliding a number. The number is what matters, so it's large;
+ * [caption] sits small underneath. It's centred on [anchorX] in the parent, and kept inside the
+ * parent's first [keepWithin] pixels when given. Call it from inside the box it should sit above.
  */
 @Composable
-private fun WeightBubble(weight: String, unit: String, change: String, anchorX: Float, barWidth: Int) {
+internal fun ValueBubble(value: String, unit: String, caption: String, anchorX: Float, keepWithin: Int? = null) {
     val colors = MaterialTheme.colorScheme
     var bubbleSize by remember { mutableStateOf(IntOffset(0, 0)) }
     val gap = with(LocalDensity.current) { 8.dp.toPx() }
-    val x = (anchorX - bubbleSize.x / 2f).coerceIn(0f, (barWidth - bubbleSize.x).coerceAtLeast(0).toFloat())
+    val centred = anchorX - bubbleSize.x / 2f
+    val x = if (keepWithin == null) centred else centred.coerceIn(0f, (keepWithin - bubbleSize.x).coerceAtLeast(0).toFloat())
     Popup(
         alignment = Alignment.TopStart,
         offset = IntOffset(x.roundToInt(), -(bubbleSize.y + gap).roundToInt()),
@@ -301,7 +303,7 @@ private fun WeightBubble(weight: String, unit: String, change: String, anchorX: 
             ) {
                 Text(
                     buildAnnotatedString {
-                        append(weight)
+                        append(value)
                         withStyle(SpanStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = colors.inverseOnSurface.copy(alpha = 0.7f))) {
                             append(" $unit")
                         }
@@ -310,7 +312,7 @@ private fun WeightBubble(weight: String, unit: String, change: String, anchorX: 
                     color = colors.inverseOnSurface,
                 )
                 Text(
-                    change,
+                    caption,
                     style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
                     color = colors.inverseOnSurface.copy(alpha = 0.6f),
                 )

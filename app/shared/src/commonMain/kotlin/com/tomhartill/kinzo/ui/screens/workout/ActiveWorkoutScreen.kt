@@ -276,6 +276,7 @@ fun ActiveWorkoutScreen(
                         onToggleDone = { set, entered -> viewModel.toggleDone(exercise, set, entered) },
                         onToggleWarmup = viewModel::toggleWarmup,
                         onRemoveSet = ::removeSet,
+                        addSetModifier = if (exercise.id == workout.exercises.first().id) Modifier.tipAnchor(KinzoTips.AddSet) else Modifier,
                         modifier = Modifier
                             .animateItem()
                             .then(if (exercise.id == workout.exercises.first().id) Modifier.tipAnchor(KinzoTips.LogSet) else Modifier),
@@ -413,6 +414,7 @@ private fun ExerciseSection(
     onToggleWarmup: (LoggedSet) -> Unit,
     onRemoveSet: (LoggedSet) -> Unit,
     modifier: Modifier = Modifier,
+    addSetModifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
     var menuOpen by remember { mutableStateOf(false) }
@@ -492,7 +494,7 @@ private fun ExerciseSection(
             baseKg = exercise.effectiveValues(lastIndex)?.weightKg.takeIf { exercise.measurementType == MeasurementType.WeightReps },
             unit = unit,
             onAdd = onAddSet,
-            modifier = Modifier.padding(top = KinzoTheme.spacing.xs),
+            modifier = addSetModifier.padding(top = KinzoTheme.spacing.xs),
         )
         HorizontalDivider(color = colors.outlineVariant, thickness = 0.5.dp, modifier = Modifier.padding(top = KinzoTheme.spacing.sm))
     }

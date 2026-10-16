@@ -1,13 +1,12 @@
 package com.tomhartill.kinzo.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.Path
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,9 +33,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,8 +45,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -52,6 +59,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -68,9 +76,10 @@ import com.tomhartill.kinzo.domain.Weight as Weights
 import com.tomhartill.kinzo.domain.WeightUnit
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import com.tomhartill.kinzo.ui.theme.NumericStyle
-import kotlinx.coroutines.delay
+import kotlin.math.abs
 import kotlin.math.round
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 private val SetColumnWidth = 32.dp
 private val DoneColumnWidth = 40.dp
@@ -132,6 +141,37 @@ private enum class SetField(val decimal: Boolean) {
 
     val keyboardType: KeyboardType get() = if (decimal) KeyboardType.Decimal else KeyboardType.Number
 
+    /** One step when sliding a number, in the unit the user sees: a small plate pair, a rep, five seconds. */
+    private fun step(unit: WeightUnit): Double = when (this) {
+        Weight -> if (unit == WeightUnit.Pounds) 2.5 else 1.25
+        Reps -> 1.0
+        Seconds -> 5.0
+        Kilometres -> 0.1
+        Minutes -> 0.5
+    }
+
+    /** What [from] reads [steps] steps up (or down, when negative), never below zero. */
+    fun nudge(from: String, steps: Int, unit: WeightUnit): String {
+        val start = (if (decimal) Parse.decimal(from) else Parse.wholeNumber(from)?.toDouble()) ?: 0.0
+        return Format.decimal((start + steps * step(unit)).coerceAtLeast(0.0), maxDecimals = 2)
+    }
+
+    /** The unit shown next to the number in the slide bubble. */
+    fun bubbleUnit(unit: WeightUnit): String = when (this) {
+        Weight -> unit.label
+        Reps -> "reps"
+        Seconds -> "sec"
+        Kilometres -> "km"
+        Minutes -> "min"
+    }
+
+    /** How far a slide has moved the number, such as "+2.5 kg", for under it in the bubble. */
+    fun change(from: String, to: String, unit: WeightUnit): String {
+        val delta = (Parse.decimal(to) ?: 0.0) - (Parse.decimal(from) ?: 0.0)
+        if (abs(delta) < 1e-9) return "Slide left or right"
+        return (if (delta < 0) "−" else "+") + Format.decimal(abs(delta), maxDecimals = 2) + " " + bubbleUnit(unit)
+    }
+
     companion object {
         private val DecimalInput = Regex("""^\d{0,5}([.,]\d{0,3})?$""")
         private val WholeInput = Regex("""^\d{0,5}$""")
@@ -150,6 +190,21 @@ private enum class SetField(val decimal: Boolean) {
         }
     }
 }
+
+/** How sliding on a set's box changes it: [step] gives the text [steps] steps from [from]. */
+private class Slide(
+    val unit: String,
+    val step: (from: String, steps: Int) -> String,
+    val change: (from: String, to: String) -> String,
+)
+
+/** Holding a box still this long, then sliding, changes its number; a quicker tap types. */
+private const val SlideHoldMillis = 250L
+
+/** How far the thumb moves for one step while sliding a number. */
+private val SlideStep = 12.dp
+
+private enum class Press { Tap, Other, Hold }
 
 private fun fieldWidth(count: Int) = if (count == 1) 96.dp else 68.dp
 
@@ -278,6 +333,11 @@ fun SetEditorRow(
                     }
                 },
                 description = "Set $label ${field.spokenName}",
+                slide = Slide(
+                    unit = field.bubbleUnit(unit),
+                    step = { from, steps -> field.nudge(from, steps, unit) },
+                    change = { from, to -> field.change(from, to, unit) },
+                ),
                 modifier = Modifier.width(fieldWidth(fields.size)),
             )
         }
@@ -459,21 +519,89 @@ private fun SetInput(
     onFocusChange: (Boolean) -> Unit,
     description: String,
     modifier: Modifier = Modifier,
+    slide: Slide? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val focusManager = LocalFocusManager.current
+    val haptics = LocalHapticFeedback.current
+    var focused by remember { mutableStateOf(false) }
+    // While sliding, the text the slide started from; null otherwise.
+    var slideFrom by remember { mutableStateOf<String?>(null) }
+    var boxWidth by remember { mutableIntStateOf(0) }
+    val currentValue by rememberUpdatedState(value)
+    val currentPlaceholder by rememberUpdatedState(placeholder)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    // The row makes a new Slide every time it redraws, which happens on every step, so the
+    // gesture reads the latest one rather than restarting when it changes.
+    val currentSlide by rememberUpdatedState(slide)
+    val sliding = slideFrom != null
+
+    // Hold a box for a moment, then slide left or right to change the number a step at a time,
+    // without the keyboard. A quick tap still types. Nothing is consumed until the hold, so
+    // taps reach the text field and swipes and scrolls reach the list. Not while typing.
+    val slideGesture = if (slide == null || focused) Modifier else Modifier.pointerInput(Unit) {
+        val stepPx = SlideStep.toPx()
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val press = withTimeoutOrNull(SlideHoldMillis) {
+                var decided: Press? = null
+                while (decided == null) {
+                    val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
+                    decided = when {
+                        change == null || change.isConsumed -> Press.Other
+                        !change.pressed -> Press.Tap
+                        (change.position - down.position).getDistance() > viewConfiguration.touchSlop -> Press.Other
+                        else -> null
+                    }
+                }
+                decided
+            } ?: Press.Hold
+            if (press != Press.Hold) return@awaitEachGesture
+
+            // Start from what the box shows, filling in last time's hint if it's blank.
+            val current = currentSlide ?: return@awaitEachGesture
+            val from = currentValue.ifEmpty { currentPlaceholder }.ifEmpty { "0" }
+            slideFrom = from
+            currentOnValueChange(current.step(from, 0))
+            haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            var steps = 0
+            try {
+                while (true) {
+                    val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                    change.consume()
+                    if (!change.pressed) break
+                    val now = ((change.position.x - down.position.x) / stepPx).roundToInt()
+                    if (now != steps) {
+                        steps = now
+                        currentOnValueChange(current.step(from, steps))
+                        haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                    }
+                }
+                haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
+            } finally {
+                // Also when the gesture is cut short, so the box never stays dark.
+                slideFrom = null
+            }
+        }
+    }
+
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
-        textStyle = NumericStyle.copy(color = colors.onSurface, textAlign = TextAlign.Center),
+        textStyle = NumericStyle.copy(color = if (sliding) colors.onPrimary else colors.onSurface, textAlign = TextAlign.Center),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
         // Next moves along the row and down the sets; after the last field it closes the keyboard.
         keyboardActions = KeyboardActions(onNext = { if (!focusManager.moveFocus(FocusDirection.Next)) focusManager.clearFocus() }),
         cursorBrush = SolidColor(colors.onSurface),
         modifier = modifier
             .height(40.dp)
-            .onFocusChanged { onFocusChange(it.isFocused) }
+            .onSizeChanged { boxWidth = it.width }
+            .then(slideGesture)
+            .onFocusChanged {
+                focused = it.isFocused
+                onFocusChange(it.isFocused)
+            }
             .semantics {
                 contentDescription = description
                 if (isError) error("Enter a number")
@@ -482,7 +610,14 @@ private fun SetInput(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(if (isCompleted) Color.Transparent else colors.surfaceContainerHigh, MaterialTheme.shapes.small)
+                    .background(
+                        when {
+                            sliding -> colors.primary
+                            isCompleted -> Color.Transparent
+                            else -> colors.surfaceContainerHigh
+                        },
+                        MaterialTheme.shapes.small,
+                    )
                     .border(1.dp, if (isError) colors.error else Color.Transparent, MaterialTheme.shapes.small)
                     .padding(horizontal = KinzoTheme.spacing.xs),
                 contentAlignment = Alignment.Center,
@@ -491,6 +626,16 @@ private fun SetInput(
                     Text(placeholder, style = NumericStyle, color = colors.onSurfaceVariant.copy(alpha = 0.6f), maxLines = 1)
                 }
                 innerTextField()
+                val from = slideFrom
+                if (slide != null && from != null) {
+                    // Sits on the decoration box, which fills the field, so it's centred above it.
+                    ValueBubble(
+                        value = value,
+                        unit = slide.unit,
+                        caption = slide.change(from, value),
+                        anchorX = boxWidth / 2f - with(LocalDensity.current) { KinzoTheme.spacing.xs.toPx() },
+                    )
+                }
             }
         },
     )

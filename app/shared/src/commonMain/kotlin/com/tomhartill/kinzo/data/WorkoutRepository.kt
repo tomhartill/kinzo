@@ -182,14 +182,14 @@ class WorkoutRepository(
         }
     }
 
-    /** What happened when asked to start a workout from a saved one. */
+    /** What happened when asked to start a workout from a saved one, or repeat a past one. */
     sealed interface StartResult {
         data class Started(val workoutId: String) : StartResult
 
         /** Another workout is still in progress; finish or discard it first. */
         data class AlreadyInProgress(val workoutId: String) : StartResult
 
-        /** The saved workout is gone. */
+        /** The saved or past workout is gone. */
         data object NotFound : StartResult
     }
 
@@ -228,6 +228,56 @@ class WorkoutRepository(
                 }
             }
             StartResult.Started(workoutId)
+        }
+    }
+
+    /**
+     * Starts a new workout from a finished one: its name, its exercises in order, and the sets
+     * that were done, filled with the same numbers and warm-ups marked, ready to tick off again.
+     * Rest times carry over, and so does the saved workout it came from, if any. The finished
+     * workout itself is left as it was.
+     */
+    suspend fun repeatWorkout(workoutId: String): StartResult = withContext(io) {
+        db.transactionWithResult {
+            queries.activeWorkoutId().executeAsOneOrNull()?.let { return@transactionWithResult StartResult.AlreadyInProgress(it) }
+            val source = queries.workoutById(workoutId).executeAsOneOrNull()
+                ?.takeIf { it.ended_at != null }
+                ?: return@transactionWithResult StartResult.NotFound
+            val doneSets = queries.workoutSets(workoutId).executeAsList()
+                .filter { it.completed_at != null }
+                .groupBy { it.workout_exercise_id }
+            val now = now()
+            val newWorkoutId = Ids.newId()
+            queries.insertWorkout(id = newWorkoutId, name = source.name, routineId = source.routine_id, startedAt = now)
+            // Exercises with nothing done weren't part of the workout (see finishWorkout).
+            queries.workoutExercises(workoutId).executeAsList()
+                .filter { doneSets[it.id].orEmpty().isNotEmpty() }
+                .forEachIndexed { position, exercise ->
+                    val workoutExerciseId = Ids.newId()
+                    queries.insertWorkoutExercise(
+                        id = workoutExerciseId,
+                        workoutId = newWorkoutId,
+                        exerciseId = exercise.exercise_id,
+                        position = position.toLong(),
+                        restS = exercise.rest_s,
+                        now = now,
+                    )
+                    doneSets.getValue(exercise.id).forEachIndexed { index, set ->
+                        insertSet(
+                            workoutExerciseId = workoutExerciseId,
+                            position = index,
+                            isWarmup = set.is_warmup != 0L,
+                            now = now,
+                            values = SetValues(
+                                reps = set.reps?.toInt(),
+                                weightKg = set.weight_kg,
+                                durationS = set.duration_s?.toInt(),
+                                distanceM = set.distance_m,
+                            ),
+                        )
+                    }
+                }
+            StartResult.Started(newWorkoutId)
         }
     }
 

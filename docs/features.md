@@ -87,6 +87,20 @@ stopped, without counting the break.
 
 Fix or fill in any older workout. Progress and trends update to match.
 
+### Repeat a past workout
+**Status:** Shipped
+
+Tap Repeat on any workout in your history, or on the workout's own page, to start a new
+workout with the same exercises in the same order. Each set comes filled in with the weight
+and reps you did that day, warm-ups included, ready to tick off or change. The past workout
+stays as it was.
+
+### Rename a workout
+**Status:** Shipped
+
+Give any workout a better name, during it or afterwards: tap its name, or use Rename in the
+menu, on the workout itself or on a past workout in your history.
+
 ## Exercises
 
 ### Exercise library

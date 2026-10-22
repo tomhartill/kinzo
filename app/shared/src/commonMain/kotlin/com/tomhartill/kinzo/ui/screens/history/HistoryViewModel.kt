@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class HistoryState(
     val loading: Boolean = true,
@@ -18,9 +19,23 @@ data class HistoryState(
     val unit: WeightUnit = WeightUnit.Kilograms,
 )
 
-class HistoryViewModel(workouts: WorkoutRepository, settings: SettingsRepository) : ViewModel() {
+class HistoryViewModel(private val workouts: WorkoutRepository, settings: SettingsRepository) : ViewModel() {
     val state: StateFlow<HistoryState> =
         combine(workouts.history(), settings.settings()) { history, settingsValue ->
             HistoryState(loading = false, workouts = history, unit = settingsValue.weightUnit)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryState())
+
+    /**
+     * Starts a new workout with the same exercises and sets as [workoutId]. [onBusy] when
+     * another workout is in progress.
+     */
+    fun repeat(workoutId: String, onStarted: () -> Unit, onBusy: () -> Unit) {
+        viewModelScope.launch {
+            when (workouts.repeatWorkout(workoutId)) {
+                is WorkoutRepository.StartResult.Started -> onStarted()
+                is WorkoutRepository.StartResult.AlreadyInProgress -> onBusy()
+                WorkoutRepository.StartResult.NotFound -> Unit
+            }
+        }
+    }
 }

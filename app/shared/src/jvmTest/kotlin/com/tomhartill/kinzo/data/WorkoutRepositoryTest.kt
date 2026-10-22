@@ -1,5 +1,6 @@
 package com.tomhartill.kinzo.data
 
+import com.tomhartill.kinzo.data.WorkoutRepository.StartResult
 import com.tomhartill.kinzo.domain.SetValues
 import com.tomhartill.kinzo.domain.Workout
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +10,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -333,5 +335,47 @@ class WorkoutRepositoryTest {
         val second = workouts.history().first()[1].id
         val previous = assertNotNull(workouts.workout(second, withPrevious = true).first()).exercises.single().previous
         assertEquals(listOf(50.0), previous.map { it.values.weightKg })
+    }
+
+    @Test
+    fun repeatingAWorkoutStartsANewOneWithTheSameSets() = runTest {
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-plank", "ex-bench"))
+        val bench = active().exercises[1]
+        workouts.setExerciseRest(bench.id, 150)
+        workouts.addSet(bench.id)
+        val benchSets = active().exercises[1].sets
+        workouts.setWarmup(benchSets[0].id, true)
+        workouts.completeSet(benchSets[0].id, SetValues(weightKg = 40.0, reps = 10))
+        workouts.completeSet(benchSets[1].id, SetValues(weightKg = 60.0, reps = 5))
+        // The plank is left unticked, so it isn't part of the finished workout.
+        assertTrue(workouts.finishWorkout(id))
+        workouts.renameWorkout(id, "Heavy push")
+        clock.advance(24 * 60 * 60 * 1000)
+
+        val result = assertIs<StartResult.Started>(workouts.repeatWorkout(id))
+        val repeat = active()
+        assertEquals(result.workoutId, repeat.id)
+        assertTrue(repeat.id != id)
+        assertEquals("Heavy push", repeat.name)
+        assertEquals(listOf("Bench Press"), repeat.exercises.map { it.name })
+        val sets = repeat.exercises.single().sets
+        assertEquals(listOf(SetValues(weightKg = 40.0, reps = 10), SetValues(weightKg = 60.0, reps = 5)), sets.map { it.values })
+        assertEquals(listOf(true, false), sets.map { it.isWarmup })
+        assertTrue(sets.none { it.isCompleted })
+        assertEquals(150, repeat.exercises.single().restSeconds)
+
+        // The original is untouched, and only one workout runs at a time.
+        val original = assertNotNull(workouts.workout(id).first())
+        assertTrue(original.exercises.flatMap { it.sets }.all { it.isCompleted })
+        assertEquals(StartResult.AlreadyInProgress(repeat.id), workouts.repeatWorkout(id))
+    }
+
+    @Test
+    fun onlyFinishedWorkoutsCanBeRepeated() = runTest {
+        assertEquals(StartResult.NotFound, workouts.repeatWorkout("nope"))
+        val id = logBench(60.0 to 5)
+        workouts.deleteWorkout(id)
+        assertEquals(StartResult.NotFound, workouts.repeatWorkout(id))
     }
 }

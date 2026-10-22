@@ -2,10 +2,13 @@ package com.tomhartill.kinzo.ui.screens.history
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.tomhartill.kinzo.domain.Dates
@@ -18,7 +21,10 @@ import kotlinx.datetime.TimeZone
 
 private const val MAX_EXERCISE_LINES = 4
 
-/** A finished workout in a list: name, day, totals and the first few exercises. */
+/**
+ * A finished workout in a list: name, day, totals and the first few exercises, with a button
+ * to start it again when there is an [onRepeat].
+ */
 @Composable
 internal fun WorkoutCard(
     workout: WorkoutSummary,
@@ -26,6 +32,7 @@ internal fun WorkoutCard(
     now: Long,
     zone: TimeZone,
     onClick: () -> Unit,
+    onRepeat: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -51,7 +58,19 @@ internal fun WorkoutCard(
                     modifier = Modifier.alignByBaseline(),
                 )
             }
-            Text(totals, style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"), color = colors.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    totals,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                if (onRepeat != null) {
+                    TextButton(onClick = onRepeat, contentPadding = PaddingValues(horizontal = KinzoTheme.spacing.sm)) {
+                        Text("Repeat", style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
+                    }
+                }
+            }
         }
         if (workout.exercises.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {

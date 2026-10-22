@@ -64,7 +64,7 @@ ORDER BY started_at DESC
 LIMIT 1;
 
 workoutById:
-SELECT id, name, started_at, ended_at
+SELECT id, name, routine_id, started_at, ended_at
 FROM workout
 WHERE id = :id AND deleted_at IS NULL;
 

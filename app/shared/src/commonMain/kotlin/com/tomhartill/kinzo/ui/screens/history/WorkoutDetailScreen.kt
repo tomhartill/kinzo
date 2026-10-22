@@ -1,6 +1,7 @@
 package com.tomhartill.kinzo.ui.screens.history
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
 import com.tomhartill.kinzo.ui.components.SetSummaryRow
 import com.tomhartill.kinzo.ui.components.StatTile
+import com.tomhartill.kinzo.ui.components.TextInputDialog
 import com.tomhartill.kinzo.ui.components.rememberNow
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import kotlinx.datetime.TimeZone
@@ -57,7 +59,8 @@ import kotlin.math.roundToLong
 /**
  * A finished workout, set by set. Straight after finishing ([justFinished]) it doubles as the
  * end-of-workout summary, with a Done button back to the tabs. A workout finished in the last
- * few hours can be resumed; an older one can be edited.
+ * few hours can be resumed; an older one can be edited. Any of them can be repeated, which starts
+ * a new workout with the same exercises and sets, and renamed.
  */
 @Composable
 fun WorkoutDetailScreen(
@@ -66,6 +69,7 @@ fun WorkoutDetailScreen(
     onClose: () -> Unit,
     onResumed: () -> Unit,
     onEdit: () -> Unit,
+    onStarted: () -> Unit,
     viewModel: WorkoutDetailViewModel = koinViewModel { parametersOf(workoutId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -74,11 +78,18 @@ fun WorkoutDetailScreen(
     val spacing = KinzoTheme.spacing
     var menuOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    // Why another workout in progress is in the way, when it is.
+    var busy by remember { mutableStateOf<String?>(null) }
     // Once a minute is enough to swap Resume for Edit when the time runs out.
     val now by rememberNow(intervalMillis = 60_000)
     val canResume = workout?.canResume(now) == true
-    val resume = { viewModel.resume(onResumed = onResumed, onBusy = { busy = true }, onTooLate = onEdit) }
+    val resume = {
+        viewModel.resume(onResumed = onResumed, onBusy = { busy = "Finish or discard it before resuming this one." }, onTooLate = onEdit)
+    }
+    val repeat = {
+        viewModel.repeat(onStarted = onStarted, onBusy = { busy = "Finish or discard it before starting another." })
+    }
 
     // Deleted, here or elsewhere: nothing left to show.
     LaunchedEffect(state.loading, workout == null) {
@@ -97,6 +108,10 @@ fun WorkoutDetailScreen(
                         Icon(Icons.Filled.MoreVert, contentDescription = "Workout options")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Rename workout") }, onClick = {
+                            menuOpen = false
+                            renaming = true
+                        })
                         // Resuming is the button; editing without the clock is here too.
                         if (canResume) {
                             DropdownMenuItem(text = { Text("Edit workout") }, onClick = {
@@ -124,14 +139,19 @@ fun WorkoutDetailScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(spacing.xl),
             ) {
-                item(key = "header") { Header(workout, justFinished) }
+                item(key = "header") { Header(workout, justFinished, onRename = { renaming = true }) }
                 item(key = "stats") { Stats(workout, state.unit) }
                 if (!justFinished) {
                     item(key = "change") {
-                        if (canResume) {
-                            PrimaryButton(text = "Resume workout", onClick = resume)
-                        } else {
-                            SecondaryButton(text = "Edit workout", onClick = onEdit)
+                        // Resuming carries on with this workout; repeating starts a new one like it.
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                            if (canResume) {
+                                PrimaryButton(text = "Resume workout", onClick = resume)
+                                SecondaryButton(text = "Repeat workout", onClick = repeat)
+                            } else {
+                                PrimaryButton(text = "Repeat workout", onClick = repeat)
+                                SecondaryButton(text = "Edit workout", onClick = onEdit)
+                            }
                         }
                     }
                 }
@@ -151,16 +171,29 @@ fun WorkoutDetailScreen(
         }
     }
 
-    if (busy) {
+    busy?.let { message ->
         ConfirmDialog(
             title = "A workout is in progress",
-            message = "Finish or discard it before resuming this one.",
+            message = message,
             confirmLabel = "Open it",
             onConfirm = {
-                busy = false
+                busy = null
                 onResumed()
             },
-            onDismiss = { busy = false },
+            onDismiss = { busy = null },
+        )
+    }
+
+    if (renaming && workout != null) {
+        TextInputDialog(
+            title = "Rename workout",
+            initialValue = workout.name,
+            confirmLabel = "Save",
+            onConfirm = {
+                viewModel.rename(it)
+                renaming = false
+            },
+            onDismiss = { renaming = false },
         )
     }
 
@@ -180,11 +213,15 @@ fun WorkoutDetailScreen(
 }
 
 @Composable
-private fun Header(workout: Workout, justFinished: Boolean) {
+private fun Header(workout: Workout, justFinished: Boolean, onRename: () -> Unit) {
     val zone = remember { TimeZone.currentSystemDefault() }
     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
         if (justFinished) SectionHeader("Workout complete")
-        Text(workout.name, style = MaterialTheme.typography.headlineSmall)
+        Text(
+            workout.name,
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.clickable(onClickLabel = "Rename workout", onClick = onRename),
+        )
         Text(
             "${Dates.longDayLabel(workout.startedAt, zone)} · ${Dates.timeLabel(workout.startedAt, zone)}",
             style = MaterialTheme.typography.bodyMedium,

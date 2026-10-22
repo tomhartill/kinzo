@@ -326,7 +326,11 @@ private fun Tabs(
                     onOpenFinishedWorkout = { open(Destination.WorkoutDetail(it)) },
                     modifier = modifier,
                 )
-                Tab.History -> HistoryScreen(onOpenWorkout = { open(Destination.WorkoutDetail(it)) }, modifier = modifier)
+                Tab.History -> HistoryScreen(
+                    onOpenWorkout = { open(Destination.WorkoutDetail(it)) },
+                    onStarted = { open(Destination.ActiveWorkout) },
+                    modifier = modifier,
+                )
                 Tab.Library -> LibraryScreen(
                     section = LibrarySection.entries[librarySection],
                     onSectionChange = { librarySection = it.ordinal },
@@ -394,6 +398,7 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             // The resumed workout replaces everything, as starting one does.
             onResumed = { ifCurrent { navigator.resetTo(Destination.ActiveWorkout) } },
             onEdit = { ifCurrent { navigator.push(Destination.EditWorkout(destination.workoutId)) } },
+            onStarted = { ifCurrent { navigator.resetTo(Destination.ActiveWorkout) } },
         )
         is Destination.RoutineDetail -> RoutineDetailScreen(
             routineId = destination.routineId,

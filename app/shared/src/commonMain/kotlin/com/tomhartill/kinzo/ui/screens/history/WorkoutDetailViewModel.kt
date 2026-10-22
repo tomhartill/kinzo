@@ -43,6 +43,24 @@ class WorkoutDetailViewModel(
         }
     }
 
+    /**
+     * Starts a new workout with the same exercises and sets, leaving this one as it was.
+     * [onBusy] when another workout is in progress.
+     */
+    fun repeat(onStarted: () -> Unit, onBusy: () -> Unit) {
+        viewModelScope.launch {
+            when (workouts.repeatWorkout(workoutId)) {
+                is WorkoutRepository.StartResult.Started -> onStarted()
+                is WorkoutRepository.StartResult.AlreadyInProgress -> onBusy()
+                WorkoutRepository.StartResult.NotFound -> Unit
+            }
+        }
+    }
+
+    fun rename(name: String) {
+        viewModelScope.launch { workouts.renameWorkout(workoutId, name) }
+    }
+
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
             workouts.deleteWorkout(workoutId)

@@ -4,6 +4,8 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -11,13 +13,47 @@ type Config struct {
 	Addr string
 	// DatabaseURL is a Postgres connection string.
 	DatabaseURL string
+	// PublicURL is where phones reach the API, e.g. "https://api.example.com". Sign-in
+	// providers send people back to it, so it must match what's registered with them.
+	PublicURL string
+
+	// Google sign-in: the "Web application" OAuth client. Leave empty to turn Google off.
+	GoogleClientID     string
+	GoogleClientSecret string
+	// GoogleExtraAudiences are other client IDs (comma separated) whose ID tokens to accept.
+	GoogleExtraAudiences []string
+
+	// Facebook sign-in. Leave empty to turn Facebook off.
+	FacebookAppID        string
+	FacebookAppSecret    string
+	FacebookGraphVersion string
+
+	// The machine scan: a Claude API key, the vision model, and scans per user per day. Leave
+	// the key empty to turn scanning off.
+	AnthropicAPIKey string
+	ScanModel       string
+	ScanDailyLimit  int
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		Addr:        getenv("KINZO_ADDR", ":8080"),
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		Addr:                 getenv("KINZO_ADDR", ":8080"),
+		DatabaseURL:          os.Getenv("DATABASE_URL"),
+		PublicURL:            strings.TrimSuffix(getenv("KINZO_PUBLIC_URL", "http://localhost:8080"), "/"),
+		GoogleClientID:       os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret:   os.Getenv("GOOGLE_CLIENT_SECRET"),
+		GoogleExtraAudiences: splitList(os.Getenv("GOOGLE_EXTRA_AUDIENCES")),
+		FacebookAppID:        os.Getenv("FACEBOOK_APP_ID"),
+		FacebookAppSecret:    os.Getenv("FACEBOOK_APP_SECRET"),
+		FacebookGraphVersion: os.Getenv("FACEBOOK_GRAPH_VERSION"),
+		AnthropicAPIKey:      os.Getenv("ANTHROPIC_API_KEY"),
+		ScanModel:            os.Getenv("KINZO_SCAN_MODEL"),
 	}
+	limit, err := strconv.Atoi(getenv("KINZO_SCAN_DAILY_LIMIT", "30"))
+	if err != nil || limit < 0 {
+		return Config{}, errors.New("KINZO_SCAN_DAILY_LIMIT must be a whole number")
+	}
+	cfg.ScanDailyLimit = limit
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is not set")
 	}
@@ -29,4 +65,14 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func splitList(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }

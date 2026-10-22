@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <path d="M9.75 36.5L33.75 36.5M12.75 36.5L12.75 43M30.75 36.5L30.75 43M29.25 32L18.75 32M18.75 32L18.75 25L18.75 18.5M29.25 32L37.66 33.26L39.75 41.5M8.25 18.5L29.25 18.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 44L44 44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M9.45 30.45A3.5 3.5 0 1 1 16.45 30.45A3.5 3.5 0 1 1 9.45 30.45ZM10.75 14L11.75 14A1 1 0 0 1 12.75 15L12.75 22A1 1 0 0 1 11.75 23L10.75 23A1 1 0 0 1 9.75 22L9.75 15A1 1 0 0 1 10.75 14ZM25.75 14L26.75 14A1 1 0 0 1 27.75 15L27.75 22A1 1 0 0 1 26.75 23L25.75 23A1 1 0 0 1 24.75 22L24.75 15A1 1 0 0 1 25.75 14Z" fill="currentColor"/>
+</svg>

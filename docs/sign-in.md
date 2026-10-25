@@ -100,9 +100,10 @@ The app reads two values at build time:
 - Invite links are `PUBLIC_URL/i/CODE`. Opened on a phone, the page offers to open Kinzo
   (`kinzo://invite/CODE`).
 
-## 5. Phone codes (once the API supports them)
+## 5. Phone codes
 
-Not needed until email and phone code sign-in is built.
+Email and phone code sign-in is off until a code sender is set up. To try it locally without
+Twilio, set `KINZO_OTP_PROVIDER=log` and read each code from the API's log.
 
 1. Create a [Twilio](https://www.twilio.com/) account and add billing. Set a monthly spending
    alert under **Billing**.
@@ -118,8 +119,10 @@ Not needed until email and phone code sign-in is built.
    TWILIO_ACCOUNT_SID=AC...
    TWILIO_AUTH_TOKEN=...
    TWILIO_VERIFY_SERVICE_SID=VA...
+   KINZO_OTP_CHANNELS=sms              # add whatsapp once Twilio allows it
    KINZO_PHONE_COUNTRIES=GB
    KINZO_OTP_TEST_NUMBERS=+447700900123:123456
+   KINZO_BEHIND_PROXY=true             # when Caddy or nginx is in front of the API
    ```
 
 The test number signs in with that code and sends nothing; give it to app store reviewers.

@@ -23,7 +23,7 @@ info:
     3. The API redirects to `redirect_uri` with `?code=...`, or `?error=cancelled|failed`.
     4. The app posts the code and its `code_verifier` to `/v1/auth/exchange` for a session token.
 
-    Email and phone code sign-in (paths tagged `planned`, not built yet; see
+    Email and phone code sign-in (on when the server has a code sender; see
     docs/specs/email-and-phone-sign-in.md): the app posts the email to `/v1/auth/phone/start`,
     adds a phone number if the email is new, then posts the texted or WhatsApped code to
     `/v1/auth/phone/verify` for the same `SignedIn` response.
@@ -65,7 +65,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [providers, google_id_tokens]
+                required: [providers, google_id_tokens, phone_channels]
                 properties:
                   providers:
                     type: array
@@ -73,7 +73,7 @@ paths:
                   google_id_tokens: { type: boolean }
                   phone_channels:
                     type: array
-                    description: Planned. How codes can be sent, when `phone` is on.
+                    description: How codes can be sent. Empty when `phone` is off.
                     items: { $ref: "#/components/schemas/CodeChannel" }
   /v1/auth/{provider}/start:
     get:
@@ -130,7 +130,6 @@ paths:
         "401": { $ref: "#/components/responses/Error" }
   /v1/auth/phone/start:
     post:
-      tags: [planned]
       summary: Start an email and phone code sign-in, or resend the code
       description: |
         Send the email alone first. A known email with a phone gets a code at once (`phone` is
@@ -172,11 +171,10 @@ paths:
                 newEmail: { value: { next: phone } }
                 googleOnly: { value: { next: provider, providers: [google] } }
         "400": { $ref: "#/components/responses/Error" }
-        "429": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/TooManyCodes" }
         "502": { $ref: "#/components/responses/Error" }
   /v1/auth/phone/verify:
     post:
-      tags: [planned]
       summary: Finish an email and phone code sign-in
       operationId: verifyPhoneSignIn
       requestBody:
@@ -188,7 +186,6 @@ paths:
         "200": { $ref: "#/components/responses/SignedIn" }
         "400": { $ref: "#/components/responses/CodeError" }
         "410": { $ref: "#/components/responses/Error" }
-        "429": { $ref: "#/components/responses/Error" }
   /v1/auth/sign-out:
     post:
       summary: End this device's session
@@ -237,7 +234,6 @@ paths:
         "204": { description: Deleted. }
   /v1/me/phone:
     delete:
-      tags: [planned]
       summary: Remove the account's phone number
       description: Refused with `last_sign_in_method` when the phone is the only way in.
       operationId: deleteMyPhone
@@ -251,7 +247,6 @@ paths:
         "409": { $ref: "#/components/responses/Error" }
   /v1/me/phone/start:
     post:
-      tags: [planned]
       summary: Send a code to add or change the account's phone number
       operationId: startAddPhone
       security: [{ session: [] }]
@@ -273,11 +268,10 @@ paths:
               schema: { $ref: "#/components/schemas/CodeChallenge" }
         "400": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
-        "429": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/TooManyCodes" }
         "502": { $ref: "#/components/responses/Error" }
   /v1/me/phone/verify:
     post:
-      tags: [planned]
       summary: Confirm the code and save the phone number on the account
       operationId: verifyAddPhone
       security: [{ session: [] }]
@@ -294,7 +288,6 @@ paths:
               schema: { $ref: "#/components/schemas/User" }
         "400": { $ref: "#/components/responses/CodeError" }
         "410": { $ref: "#/components/responses/Error" }
-        "429": { $ref: "#/components/responses/Error" }
   /v1/usernames/{username}:
     get:
       summary: Whether a username is free
@@ -580,6 +573,18 @@ components:
               token: { type: string, description: Session token. Send it as a bearer token. }
               user: { $ref: "#/components/schemas/User" }
               new_user: { type: boolean, description: True on a first sign-in. }
+    TooManyCodes:
+      description: A sending limit (`too_many_codes`), with the seconds until another code can go.
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Error"
+              - type: object
+                properties:
+                  retry_in: { type: integer }
     CodeError:
       description: Wrong code (`wrong_code`), with the tries left on this code.
       content:
@@ -622,7 +627,7 @@ components:
             message: { type: string }
     User:
       type: object
-      required: [id, username, display_name, created_at]
+      required: [id, username, display_name, email_verified, sign_in_methods, created_at]
       properties:
         id: { type: string, format: uuid }
         username: { type: string }
@@ -631,13 +636,13 @@ components:
         email: { type: string }
         email_verified:
           type: boolean
-          description: Planned. False for an email typed at a phone sign-up.
+          description: False for an email typed at a phone sign-up, which nobody has confirmed.
         phone:
           type: string
-          description: Planned. The person's own number in E.164, if they added one.
+          description: The person's own number in E.164, if they added one.
         sign_in_methods:
           type: array
-          description: Planned.
+          description: The ways into the account.
           items: { type: string, enum: [google, facebook, apple, phone] }
         created_at: { type: string, format: date-time }
     CodeChannel:

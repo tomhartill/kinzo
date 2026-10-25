@@ -37,12 +37,18 @@ var (
 
 // User is the signed-in person's own account.
 type User struct {
-	ID          string    `json:"id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
-	AvatarURL   string    `json:"avatar_url,omitempty"`
-	Email       string    `json:"email,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
+	Email       string `json:"email,omitempty"`
+	// EmailVerified is false for an email typed at a phone sign-up, which nobody has confirmed.
+	EmailVerified bool `json:"email_verified"`
+	// Phone is the person's own number in E.164, when they sign in with phone codes.
+	Phone string `json:"phone,omitempty"`
+	// SignInMethods are the ways into the account, such as "google" and "phone".
+	SignInMethods []string  `json:"sign_in_methods"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // PublicUser is what other people see of someone: never their email.
@@ -53,16 +59,27 @@ type PublicUser struct {
 	AvatarURL   string `json:"avatar_url,omitempty"`
 }
 
-var userColumns = userColumnsOf("")
+var userColumns = userColumnsOf("users.")
 
-// userColumnsOf lists the columns scanUser reads, qualified with a table alias such as "u.".
+// userColumnsOf lists the columns scanUser reads, qualified with a table name or alias such
+// as "u.".
 func userColumnsOf(t string) string {
-	return fmt.Sprintf(`%[1]sid::text, coalesce(%[1]susername, ''), coalesce(%[1]sdisplay_name, ''), coalesce(%[1]savatar_url, ''), coalesce(%[1]semail, ''), %[1]screated_at`, t)
+	return fmt.Sprintf(`%[1]sid::text, coalesce(%[1]susername, ''), coalesce(%[1]sdisplay_name, ''),
+		coalesce(%[1]savatar_url, ''), coalesce(%[1]semail, ''), %[1]semail_verified_at IS NOT NULL,
+		coalesce((SELECT subject FROM auth_identities WHERE user_id = %[1]sid AND provider = 'phone'), ''),
+		array(SELECT provider FROM auth_identities WHERE user_id = %[1]sid ORDER BY provider),
+		%[1]screated_at`, t)
+}
+
+// scanTargets are where a row of userColumns goes, in order.
+func (u *User) scanTargets() []any {
+	return []any{&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Email, &u.EmailVerified,
+		&u.Phone, &u.SignInMethods, &u.CreatedAt}
 }
 
 func scanUser(row pgx.Row) (User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Email, &u.CreatedAt)
+	err := row.Scan(u.scanTargets()...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -76,8 +93,10 @@ func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
 }
 
 // SignIn finds or creates the account for a provider identity. A first sign-in with a new
-// provider joins an existing account when both providers have verified the same email.
-// newUser is true when the account was created just now.
+// provider joins an existing account when both have verified the same email. An unverified
+// email (typed at a phone sign-up) never joins: the provider sign-in gets its own account and
+// the unverified copy is taken off the phone account, so nobody can capture someone else's
+// Google sign-in by typing their email. newUser is true when the account was created just now.
 func (s *Store) SignIn(ctx context.Context, id auth.Identity) (user User, newUser bool, err error) {
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		var userID string
@@ -97,14 +116,26 @@ func (s *Store) SignIn(ctx context.Context, id auth.Identity) (user User, newUse
 		case errors.Is(err, pgx.ErrNoRows):
 			email := strings.ToLower(strings.TrimSpace(id.Email))
 			if email != "" && id.EmailVerified {
-				err := tx.QueryRow(ctx,
-					`SELECT id::text FROM users WHERE lower(email) = $1 AND deleted_at IS NULL`, email).Scan(&userID)
+				err := tx.QueryRow(ctx, `
+					SELECT id::text FROM users
+					WHERE lower(email) = $1 AND email_verified_at IS NOT NULL AND deleted_at IS NULL`,
+					email).Scan(&userID)
 				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 					return err
 				}
+				if userID == "" {
+					if _, err := tx.Exec(ctx,
+						`UPDATE users SET email = NULL, updated_at = now() WHERE lower(email) = $1 AND email_verified_at IS NULL`,
+						email); err != nil {
+						return err
+					}
+				}
 			}
 			if userID == "" {
-				userID, err = createUser(ctx, tx, id, email)
+				if !id.EmailVerified {
+					email = "" // not kept: it would let someone claim an address that isn't theirs
+				}
+				userID, err = createUser(ctx, tx, id.Name, id.AvatarURL, email, id.EmailVerified)
 				if err != nil {
 					return err
 				}
@@ -124,11 +155,11 @@ func (s *Store) SignIn(ctx context.Context, id auth.Identity) (user User, newUse
 	return user, newUser, err
 }
 
-func createUser(ctx context.Context, tx pgx.Tx, id auth.Identity, email string) (string, error) {
-	// An unverified email, or one another account already has, isn't kept: it would let
-	// someone claim an address that isn't theirs.
+// createUser makes an account. emailVerified says whether email has been proved to be the
+// person's. An email another account already has isn't kept.
+func createUser(ctx context.Context, tx pgx.Tx, name, avatarURL, email string, emailVerified bool) (string, error) {
 	var emailArg any
-	if email != "" && id.EmailVerified {
+	if email != "" {
 		var taken bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE lower(email) = $1)`, email).Scan(&taken); err != nil {
 			return "", err
@@ -137,7 +168,7 @@ func createUser(ctx context.Context, tx pgx.Tx, id auth.Identity, email string) 
 			emailArg = email
 		}
 	}
-	base := UsernameFromName(id.Name)
+	base := UsernameFromName(name)
 	for attempt := 0; attempt < 20; attempt++ {
 		username := base
 		if attempt > 0 {
@@ -150,11 +181,11 @@ func createUser(ctx context.Context, tx pgx.Tx, id auth.Identity, email string) 
 		}
 		var userID string
 		err := tx.QueryRow(ctx, `
-			INSERT INTO users (email, display_name, avatar_url, username, invite_code)
-			VALUES ($1, $2, nullif($3, ''), $4, $5)
+			INSERT INTO users (email, email_verified_at, display_name, avatar_url, username, invite_code)
+			VALUES ($1, CASE WHEN $1::text IS NOT NULL AND $2 THEN now() END, $3, nullif($4, ''), $5, $6)
 			ON CONFLICT (username) DO NOTHING
 			RETURNING id::text`,
-			emailArg, strings.TrimSpace(id.Name), id.AvatarURL, username, newInviteCode()).Scan(&userID)
+			emailArg, emailVerified, strings.TrimSpace(name), avatarURL, username, newInviteCode()).Scan(&userID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue // username taken, try another
 		}

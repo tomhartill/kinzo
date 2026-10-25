@@ -202,26 +202,36 @@ time. Built in the app; nobody can sign in until the Kinzo server is live.
 ### Sign in with email and a text code
 **Status:** In progress
 
-Sign in with your email and a six-digit code sent by text or WhatsApp, no password. Built in
-the app; waiting on the server side.
+Sign in with your email and a six-digit code sent by text or WhatsApp, no password. You can
+also add a phone to a Google or Facebook account and use codes from then on. Built in the app
+and the server; it switches on once the Kinzo server is live and Twilio is set up.
 
 ### Friends
 **Status:** In progress
 
 Find friends by name or username, send and answer requests, remove or block people, and share
 an invite link. Opening someone's invite link makes you friends straight away. Built in the
-app; it switches on with sign-in once the Kinzo server is live.
+app; it switches on with sign-in once the Kinzo server is live. Planned change: friends become
+follows, as on Instagram. You follow someone without them following you back, and a private
+account approves each new follower.
 
 ### Sync across devices
 **Status:** Planned
 
 Your workouts, plans and history backed up to your account and kept in step across your phones.
 
-### Friends feed and profiles
+### Feed and profiles
 **Status:** Planned
 
-See your friends' workouts and personal records. Body stats and photos are never shared unless
-you turn that on.
+Open the profile of anyone you follow to see their workouts, personal records and progress, and
+see their latest workouts in a feed. Body stats and photos are never shared unless you turn
+that on.
+
+### Send a workout to someone
+**Status:** Planned
+
+Build a workout and send it to someone who follows you. It lands in their Library as "From Sam:
+Push Day", and they can save their own copy or decline it.
 
 ### Sign in with Apple
 **Status:** Planned

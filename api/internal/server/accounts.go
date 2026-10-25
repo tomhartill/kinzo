@@ -134,9 +134,15 @@ func (s *Server) authProviders(w http.ResponseWriter, _ *http.Request) {
 			names = append(names, name)
 		}
 	}
+	channels := []string{}
+	if s.phone != nil {
+		names = append(names, "phone")
+		channels = s.phone.channels
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"providers":        names,
 		"google_id_tokens": s.accounts.googleIDTokens != nil,
+		"phone_channels":   channels,
 	})
 }
 

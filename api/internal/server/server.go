@@ -23,6 +23,8 @@ type Server struct {
 	accounts *accounts
 	// The machine scan; nil when no vision model is set up.
 	scan *machineScan
+	// Email and phone code sign-in; nil when no code sender is set up.
+	phone *phoneCodes
 }
 
 // Option configures optional parts of the server.
@@ -41,6 +43,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.health)
 	if s.accounts != nil {
 		s.accountRoutes(mux)
+		if s.phone != nil {
+			s.phoneRoutes(mux)
+		}
 	}
 	return s.logRequests(mux)
 }

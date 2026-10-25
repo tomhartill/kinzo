@@ -1,8 +1,11 @@
 # Spec: sign in with email and a phone code
 
-Status: **app side built, API not built yet**. Google and Facebook sign-in are live in the API
-and app; this adds a third way in that needs no Google or Facebook account. The app shows it
-once `/v1/auth/providers` lists `phone`. The API side is next and follows the contract in [`openapi/kinzo.yaml`](../../openapi/kinzo.yaml).
+Status: **built in the app and the API**, following the contract in
+[`openapi/kinzo.yaml`](../../openapi/kinzo.yaml). Google and Facebook sign-in are built too; this
+adds a third way in that needs no Google or Facebook account. The API turns it on when a code
+sender is set up (`KINZO_OTP_PROVIDER`), and the app shows it once `/v1/auth/providers` lists
+`phone`. Nobody can use it until the API is hosted and Twilio is set up
+([`docs/sign-in.md`](../sign-in.md) part 5).
 
 ## What the person sees
 
@@ -52,7 +55,7 @@ code has expired" with a **Send a new code** button. Errors never mention intern
 
 ## API
 
-Full schemas are in [`openapi/kinzo.yaml`](../../openapi/kinzo.yaml) (tagged "planned"). Successful
+Full schemas are in [`openapi/kinzo.yaml`](../../openapi/kinzo.yaml). Successful
 sign-in returns the same `SignedIn` body as the other providers, so the app's session handling
 doesn't change.
 
@@ -89,7 +92,7 @@ Errors (all `{"error": {"code", "message"}}`, messages written for the person):
 
 ## Data
 
-Migration `00006_phone_sign_in.sql`:
+Migration `00007_phone_sign_in.sql`:
 
 - `users.email_verified_at timestamptz`. Backfilled to `created_at` for existing rows, since today
   only provider-verified emails are stored.
@@ -111,7 +114,7 @@ Migration `00006_phone_sign_in.sql`:
   | `created_at`, `expires_at`, `used_at` | timestamptz | `used_at` set on success; a challenge works once |
 
   Indexed on `(phone_e164, created_at)` and `(ip, created_at)` for the limits. Rows older than a
-  day are deleted on a timer.
+  day are deleted as new codes are sent.
 
 ## Sending the codes
 
@@ -130,15 +133,17 @@ type CodeSender interface {
   WhatsApp, makes and checks the codes, and has SMS-pumping protection (Fraud Guard). Charged
   per successful verification plus the message; WhatsApp is usually cheaper than SMS. Check
   current prices on Twilio's pricing page before launch.
-- **Development: `log` sender.** Prints the code to the API log and accepts it. Used when no
-  Twilio settings are present and in tests.
+- **Development: `log` sender.** Prints the code to the API log and accepts it. Turned on with
+  `KINZO_OTP_PROVIDER=log`; with no setting and no Twilio account, phone sign-in stays off so a
+  server can't offer codes it can't send. Tests use a fake sender.
 - **Test numbers:** `KINZO_OTP_TEST_NUMBERS=+447700900123:123456` always accepts that code and
   sends nothing. The 07700 900xxx range is reserved by Ofcom for fiction, so it can never be a
   real person. Store reviewers get one of these.
 
 New settings: `KINZO_OTP_PROVIDER` (`twilio` or `log`), `TWILIO_ACCOUNT_SID`,
-`TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `KINZO_PHONE_COUNTRIES`,
-`KINZO_OTP_TEST_NUMBERS`.
+`TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`, `KINZO_OTP_CHANNELS`, `KINZO_PHONE_COUNTRIES`,
+`KINZO_OTP_TEST_NUMBERS` and `KINZO_BEHIND_PROXY` (read the caller's address from
+`X-Forwarded-For` for the per-address limit). Details in [`api/README.md`](../../api/README.md).
 
 ## Tests
 

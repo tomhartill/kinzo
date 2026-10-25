@@ -33,6 +33,22 @@ type Config struct {
 	AnthropicAPIKey string
 	ScanModel       string
 	ScanDailyLimit  int
+
+	// Email and phone code sign-in. OTPProvider is "twilio", "log" (codes go to the API log;
+	// for development) or empty for off. It defaults to twilio when TWILIO_ACCOUNT_SID is set.
+	OTPProvider            string
+	TwilioAccountSID       string
+	TwilioAuthToken        string
+	TwilioVerifyServiceSID string
+	// OTPChannels are how codes can go: "sms", "whatsapp".
+	OTPChannels []string
+	// PhoneCountries are the ISO region codes codes can be sent to, such as "GB".
+	PhoneCountries []string
+	// OTPTestNumbers map E.164 numbers to a fixed code; they never get a real message.
+	OTPTestNumbers map[string]string
+	// BehindProxy means a reverse proxy sits in front, so the caller's address is read from
+	// X-Forwarded-For (for the per-address code limit).
+	BehindProxy bool
 }
 
 func Load() (Config, error) {
@@ -54,6 +70,39 @@ func Load() (Config, error) {
 		return Config{}, errors.New("KINZO_SCAN_DAILY_LIMIT must be a whole number")
 	}
 	cfg.ScanDailyLimit = limit
+
+	cfg.TwilioAccountSID = os.Getenv("TWILIO_ACCOUNT_SID")
+	cfg.TwilioAuthToken = os.Getenv("TWILIO_AUTH_TOKEN")
+	cfg.TwilioVerifyServiceSID = os.Getenv("TWILIO_VERIFY_SERVICE_SID")
+	cfg.OTPProvider = os.Getenv("KINZO_OTP_PROVIDER")
+	if cfg.OTPProvider == "" && cfg.TwilioAccountSID != "" {
+		cfg.OTPProvider = "twilio"
+	}
+	switch cfg.OTPProvider {
+	case "", "log":
+	case "twilio":
+		if cfg.TwilioAccountSID == "" || cfg.TwilioAuthToken == "" || cfg.TwilioVerifyServiceSID == "" {
+			return Config{}, errors.New("Twilio needs TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID")
+		}
+	default:
+		return Config{}, errors.New("KINZO_OTP_PROVIDER must be twilio or log")
+	}
+	cfg.OTPChannels = splitList(getenv("KINZO_OTP_CHANNELS", "sms"))
+	for _, c := range cfg.OTPChannels {
+		if c != "sms" && c != "whatsapp" {
+			return Config{}, errors.New("KINZO_OTP_CHANNELS can only list sms and whatsapp")
+		}
+	}
+	cfg.PhoneCountries = splitList(strings.ToUpper(getenv("KINZO_PHONE_COUNTRIES", "GB")))
+	cfg.OTPTestNumbers = map[string]string{}
+	for _, pair := range splitList(os.Getenv("KINZO_OTP_TEST_NUMBERS")) {
+		number, code, ok := strings.Cut(pair, ":")
+		if !ok || !strings.HasPrefix(number, "+") || len(code) != 6 {
+			return Config{}, errors.New("KINZO_OTP_TEST_NUMBERS entries look like +447700900123:123456")
+		}
+		cfg.OTPTestNumbers[number] = code
+	}
+	cfg.BehindProxy = os.Getenv("KINZO_BEHIND_PROXY") == "true"
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is not set")
 	}

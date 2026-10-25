@@ -28,11 +28,11 @@ finish something on the roadmap below, update "Where things stand" in the same c
 | App: planning | Saved workouts (routines) with ready-made ones, workout types, splits, mesocycles |
 | App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database; a cached trend sparkline per exercise in the exercise list ([plan for muscles and regions](docs/specs/strength-trends.md)) |
 | App: body | Progress photos from Profile: take one by pose (front, side, back), browse by day, delete. Private to the phone |
-| App: accounts | Optional sign-in with Google or Facebook, or email and a phone code (waiting on the API); username and name picker; account screen (add a phone, sign out, delete) |
+| App: accounts | Optional sign-in with Google or Facebook, or email and a phone code; username and name picker; account screen (add a phone, sign out, delete) |
 | App: appearance | Seven colour themes (Mono default, plus pastels) in light and dark, picked in Profile; no borders anywhere, everything stands apart by fill |
 | App: guidance | First-run introduction (units, rest, theme), first-time tips on each screen (page cards and spotlights), Profile → Help to replay or switch them off |
 | App: friends | Search by name or username, requests, remove, block, invite links (`kinzo://invite/CODE`, `https://<api>/i/CODE`) |
-| API | Health check; Google and Facebook sign-in (browser with PKCE, plus Android ID tokens); sessions; profile; friends, blocks and invites; machine scan through Claude (needs `ANTHROPIC_API_KEY`, 30 scans a day each) |
+| API | Health check; Google and Facebook sign-in (browser with PKCE, plus Android ID tokens); email and phone code sign-in and adding a phone (Twilio Verify, or `KINZO_OTP_PROVIDER=log` locally; sending limits); sessions; profile; friends, blocks and invites; machine scan through Claude (needs `ANTHROPIC_API_KEY`, 30 scans a day each) |
 | CI | Android APK (published at a fixed link), desktop build, shared tests, iOS simulator build; API vet, race tests and a Postgres smoke test |
 
 Everything the app logs lives only on the phone. **There is no sync yet**, so friends can't see
@@ -40,17 +40,22 @@ each other's workouts.
 
 **Next, in order**
 
-1. **Email and phone code sign-in: the API.** Spec:
-   [`docs/specs/email-and-phone-sign-in.md`](docs/specs/email-and-phone-sign-in.md). Tom is taking
-   it. The app side is built and stays hidden until `/v1/auth/providers` lists `phone`.
-2. **Hosting.** The API on Tom's VPS with docker compose behind HTTPS, then the Google, Facebook
-   and Twilio setup in [`docs/sign-in.md`](docs/sign-in.md). Nobody can sign in until this exists.
+1. **Hosting.** The API on Tom's VPS with docker compose behind HTTPS (set
+   `KINZO_BEHIND_PROXY=true`), then the Google, Facebook and Twilio setup in
+   [`docs/sign-in.md`](docs/sign-in.md). Nobody can sign in until this exists.
+2. **Friends become follows,** as on Instagram (Tom, October 2026): following is one-way, with
+   followers and following lists; accounts are public unless a "Private account" switch makes
+   new followers need approval; an invite link makes two people follow each other. Search,
+   blocks and invites stay. Defaults proposed to Tom, not yet confirmed.
 3. **Sync.** Push and pull endpoints for routines, splits, mesocycles, workouts, sets and body
    measurements, following "Sync design" in the product spec. The schema already has
    `updated_at` and `deleted_at` on every synced table.
-4. **Friends feed and friend profiles,** which read synced workouts through `connections`.
-5. **Before the App Store:** Sign in with Apple (Apple requires it alongside Google/Facebook).
-6. **AI coach:** sign-in required; AI billing is still an open question in the product spec.
+4. **Profiles and feed:** see the workouts, PRs and progress of people you follow, read from
+   synced data through `connections`.
+5. **Send a workout to someone** who follows you: it lands in their Library to save as their own
+   copy or decline. Needs a small server inbox, not sync.
+6. **Before the App Store:** Sign in with Apple (Apple requires it alongside Google/Facebook).
+7. **AI coach:** sign-in required; AI billing is still an open question in the product spec.
 
 Decisions already made:
 - Sign-in is optional. It unlocks friends, sync and the AI coach; nothing else needs it.

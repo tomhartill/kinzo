@@ -61,6 +61,8 @@ type testAPI struct {
 	google  *fakeProvider
 	idToken fakeIDTokens
 	scans   *fakeRecogniser
+	codes   *fakeCodes
+	pool    *pgxpool.Pool
 }
 
 func newTestAPI(t *testing.T) *testAPI {
@@ -86,11 +88,15 @@ func newTestAPI(t *testing.T) *testAPI {
 		google:  &fakeProvider{name: "google", identities: map[string]auth.Identity{}},
 		idToken: fakeIDTokens{},
 		scans:   &fakeRecogniser{},
+		codes:   &fakeCodes{},
+		pool:    pool,
 	}
 	facebook := &fakeProvider{name: "facebook", identities: map[string]auth.Identity{}}
 	srv := New(pool, slog.New(slog.NewTextHandler(io.Discard, nil)),
 		WithAccounts(store.New(pool), "https://api.example", []auth.Provider{api.google, facebook}, api.idToken),
-		WithMachineScan(api.scans, 2))
+		WithMachineScan(api.scans, 2),
+		WithPhoneCodes(auth.WithTestNumbers(api.codes, testNumbers),
+			auth.PhoneRules{Countries: []string{"GB"}, TestNumbers: testNumbers}, []string{"sms", "whatsapp"}, false))
 	api.handler = srv.Handler()
 	return api
 }

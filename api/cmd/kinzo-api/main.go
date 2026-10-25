@@ -77,6 +77,23 @@ func run(logger *slog.Logger) error {
 		logger.Info("machine scan on", "machines", len(machines.Machines), "daily_limit", cfg.ScanDailyLimit)
 	}
 
+	if cfg.OTPProvider != "" {
+		var sender auth.CodeSender = &auth.LogSender{Logger: logger}
+		if cfg.OTPProvider == "twilio" {
+			sender = &auth.Twilio{
+				AccountSID: cfg.TwilioAccountSID,
+				AuthToken:  cfg.TwilioAuthToken,
+				ServiceSID: cfg.TwilioVerifyServiceSID,
+				HTTP:       &http.Client{Timeout: 15 * time.Second},
+			}
+		}
+		rules := auth.PhoneRules{Countries: cfg.PhoneCountries, TestNumbers: cfg.OTPTestNumbers}
+		options = append(options, server.WithPhoneCodes(
+			auth.WithTestNumbers(sender, cfg.OTPTestNumbers), rules, cfg.OTPChannels, cfg.BehindProxy))
+		logger.Info("phone codes on", "provider", cfg.OTPProvider, "channels", cfg.OTPChannels,
+			"countries", cfg.PhoneCountries, "test_numbers", len(cfg.OTPTestNumbers))
+	}
+
 	httpServer := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           server.New(pool, logger, options...).Handler(),

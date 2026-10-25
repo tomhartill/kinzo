@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/anthropics/anthropic-sdk-go v1.81.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/nyaruka/phonenumbers v1.8.1
 	github.com/pressly/goose/v3 v3.29.0
 	golang.org/x/text v0.43.0
 )
@@ -35,4 +36,5 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
 	golang.org/x/sync v0.24.0 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 )

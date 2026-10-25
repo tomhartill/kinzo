@@ -124,8 +124,6 @@ data class UsernameCheck(val username: String, val available: Boolean, val valid
 internal data class PeopleResponse(val users: List<Person>)
 
 @Serializable
-
-@Serializable
 internal data class ErrorBody(
     val error: Detail,
     @SerialName("attempts_left") val attemptsLeft: Int? = null,

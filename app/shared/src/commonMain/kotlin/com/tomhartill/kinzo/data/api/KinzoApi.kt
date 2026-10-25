@@ -99,8 +99,8 @@ class KinzoApi(
 
     suspend fun me(): Account = get("/v1/me")
 
-    suspend fun updateProfile(username: String? = null, displayName: String? = null): Account =
-        call(HttpMethod.Patch, "/v1/me", encode(ProfileUpdate(username, displayName)), auth = true)
+    suspend fun updateProfile(username: String? = null, displayName: String? = null, isPrivate: Boolean? = null): Account =
+        call(HttpMethod.Patch, "/v1/me", encode(ProfileUpdate(username, displayName, isPrivate)), auth = true)
 
     suspend fun deleteAccount() = send(HttpMethod.Delete, "/v1/me")
 
@@ -115,22 +115,23 @@ class KinzoApi(
 
     suspend fun checkUsername(username: String): UsernameCheck = get("/v1/usernames/${username.encodeURLPathPart()}")
 
-    // Friends
+    // Follows
 
     suspend fun searchPeople(query: String): List<Person> =
         get<PeopleResponse>("/v1/users/search?q=${query.encodeURLQueryComponent()}").users
 
-    suspend fun friends(): FriendLists = get("/v1/friends")
+    suspend fun follows(): FollowLists = get("/v1/follows")
 
-    suspend fun sendFriendRequest(userId: String): Relationship =
-        post<UserIdRequest, RelationshipResponse>("/v1/friends/requests", UserIdRequest(userId)).relationship
+    /** Follows [userId], or asks to if their account is private. Returns them afterwards. */
+    suspend fun follow(userId: String): Person = post("/v1/follows", UserIdRequest(userId))
 
-    suspend fun acceptFriendRequest(userId: String) = send(HttpMethod.Post, "/v1/friends/requests/$userId/accept")
+    /** Stops following [userId], or withdraws a request to. */
+    suspend fun unfollow(userId: String) = send(HttpMethod.Delete, "/v1/follows/$userId")
 
-    /** Declines a request from [userId], or cancels one sent to them. */
-    suspend fun deleteFriendRequest(userId: String) = send(HttpMethod.Delete, "/v1/friends/requests/$userId")
+    suspend fun acceptFollower(userId: String) = send(HttpMethod.Post, "/v1/followers/$userId/accept")
 
-    suspend fun removeFriend(userId: String) = send(HttpMethod.Delete, "/v1/friends/$userId")
+    /** Stops [userId] following you, or declines their request. */
+    suspend fun removeFollower(userId: String) = send(HttpMethod.Delete, "/v1/followers/$userId")
 
     suspend fun blocked(): List<Person> = get<PeopleResponse>("/v1/blocks").users
 

@@ -206,7 +206,7 @@ paths:
               schema: { $ref: "#/components/schemas/User" }
         "401": { $ref: "#/components/responses/Error" }
     patch:
-      summary: Change username or display name
+      summary: Change username, display name or privacy
       operationId: updateMe
       security: [{ session: [] }]
       requestBody:
@@ -218,6 +218,9 @@ paths:
               properties:
                 username: { type: string, description: "3 to 30 of a-z, 0-9, dot, underscore. A leading @ and capitals are tidied." }
                 display_name: { type: string, maxLength: 50 }
+                private:
+                  type: boolean
+                  description: Private accounts approve each new follower. Turning it off approves everyone waiting.
       responses:
         "200":
           description: The updated account.
@@ -335,33 +338,43 @@ paths:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         "200":
-          description: The person.
+          description: The person, with how many follow them and how many they follow.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Person" }
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Person"
+                  - type: object
+                    required: [follower_count, following_count]
+                    properties:
+                      follower_count: { type: integer }
+                      following_count: { type: integer }
         "404": { $ref: "#/components/responses/Error" }
-  /v1/friends:
+  /v1/follows:
     get:
-      summary: Friends, requests received and requests sent
-      operationId: listFriends
+      summary: Your followers, who you follow, and requests to follow you
+      description: |
+        Following is one-way, as on Instagram. `requests` only fills when the account is
+        private, since anyone can follow a public account straight away. `following` includes
+        requests you've sent to private accounts, with `following: requested`.
+      operationId: listFollows
       security: [{ session: [] }]
       responses:
         "200":
-          description: The three lists.
+          description: The three lists. Followers and following by name, requests newest first.
           content:
             application/json:
               schema:
                 type: object
-                required: [friends, incoming, outgoing]
+                required: [followers, following, requests]
                 properties:
-                  friends: { type: array, items: { $ref: "#/components/schemas/Person" } }
-                  incoming: { type: array, items: { $ref: "#/components/schemas/Person" } }
-                  outgoing: { type: array, items: { $ref: "#/components/schemas/Person" } }
-  /v1/friends/requests:
+                  followers: { type: array, items: { $ref: "#/components/schemas/Person" } }
+                  following: { type: array, items: { $ref: "#/components/schemas/Person" } }
+                  requests: { type: array, items: { $ref: "#/components/schemas/Person" } }
     post:
-      summary: Send a friend request
-      description: If the other person had already sent one, you become friends straight away.
-      operationId: sendFriendRequest
+      summary: Follow someone
+      description: A public account is followed at once; a private one gets a request to approve.
+      operationId: follow
       security: [{ session: [] }]
       requestBody:
         required: true
@@ -374,43 +387,40 @@ paths:
                 user_id: { type: string, format: uuid }
       responses:
         "200":
-          description: The relationship afterwards.
+          description: The person afterwards.
           content:
             application/json:
-              schema:
-                type: object
-                required: [relationship]
-                properties:
-                  relationship: { $ref: "#/components/schemas/Relationship" }
+              schema: { $ref: "#/components/schemas/Person" }
+        "400": { $ref: "#/components/responses/Error" }
         "404": { $ref: "#/components/responses/Error" }
-  /v1/friends/requests/{id}/accept:
+  /v1/follows/{id}:
+    delete:
+      summary: Unfollow this person, or cancel a request to follow them
+      operationId: unfollow
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: No longer following. }
+  /v1/followers/{id}/accept:
     post:
-      summary: Accept a friend request from this person
-      operationId: acceptFriendRequest
+      summary: Approve this person's request to follow you
+      operationId: acceptFollower
       security: [{ session: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        "204": { description: Now friends. }
+        "204": { description: They follow you now. }
         "404": { $ref: "#/components/responses/Error" }
-  /v1/friends/requests/{id}:
+  /v1/followers/{id}:
     delete:
-      summary: Decline a request from this person, or cancel one sent to them
-      operationId: deleteFriendRequest
+      summary: Remove a follower, or decline their request
+      operationId: removeFollower
       security: [{ session: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        "204": { description: Gone. }
-  /v1/friends/{id}:
-    delete:
-      summary: Remove a friend, for both people
-      operationId: removeFriend
-      security: [{ session: [] }]
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
-      responses:
-        "204": { description: Removed. }
+        "204": { description: They no longer follow you. }
   /v1/blocks:
     get:
       summary: People you've blocked
@@ -427,7 +437,7 @@ paths:
                 properties:
                   users: { type: array, items: { $ref: "#/components/schemas/PublicUser" } }
     post:
-      summary: Block someone. Ends any friendship or request between you.
+      summary: Block someone. Ends any follows or requests between you, both ways.
       operationId: block
       security: [{ session: [] }]
       requestBody:
@@ -493,14 +503,14 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
   /v1/invites/{code}/accept:
     post:
-      summary: Accept an invite. You and the inviter become friends straight away.
+      summary: Accept an invite. You and the inviter follow each other straight away, even if either account is private.
       operationId: acceptInvite
       security: [{ session: [] }]
       parameters:
         - { name: code, in: path, required: true, schema: { type: string } }
       responses:
         "200":
-          description: The inviter, now a friend.
+          description: The inviter, now following you and followed by you.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Person" }
@@ -627,7 +637,7 @@ components:
             message: { type: string }
     User:
       type: object
-      required: [id, username, display_name, email_verified, sign_in_methods, created_at]
+      required: [id, username, display_name, email_verified, sign_in_methods, private, created_at]
       properties:
         id: { type: string, format: uuid }
         username: { type: string }
@@ -644,6 +654,7 @@ components:
           type: array
           description: The ways into the account.
           items: { type: string, enum: [google, facebook, apple, phone] }
+        private: { type: boolean, description: New followers need approval. }
         created_at: { type: string, format: date-time }
     CodeChannel:
       type: string
@@ -675,13 +686,16 @@ components:
       allOf:
         - $ref: "#/components/schemas/PublicUser"
         - type: object
-          required: [relationship]
+          required: [private, following, follows_you, requested_you]
           properties:
-            relationship: { $ref: "#/components/schemas/Relationship" }
-            since: { type: string, format: date-time }
-    Relationship:
-      type: string
-      enum: [none, friends, request_sent, request_received]
+            private: { type: boolean }
+            following:
+              type: string
+              enum: [none, requested, following]
+              description: Whether you follow them, or have asked to.
+            follows_you: { type: boolean }
+            requested_you: { type: boolean, description: They've asked to follow your private account. }
+            since: { type: string, format: date-time, description: "In lists: when that follow or request started." }
     Invite:
       type: object
       required: [code, url]

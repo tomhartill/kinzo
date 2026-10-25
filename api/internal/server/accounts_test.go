@@ -274,68 +274,118 @@ func TestUsernames(t *testing.T) {
 	}
 }
 
-func TestFriendRequests(t *testing.T) {
+func (a *testAPI) follows(token string) store.FollowLists {
+	a.t.Helper()
+	rec := a.do("GET", "/v1/follows", token, nil)
+	expectStatus(a.t, rec, http.StatusOK)
+	return decode[store.FollowLists](a.t, rec)
+}
+
+func (a *testAPI) follow(token, userID string) store.Person {
+	a.t.Helper()
+	rec := a.do("POST", "/v1/follows", token, map[string]string{"user_id": userID})
+	expectStatus(a.t, rec, http.StatusOK)
+	return decode[store.Person](a.t, rec)
+}
+
+func TestFollowing(t *testing.T) {
 	api := newTestAPI(t)
 	tom := api.signIn("g-1", "Tom", "")
 	sam := api.signIn("g-2", "Sam", "")
 
 	search := decode[map[string][]store.Person](t, api.do("GET", "/v1/users/search?q=@sa", tom.Token, nil))
-	if len(search["users"]) != 1 || search["users"][0].ID != sam.User.ID || search["users"][0].Relationship != store.RelationNone {
+	if len(search["users"]) != 1 || search["users"][0].ID != sam.User.ID || search["users"][0].Following != store.FollowingNone {
 		t.Fatalf("search = %+v", search)
 	}
 
-	rec := api.do("POST", "/v1/friends/requests", tom.Token, map[string]string{"user_id": sam.User.ID})
-	expectStatus(t, rec, http.StatusOK)
-	if rel := decode[map[string]string](t, rec)["relationship"]; rel != store.RelationSent {
-		t.Fatalf("relationship = %q", rel)
+	// Following is one-way and needs no approval from a public account.
+	if p := api.follow(tom.Token, sam.User.ID); p.Following != store.FollowingYes || p.FollowsYou {
+		t.Fatalf("after following = %+v", p)
 	}
-
-	samLists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", sam.Token, nil))
-	if len(samLists.Incoming) != 1 || samLists.Incoming[0].ID != tom.User.ID || len(samLists.Friends) != 0 {
+	samLists := api.follows(sam.Token)
+	if len(samLists.Followers) != 1 || !samLists.Followers[0].FollowsYou || samLists.Followers[0].Following != store.FollowingNone ||
+		len(samLists.Following) != 0 {
 		t.Fatalf("sam's lists = %+v", samLists)
 	}
-	tomLists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", tom.Token, nil))
-	if len(tomLists.Outgoing) != 1 {
-		t.Fatalf("tom's lists = %+v", tomLists)
+	if lists := api.follows(tom.Token); len(lists.Following) != 1 || len(lists.Followers) != 0 {
+		t.Fatalf("tom's lists = %+v", lists)
 	}
 
-	// Tom can't accept his own request.
-	expectStatus(t, api.do("POST", "/v1/friends/requests/"+sam.User.ID+"/accept", tom.Token, nil), http.StatusNotFound)
-	expectStatus(t, api.do("POST", "/v1/friends/requests/"+tom.User.ID+"/accept", sam.Token, nil), http.StatusNoContent)
-
-	for _, who := range []signInResponse{tom, sam} {
-		lists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", who.Token, nil))
-		if len(lists.Friends) != 1 || len(lists.Incoming)+len(lists.Outgoing) != 0 {
-			t.Fatalf("%s's lists after accepting = %+v", who.User.Username, lists)
-		}
+	// Following back makes it both ways; following again changes nothing.
+	api.follow(sam.Token, tom.User.ID)
+	if p := api.follow(sam.Token, tom.User.ID); p.Following != store.FollowingYes || !p.FollowsYou {
+		t.Fatalf("follow back = %+v", p)
+	}
+	profile := decode[store.Profile](t, api.do("GET", "/v1/users/"+sam.User.ID, tom.Token, nil))
+	if profile.FollowerCount != 1 || profile.FollowingCount != 1 {
+		t.Fatalf("profile = %+v", profile)
 	}
 
-	// Removing ends it for both.
-	expectStatus(t, api.do("DELETE", "/v1/friends/"+tom.User.ID, sam.Token, nil), http.StatusNoContent)
-	if lists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", tom.Token, nil)); len(lists.Friends) != 0 {
-		t.Fatalf("tom still has friends: %+v", lists)
+	// Unfollowing only ends Tom's side.
+	expectStatus(t, api.do("DELETE", "/v1/follows/"+sam.User.ID, tom.Token, nil), http.StatusNoContent)
+	if lists := api.follows(tom.Token); len(lists.Following) != 0 || len(lists.Followers) != 1 {
+		t.Fatalf("tom's lists after unfollowing = %+v", lists)
 	}
+	// Sam can remove Tom as a follower too.
+	expectStatus(t, api.do("DELETE", "/v1/followers/"+sam.User.ID, tom.Token, nil), http.StatusNoContent)
+	if lists := api.follows(sam.Token); len(lists.Following) != 0 {
+		t.Fatalf("sam still follows tom: %+v", lists)
+	}
+
+	expectStatus(t, api.do("POST", "/v1/follows", tom.Token, map[string]string{"user_id": tom.User.ID}), http.StatusBadRequest)
 }
 
-func TestCrossedRequestsBecomeFriends(t *testing.T) {
+func TestPrivateAccounts(t *testing.T) {
 	api := newTestAPI(t)
 	tom := api.signIn("g-1", "Tom", "")
 	sam := api.signIn("g-2", "Sam", "")
-	api.do("POST", "/v1/friends/requests", tom.Token, map[string]string{"user_id": sam.User.ID})
-	rec := api.do("POST", "/v1/friends/requests", sam.Token, map[string]string{"user_id": tom.User.ID})
-	if rel := decode[map[string]string](t, rec)["relationship"]; rel != store.RelationFriends {
-		t.Fatalf("relationship = %q, want friends", rel)
+	pat := api.signIn("g-3", "Pat", "")
+
+	rec := api.do("PATCH", "/v1/me", sam.Token, map[string]bool{"private": true})
+	expectStatus(t, rec, http.StatusOK)
+	if u := decode[store.User](t, rec); !u.Private {
+		t.Fatalf("sam = %+v", u)
+	}
+
+	// Following a private account asks first.
+	if p := api.follow(tom.Token, sam.User.ID); p.Following != store.FollowingRequested || !p.Private {
+		t.Fatalf("follow private = %+v", p)
+	}
+	api.follow(pat.Token, sam.User.ID)
+	lists := api.follows(sam.Token)
+	if len(lists.Requests) != 2 || len(lists.Followers) != 0 || !lists.Requests[0].RequestedYou {
+		t.Fatalf("sam's lists = %+v", lists)
+	}
+
+	// Tom can't approve his own request; Sam can.
+	expectStatus(t, api.do("POST", "/v1/followers/"+sam.User.ID+"/accept", tom.Token, nil), http.StatusNotFound)
+	expectStatus(t, api.do("POST", "/v1/followers/"+tom.User.ID+"/accept", sam.Token, nil), http.StatusNoContent)
+	if lists := api.follows(tom.Token); len(lists.Following) != 1 || lists.Following[0].Following != store.FollowingYes {
+		t.Fatalf("tom's lists = %+v", lists)
+	}
+
+	// Going public lets everyone waiting in.
+	api.do("PATCH", "/v1/me", sam.Token, map[string]bool{"private": false})
+	if lists := api.follows(sam.Token); len(lists.Followers) != 2 || len(lists.Requests) != 0 {
+		t.Fatalf("sam's lists after going public = %+v", lists)
 	}
 }
 
-func TestDeclineAndCancel(t *testing.T) {
+func TestDeclineAndCancelRequests(t *testing.T) {
 	api := newTestAPI(t)
 	tom := api.signIn("g-1", "Tom", "")
 	sam := api.signIn("g-2", "Sam", "")
-	api.do("POST", "/v1/friends/requests", tom.Token, map[string]string{"user_id": sam.User.ID})
-	expectStatus(t, api.do("DELETE", "/v1/friends/requests/"+tom.User.ID, sam.Token, nil), http.StatusNoContent)
-	if lists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", tom.Token, nil)); len(lists.Outgoing) != 0 {
+	api.do("PATCH", "/v1/me", sam.Token, map[string]bool{"private": true})
+
+	api.follow(tom.Token, sam.User.ID)
+	expectStatus(t, api.do("DELETE", "/v1/followers/"+tom.User.ID, sam.Token, nil), http.StatusNoContent)
+	if lists := api.follows(tom.Token); len(lists.Following) != 0 {
 		t.Fatal("declined request still pending")
+	}
+	api.follow(tom.Token, sam.User.ID)
+	expectStatus(t, api.do("DELETE", "/v1/follows/"+sam.User.ID, tom.Token, nil), http.StatusNoContent)
+	if lists := api.follows(sam.Token); len(lists.Requests) != 0 {
+		t.Fatal("cancelled request still pending")
 	}
 }
 
@@ -343,25 +393,25 @@ func TestBlocking(t *testing.T) {
 	api := newTestAPI(t)
 	tom := api.signIn("g-1", "Tom", "")
 	sam := api.signIn("g-2", "Sam", "")
-	api.do("POST", "/v1/friends/requests", tom.Token, map[string]string{"user_id": sam.User.ID})
-	api.do("POST", "/v1/friends/requests/"+tom.User.ID+"/accept", sam.Token, nil)
+	api.follow(tom.Token, sam.User.ID)
+	api.follow(sam.Token, tom.User.ID)
 
 	expectStatus(t, api.do("POST", "/v1/blocks", sam.Token, map[string]string{"user_id": tom.User.ID}), http.StatusNoContent)
-	if lists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", tom.Token, nil)); len(lists.Friends) != 0 {
-		t.Fatal("blocking didn't end the friendship")
+	if lists := api.follows(tom.Token); len(lists.Following)+len(lists.Followers) != 0 {
+		t.Fatal("blocking didn't end the follows")
 	}
-	// Tom can't find or add Sam, and gets the same answer as for someone who doesn't exist.
+	// Tom can't find or follow Sam, and gets the same answer as for someone who doesn't exist.
 	if found := decode[map[string][]store.Person](t, api.do("GET", "/v1/users/search?q=sam", tom.Token, nil)); len(found["users"]) != 0 {
 		t.Fatal("blocked user shows in search")
 	}
-	expectStatus(t, api.do("POST", "/v1/friends/requests", tom.Token, map[string]string{"user_id": sam.User.ID}), http.StatusNotFound)
+	expectStatus(t, api.do("POST", "/v1/follows", tom.Token, map[string]string{"user_id": sam.User.ID}), http.StatusNotFound)
 
 	blocked := decode[map[string][]store.PublicUser](t, api.do("GET", "/v1/blocks", sam.Token, nil))
 	if len(blocked["users"]) != 1 {
 		t.Fatalf("blocks = %+v", blocked)
 	}
 	expectStatus(t, api.do("DELETE", "/v1/blocks/"+tom.User.ID, sam.Token, nil), http.StatusNoContent)
-	expectStatus(t, api.do("POST", "/v1/friends/requests", tom.Token, map[string]string{"user_id": sam.User.ID}), http.StatusOK)
+	expectStatus(t, api.do("POST", "/v1/follows", tom.Token, map[string]string{"user_id": sam.User.ID}), http.StatusOK)
 }
 
 func TestInvites(t *testing.T) {
@@ -383,9 +433,15 @@ func TestInvites(t *testing.T) {
 	if preview["is_you"] != false {
 		t.Fatalf("preview = %v", preview)
 	}
-	expectStatus(t, api.do("POST", "/v1/invites/"+inv.Code+"/accept", sam.Token, nil), http.StatusOK)
-	if lists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", tom.Token, nil)); len(lists.Friends) != 1 {
-		t.Fatalf("invite didn't make friends: %+v", lists)
+	// An invite makes two people follow each other, even when the inviter is private.
+	api.do("PATCH", "/v1/me", tom.Token, map[string]bool{"private": true})
+	rec := api.do("POST", "/v1/invites/"+inv.Code+"/accept", sam.Token, nil)
+	expectStatus(t, rec, http.StatusOK)
+	if p := decode[store.Person](t, rec); p.Following != store.FollowingYes || !p.FollowsYou {
+		t.Fatalf("accepted invite = %+v", p)
+	}
+	if lists := api.follows(tom.Token); len(lists.Followers) != 1 || len(lists.Following) != 1 {
+		t.Fatalf("invite didn't make follows: %+v", lists)
 	}
 
 	// A reset link stops the old one working.
@@ -401,12 +457,12 @@ func TestDeleteAccount(t *testing.T) {
 	api := newTestAPI(t)
 	tom := api.signIn("g-1", "Tom", "")
 	sam := api.signIn("g-2", "Sam", "")
-	api.do("POST", "/v1/friends/requests", tom.Token, map[string]string{"user_id": sam.User.ID})
+	api.follow(tom.Token, sam.User.ID)
 
 	expectStatus(t, api.do("DELETE", "/v1/me", tom.Token, nil), http.StatusNoContent)
 	expectStatus(t, api.do("GET", "/v1/me", tom.Token, nil), http.StatusUnauthorized)
-	if lists := decode[store.FriendLists](t, api.do("GET", "/v1/friends", sam.Token, nil)); len(lists.Incoming) != 0 {
-		t.Fatal("deleted account's request is still there")
+	if lists := api.follows(sam.Token); len(lists.Followers) != 0 {
+		t.Fatal("deleted account still follows")
 	}
 	// Signing in again starts a fresh account.
 	if again := api.signIn("g-1", "Tom", ""); !again.NewUser {
@@ -416,7 +472,7 @@ func TestDeleteAccount(t *testing.T) {
 
 func TestSignedOutRequestsAreRefused(t *testing.T) {
 	api := newTestAPI(t)
-	for _, path := range []string{"/v1/me", "/v1/friends", "/v1/users/search?q=tom"} {
+	for _, path := range []string{"/v1/me", "/v1/follows", "/v1/users/search?q=tom"} {
 		rec := api.do("GET", path, "", nil)
 		expectStatus(t, rec, http.StatusUnauthorized)
 		if code := decode[apiError](t, rec).Error.Code; code != "signed_out" {

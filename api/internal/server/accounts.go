@@ -27,7 +27,7 @@ type accounts struct {
 	googleIDTokens IDTokenVerifier
 }
 
-// WithAccounts turns on sign-in, accounts and friends.
+// WithAccounts turns on sign-in, accounts, follows and blocks.
 func WithAccounts(st *store.Store, publicURL string, providers []auth.Provider, googleIDTokens IDTokenVerifier) Option {
 	return func(s *Server) {
 		byName := make(map[string]auth.Provider, len(providers))
@@ -58,11 +58,11 @@ func (s *Server) accountRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /v1/users/search", s.signedIn(s.searchUsers))
 	mux.HandleFunc("GET /v1/users/{id}", s.signedIn(s.getUser))
-	mux.HandleFunc("GET /v1/friends", s.signedIn(s.listFriends))
-	mux.HandleFunc("POST /v1/friends/requests", s.signedIn(s.sendFriendRequest))
-	mux.HandleFunc("POST /v1/friends/requests/{id}/accept", s.signedIn(s.acceptFriendRequest))
-	mux.HandleFunc("DELETE /v1/friends/requests/{id}", s.signedIn(s.deleteFriendRequest))
-	mux.HandleFunc("DELETE /v1/friends/{id}", s.signedIn(s.removeFriend))
+	mux.HandleFunc("GET /v1/follows", s.signedIn(s.listFollows))
+	mux.HandleFunc("POST /v1/follows", s.signedIn(s.follow))
+	mux.HandleFunc("DELETE /v1/follows/{id}", s.signedIn(s.unfollow))
+	mux.HandleFunc("POST /v1/followers/{id}/accept", s.signedIn(s.acceptFollower))
+	mux.HandleFunc("DELETE /v1/followers/{id}", s.signedIn(s.removeFollower))
 	mux.HandleFunc("GET /v1/blocks", s.signedIn(s.listBlocks))
 	mux.HandleFunc("POST /v1/blocks", s.signedIn(s.block))
 	mux.HandleFunc("DELETE /v1/blocks/{id}", s.signedIn(s.unblock))
@@ -300,11 +300,12 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request, sess session) 
 	var body struct {
 		Username    *string `json:"username"`
 		DisplayName *string `json:"display_name"`
+		Private     *bool   `json:"private"`
 	}
 	if !readJSON(w, r, &body) {
 		return
 	}
-	user, err := s.accounts.store.UpdateProfile(r.Context(), sess.user.ID, body.Username, body.DisplayName)
+	user, err := s.accounts.store.UpdateProfile(r.Context(), sess.user.ID, body.Username, body.DisplayName, body.Private)
 	switch {
 	case errors.Is(err, store.ErrInvalidUsername):
 		writeError(w, http.StatusBadRequest, "invalid_username", "Use 3 to 30 letters, numbers, dots or underscores.")

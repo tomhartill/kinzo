@@ -40,7 +40,7 @@ object KinzoTips {
 
     val Friends = ScreenTips(
         screen = "friends",
-        intro = page("friends.intro", "Friends", "Share your invite link to add someone. Friends see your workouts and PRs, never your body stats or photos."),
+        intro = page("friends.intro", "Friends", "Follow people to see their workouts and PRs. Followers see yours, never your body stats or photos. Make your account private in Account to approve each follower."),
     )
 
     val LogSet = spotlight("workout.log-set", "Logging a set", "Type the weight and reps, then tick the box. Swipe a set left to delete it.")

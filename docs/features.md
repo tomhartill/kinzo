@@ -206,14 +206,14 @@ Sign in with your email and a six-digit code sent by text or WhatsApp, no passwo
 also add a phone to a Google or Facebook account and use codes from then on. Built in the app
 and the server; it switches on once the Kinzo server is live and Twilio is set up.
 
-### Friends
+### Follow friends
 **Status:** In progress
 
-Find friends by name or username, send and answer requests, remove or block people, and share
-an invite link. Opening someone's invite link makes you friends straight away. Built in the
-app; it switches on with sign-in once the Kinzo server is live. Planned change: friends become
-follows, as on Instagram. You follow someone without them following you back, and a private
-account approves each new follower.
+Follow people, as on Instagram: find them by name or username and follow them, without them
+having to follow you back. See who follows you and who you follow, remove a follower, or block
+someone. Make your account private and you approve each new follower. Share an invite link, and
+whoever opens it in Kinzo follows you and is followed back straight away. Built in the app and
+the server; it switches on with sign-in once the Kinzo server is live.
 
 ### Sync across devices
 **Status:** Planned

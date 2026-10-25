@@ -50,7 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.data.api.Person
-import com.tomhartill.kinzo.data.api.Relationship
+import com.tomhartill.kinzo.data.api.Following
 import com.tomhartill.kinzo.ui.components.Avatar
 import com.tomhartill.kinzo.ui.components.ConfirmDialog
 import com.tomhartill.kinzo.ui.components.KinzoCard
@@ -65,7 +65,10 @@ import com.tomhartill.kinzo.ui.screens.account.SignInPanel
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import org.koin.compose.viewmodel.koinViewModel
 
-/** Friends: find people, answer requests, share an invite link. Signed out, it offers sign-in. */
+/**
+ * Friends: who you follow and who follows you, follow requests, search and an invite link.
+ * Following is one-way, as on Instagram. Signed out, it offers sign-in.
+ */
 @Composable
 fun FriendsScreen(
     onBack: () -> Unit,
@@ -123,23 +126,24 @@ fun FriendsScreen(
     confirm?.let { pending ->
         val name = pending.person.name
         ConfirmDialog(
-            title = if (pending.block) "Block $name?" else "Remove $name?",
+            title = if (pending.block) "Block $name?" else "Remove $name as a follower?",
             message = if (pending.block) {
-                "$name won't be able to find you or send you requests, and you'll stop being friends. They won't be told."
+                "$name won't be able to find or follow you, and you'll stop following each other. They won't be told."
             } else {
-                "You'll stop seeing each other's training. They won't be told."
+                "They'll stop seeing your training. They won't be told, and can follow you again unless your account is private."
             },
             confirmLabel = if (pending.block) "Block" else "Remove",
             destructive = true,
             onConfirm = {
                 confirm = null
-                if (pending.block) viewModel.block(pending.person) else viewModel.remove(pending.person)
+                if (pending.block) viewModel.block(pending.person) else viewModel.removeFollower(pending.person)
             },
             onDismiss = { confirm = null },
         )
     }
 }
 
+/** A step that asks first: blocking someone, or removing a follower. */
 private data class PendingConfirm(val person: Person, val block: Boolean)
 
 private fun LazyListScope.signedOut(onSignedIn: (Boolean) -> Unit, onEmail: () -> Unit) {
@@ -147,7 +151,7 @@ private fun LazyListScope.signedOut(onSignedIn: (Boolean) -> Unit, onEmail: () -
         Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.lg), modifier = Modifier.padding(top = KinzoTheme.spacing.lg)) {
             Text("Train with friends", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Sign in to add friends, see each other's workouts and PRs, and keep each other going.",
+                "Sign in to follow friends, see each other's workouts and PRs, and keep each other going.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -165,15 +169,7 @@ private fun LazyListScope.searchResults(state: FriendsViewModel.State, viewModel
             EmptyState(title = "No one found", body = "Check the spelling, or send them your invite link instead.")
         }
         else -> items(results, key = { "result-${it.id}" }) { person ->
-            PersonRow(person) {
-                val busy = person.id in state.busy
-                when (person.relationship) {
-                    Relationship.None -> SmallButton("Add", busy, filled = true) { viewModel.add(person) }
-                    Relationship.RequestSent -> SmallButton("Requested", busy) { viewModel.withdraw(person) }
-                    Relationship.RequestReceived -> SmallButton("Accept", busy, filled = true) { viewModel.accept(person) }
-                    Relationship.Friends -> Text("Friends", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            PersonRow(person) { FollowButton(person, person.id in state.busy, viewModel) }
         }
     }
 }
@@ -187,7 +183,7 @@ private fun LazyListScope.friendLists(
         KinzoCard {
             Text("Invite friends", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Send your link to someone. When they open it in Kinzo, you're friends straight away.",
+                "Send your link to someone. When they open it in Kinzo, you follow each other straight away.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -208,46 +204,80 @@ private fun LazyListScope.friendLists(
         }
         return
     }
-    if (lists.incoming.isNotEmpty()) {
-        item(key = "incoming-header") { SectionHeader("Requests", Modifier.padding(top = KinzoTheme.spacing.sm)) }
-        items(lists.incoming, key = { "incoming-${it.id}" }) { person ->
+    if (lists.requests.isNotEmpty()) {
+        item(key = "requests-header") { SectionHeader("Requests to follow you", Modifier.padding(top = KinzoTheme.spacing.sm)) }
+        items(lists.requests, key = { "request-${it.id}" }) { person ->
             PersonRow(person) {
                 val busy = person.id in state.busy
                 SmallButton("Accept", busy, filled = true) { viewModel.accept(person) }
-                IconButton(onClick = { viewModel.withdraw(person) }, enabled = !busy) {
+                IconButton(onClick = { viewModel.removeFollower(person) }, enabled = !busy) {
                     Icon(Icons.Filled.Close, contentDescription = "Decline ${person.name}")
                 }
             }
         }
     }
-    item(key = "friends-header") {
+    item(key = "following-header") {
         SectionHeader(
-            if (lists.friends.isEmpty()) "Friends" else "Friends · ${lists.friends.size}",
+            if (lists.following.isEmpty()) "Following" else "Following · ${lists.following.size}",
             Modifier.padding(top = KinzoTheme.spacing.sm),
         )
     }
-    if (lists.friends.isEmpty()) {
-        item(key = "no-friends") {
-            EmptyState(title = "No friends yet", body = "Share your invite link, or search for someone's username above.")
+    if (lists.following.isEmpty()) {
+        item(key = "no-following") {
+            EmptyState(title = "Not following anyone yet", body = "Search for someone's username above, or share your invite link.")
         }
     }
-    items(lists.friends, key = { "friend-${it.id}" }) { person ->
+    items(lists.following, key = { "following-${it.id}" }) { person ->
         PersonRow(person) {
-            FriendMenu(
+            val busy = person.id in state.busy
+            if (person.following == Following.Requested) {
+                SmallButton("Requested", busy) { viewModel.unfollow(person) }
+            } else {
+                PersonMenu(
+                    person = person,
+                    enabled = !busy,
+                    items = listOf(
+                        MenuAction("Unfollow") { viewModel.unfollow(person) },
+                        MenuAction("Block", destructive = true) { onConfirm(PendingConfirm(person, block = true)) },
+                    ),
+                )
+            }
+        }
+    }
+    item(key = "followers-header") {
+        SectionHeader(
+            if (lists.followers.isEmpty()) "Followers" else "Followers · ${lists.followers.size}",
+            Modifier.padding(top = KinzoTheme.spacing.sm),
+        )
+    }
+    if (lists.followers.isEmpty()) {
+        item(key = "no-followers") {
+            EmptyState(title = "No followers yet", body = "When someone follows you, they'll show here.")
+        }
+    }
+    items(lists.followers, key = { "follower-${it.id}" }) { person ->
+        PersonRow(person) {
+            val busy = person.id in state.busy
+            if (person.following != Following.Yes) FollowButton(person, busy, viewModel)
+            PersonMenu(
                 person = person,
-                enabled = person.id !in state.busy,
-                onRemove = { onConfirm(PendingConfirm(person, block = false)) },
-                onBlock = { onConfirm(PendingConfirm(person, block = true)) },
+                enabled = !busy,
+                items = listOf(
+                    MenuAction("Remove follower") { onConfirm(PendingConfirm(person, block = false)) },
+                    MenuAction("Block", destructive = true) { onConfirm(PendingConfirm(person, block = true)) },
+                ),
             )
         }
     }
-    if (lists.outgoing.isNotEmpty()) {
-        item(key = "outgoing-header") { SectionHeader("Sent", Modifier.padding(top = KinzoTheme.spacing.sm)) }
-        items(lists.outgoing, key = { "outgoing-${it.id}" }) { person ->
-            PersonRow(person) {
-                SmallButton("Cancel", person.id in state.busy) { viewModel.withdraw(person) }
-            }
-        }
+}
+
+/** Follow, Follow back, Requested or Following, each of which undoes or does the follow. */
+@Composable
+private fun FollowButton(person: Person, busy: Boolean, viewModel: FriendsViewModel) {
+    when (person.following) {
+        Following.None -> SmallButton(if (person.followsYou) "Follow back" else "Follow", busy, filled = true) { viewModel.follow(person) }
+        Following.Requested -> SmallButton("Requested", busy) { viewModel.unfollow(person) }
+        Following.Yes -> SmallButton("Following", busy) { viewModel.unfollow(person) }
     }
 }
 
@@ -275,22 +305,28 @@ private fun PersonRow(person: Person, actions: @Composable RowScope.() -> Unit) 
     }
 }
 
+private class MenuAction(val label: String, val destructive: Boolean = false, val onClick: () -> Unit)
+
+/** A row's overflow menu. */
 @Composable
-private fun FriendMenu(person: Person, enabled: Boolean, onRemove: () -> Unit, onBlock: () -> Unit) {
+private fun PersonMenu(person: Person, enabled: Boolean, items: List<MenuAction>) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }, enabled = enabled) {
             Icon(Icons.Filled.MoreVert, contentDescription = "Options for ${person.name}")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text("Remove friend") }, onClick = {
-                open = false
-                onRemove()
-            })
-            DropdownMenuItem(text = { Text("Block", color = MaterialTheme.colorScheme.error) }, onClick = {
-                open = false
-                onBlock()
-            })
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = {
+                        Text(item.label, color = if (item.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    },
+                    onClick = {
+                        open = false
+                        item.onClick()
+                    },
+                )
+            }
         }
     }
 }

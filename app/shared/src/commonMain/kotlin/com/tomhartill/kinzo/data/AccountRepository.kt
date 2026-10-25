@@ -202,4 +202,6 @@ class AccountRepository(
     suspend fun setUsername(username: String): Account = api.updateProfile(username = username).also { session.update(it) }
 
     suspend fun setDisplayName(name: String): Account = api.updateProfile(displayName = name).also { session.update(it) }
+
+    suspend fun setPrivate(isPrivate: Boolean): Account = api.updateProfile(isPrivate = isPrivate).also { session.update(it) }
 }

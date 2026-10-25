@@ -31,6 +31,8 @@ class AccountViewModel(private val accounts: AccountRepository) : ViewModel() {
 
     fun removePhone() = run { accounts.removePhone() }
 
+    fun setPrivate(isPrivate: Boolean) = run { accounts.setPrivate(isPrivate) }
+
     fun signOut() = run { accounts.signOut() }
 
     fun deleteAccount() = run { accounts.deleteAccount() }

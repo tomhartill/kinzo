@@ -51,7 +51,7 @@ fun ProfileScreen(
             KinzoCard(onClick = onSignIn) {
                 Text("Sign in", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Add friends, and back up your workouts soon. Optional: everything works without it.",
+                    "Follow friends, and back up your workouts soon. Optional: everything works without it.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onSurfaceVariant,
                 )
@@ -71,7 +71,7 @@ fun ProfileScreen(
             }
             KinzoCard(onClick = onOpenFriends) {
                 Text("Friends", style = MaterialTheme.typography.titleMedium)
-                Text("Find friends, answer requests and share your invite link", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                Text("Follow friends, see your followers and share your invite link", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
             }
         }
 

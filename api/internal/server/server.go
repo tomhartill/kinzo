@@ -19,7 +19,7 @@ type Server struct {
 	db     Pinger
 	logger *slog.Logger
 
-	// Accounts and friends; nil when the server runs without them, as in the health tests.
+	// Accounts, follows and blocks; nil when the server runs without them, as in the health tests.
 	accounts *accounts
 	// The machine scan; nil when no vision model is set up.
 	scan *machineScan

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,10 +33,11 @@ import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
+import com.tomhartill.kinzo.ui.components.kinzoSwitchColors
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 import org.koin.compose.viewmodel.koinViewModel
 
-/** The signed-in account: username, friends, signing out and deleting the account. */
+/** The signed-in account: username, friends, privacy, signing out and deleting the account. */
 @Composable
 fun AccountScreen(
     onBack: () -> Unit,
@@ -86,7 +88,18 @@ fun AccountScreen(
             }
             KinzoCard(onClick = onOpenFriends) {
                 Text("Friends", style = MaterialTheme.typography.titleMedium)
-                Text("Add friends and answer requests", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                Text("Who you follow, your followers and requests", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                    Text("Private account", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "New followers need your approval. Body stats and photos are never shared either way.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = current.isPrivate, onCheckedChange = viewModel::setPrivate, enabled = !busy, colors = kinzoSwitchColors())
             }
 
             val phone = current.phone
@@ -153,7 +166,7 @@ fun AccountScreen(
     if (confirmDelete) {
         ConfirmDialog(
             title = "Delete your account?",
-            message = "This deletes your Kinzo account and your friends list for good. Workouts on this phone stay here. This can't be undone.",
+            message = "This deletes your Kinzo account, followers and following for good. Workouts on this phone stay here. This can't be undone.",
             confirmLabel = "Delete",
             destructive = true,
             onConfirm = {

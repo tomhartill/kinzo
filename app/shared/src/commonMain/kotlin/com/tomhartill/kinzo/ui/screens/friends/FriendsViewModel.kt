@@ -5,10 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.tomhartill.kinzo.account.Sharer
 import com.tomhartill.kinzo.data.AccountRepository
 import com.tomhartill.kinzo.data.api.ApiException
-import com.tomhartill.kinzo.data.api.FriendLists
+import com.tomhartill.kinzo.data.api.FollowLists
+import com.tomhartill.kinzo.data.api.Following
 import com.tomhartill.kinzo.data.api.KinzoApi
 import com.tomhartill.kinzo.data.api.Person
-import com.tomhartill.kinzo.data.api.Relationship
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Friends, requests, search and invite links. Needs an account and a connection. */
+/** Followers, following, follow requests, search and invite links. Needs an account and a connection. */
 class FriendsViewModel(
     private val api: KinzoApi,
     accounts: AccountRepository,
@@ -27,7 +27,7 @@ class FriendsViewModel(
     data class State(
         val signedIn: Boolean = false,
         val loading: Boolean = false,
-        val lists: FriendLists? = null,
+        val lists: FollowLists? = null,
         /** Why the lists couldn't load. */
         val loadError: String? = null,
         val query: String = "",
@@ -61,7 +61,7 @@ class FriendsViewModel(
         _state.update { it.copy(loading = true, loadError = null) }
         viewModelScope.launch {
             try {
-                val lists = api.friends()
+                val lists = api.follows()
                 _state.update { it.copy(loading = false, lists = lists) }
             } catch (e: ApiException) {
                 _state.update { it.copy(loading = false, loadError = e.message) }
@@ -89,25 +89,28 @@ class FriendsViewModel(
         }
     }
 
-    fun add(person: Person) = act(person) {
-        val relationship = api.sendFriendRequest(person.id)
-        setRelationship(person.id, relationship)
+    /** Follows them, or asks to if their account is private. */
+    fun follow(person: Person) = act(person) {
+        val updated = api.follow(person.id)
+        setResult(person.id) { updated }
     }
 
+    /** Unfollows them, or withdraws a request to follow. */
+    fun unfollow(person: Person) = act(person) {
+        api.unfollow(person.id)
+        setResult(person.id) { it.copy(following = Following.None) }
+    }
+
+    /** Approves their request to follow you. */
     fun accept(person: Person) = act(person) {
-        api.acceptFriendRequest(person.id)
-        setRelationship(person.id, Relationship.Friends)
+        api.acceptFollower(person.id)
+        setResult(person.id) { it.copy(followsYou = true, requestedYou = false) }
     }
 
-    /** Declines their request, or cancels yours. */
-    fun withdraw(person: Person) = act(person) {
-        api.deleteFriendRequest(person.id)
-        setRelationship(person.id, Relationship.None)
-    }
-
-    fun remove(person: Person) = act(person) {
-        api.removeFriend(person.id)
-        setRelationship(person.id, Relationship.None)
+    /** Stops them following you, or declines their request. */
+    fun removeFollower(person: Person) = act(person) {
+        api.removeFollower(person.id)
+        setResult(person.id) { it.copy(followsYou = false, requestedYou = false) }
     }
 
     fun block(person: Person) = act(person) {
@@ -139,7 +142,7 @@ class FriendsViewModel(
             try {
                 action()
                 // The lists come from the server, so they're always the truth after a change.
-                val lists = api.friends()
+                val lists = api.follows()
                 _state.update { it.copy(lists = lists) }
             } catch (e: ApiException) {
                 _state.update { it.copy(message = e.message) }
@@ -149,10 +152,8 @@ class FriendsViewModel(
         }
     }
 
-    private fun setRelationship(id: String, relationship: Relationship) {
-        _state.update { s ->
-            s.copy(results = s.results?.map { if (it.id == id) it.copy(relationship = relationship) else it })
-        }
+    private fun setResult(id: String, change: (Person) -> Person) {
+        _state.update { s -> s.copy(results = s.results?.map { if (it.id == id) change(it) else it }) }
     }
 
     private companion object {

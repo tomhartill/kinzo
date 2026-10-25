@@ -19,14 +19,14 @@ class KinzoApiTest {
         var seenAuth: String? = null
         val engine = MockEngine { request ->
             seenAuth = request.headers[HttpHeaders.Authorization]
-            respond("""{"users":[{"id":"u1","username":"sam","display_name":"Sam","relationship":"request_received","extra":1}]}""", HttpStatusCode.OK, json)
+            respond("""{"users":[{"id":"u1","username":"sam","display_name":"Sam","following":"requested","follows_you":true,"extra":1}]}""", HttpStatusCode.OK, json)
         }
         val api = KinzoApi("https://kinzo.test", token = { "kz_abc" }, onSignedOut = {}, engine = engine)
 
         val people = api.searchPeople("sam")
 
         assertEquals("Bearer kz_abc", seenAuth)
-        assertEquals(listOf(Person("u1", "sam", "Sam", null, Relationship.RequestReceived)), people)
+        assertEquals(listOf(Person("u1", "sam", "Sam", following = Following.Requested, followsYou = true)), people)
     }
 
     @Test
@@ -80,7 +80,7 @@ class KinzoApiTest {
     @Test
     fun saysWhenNotSetUp() = runTest {
         val api = KinzoApi("", token = { "kz_abc" }, onSignedOut = {}, engine = MockEngine { error("no request expected") })
-        assertEquals(ApiException.NOT_CONFIGURED, assertFailsWith<ApiException> { api.friends() }.code)
+        assertEquals(ApiException.NOT_CONFIGURED, assertFailsWith<ApiException> { api.follows() }.code)
     }
 
     @Test

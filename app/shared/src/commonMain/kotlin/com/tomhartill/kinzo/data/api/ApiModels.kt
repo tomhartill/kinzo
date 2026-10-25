@@ -19,40 +19,47 @@ data class Account(
     val phone: String? = null,
     /** How they can sign in, e.g. google, facebook, phone. */
     @SerialName("sign_in_methods") val signInMethods: List<String> = emptyList(),
+    /** Private accounts approve each new follower. */
+    @SerialName("private") val isPrivate: Boolean = false,
 ) {
     /** The name to show: their display name, or their username if they have none. */
     val name: String get() = displayName.ifBlank { "@$username" }
 }
 
-/** Someone else, with how the signed-in person relates to them. */
+/** Someone else, with how the signed-in person and they follow each other. */
 @Serializable
 data class Person(
     val id: String,
     val username: String,
     @SerialName("display_name") val displayName: String = "",
     @SerialName("avatar_url") val avatarUrl: String? = null,
-    val relationship: Relationship = Relationship.None,
+    @SerialName("private") val isPrivate: Boolean = false,
+    /** Whether you follow them, or have asked to. */
+    val following: Following = Following.None,
+    @SerialName("follows_you") val followsYou: Boolean = false,
+    /** They've asked to follow your private account. */
+    @SerialName("requested_you") val requestedYou: Boolean = false,
 ) {
     val name: String get() = displayName.ifBlank { "@$username" }
 }
 
 @Serializable
-enum class Relationship {
+enum class Following {
     @SerialName("none") None,
-    @SerialName("friends") Friends,
 
-    /** You asked; waiting for them. */
-    @SerialName("request_sent") RequestSent,
+    /** Asked to follow a private account; waiting for them. */
+    @SerialName("requested") Requested,
 
-    /** They asked; waiting for you. */
-    @SerialName("request_received") RequestReceived,
+    @SerialName("following") Yes,
 }
 
 @Serializable
-data class FriendLists(
-    val friends: List<Person> = emptyList(),
-    val incoming: List<Person> = emptyList(),
-    val outgoing: List<Person> = emptyList(),
+data class FollowLists(
+    val followers: List<Person> = emptyList(),
+    /** Includes requests you've sent to private accounts. */
+    val following: List<Person> = emptyList(),
+    /** People waiting to follow your private account. */
+    val requests: List<Person> = emptyList(),
 )
 
 @Serializable
@@ -117,7 +124,6 @@ data class UsernameCheck(val username: String, val available: Boolean, val valid
 internal data class PeopleResponse(val users: List<Person>)
 
 @Serializable
-internal data class RelationshipResponse(val relationship: Relationship)
 
 @Serializable
 internal data class ErrorBody(
@@ -139,6 +145,7 @@ internal data class IdTokenRequest(@SerialName("id_token") val idToken: String)
 internal data class ProfileUpdate(
     val username: String? = null,
     @SerialName("display_name") val displayName: String? = null,
+    @SerialName("private") val isPrivate: Boolean? = null,
 )
 
 @Serializable

@@ -60,7 +60,7 @@ fun InviteScreen(
         ) {
             when (val current = state) {
                 InviteViewModel.State.SignedOut -> {
-                    Message("You've been invited to Kinzo", "Sign in to accept the invite and become friends.")
+                    Message("You've been invited to Kinzo", "Sign in to accept the invite and follow each other.")
                     SignInPanel(onSignedIn = onSignedIn, onEmail = onEmail)
                 }
                 InviteViewModel.State.Loading -> Box(Modifier.fillMaxWidth().padding(top = spacing.xl), contentAlignment = Alignment.Center) {
@@ -70,23 +70,23 @@ fun InviteScreen(
                     Avatar(current.inviter.name, size = 88.dp)
                     Message(
                         "${current.inviter.name} invited you",
-                        "Become friends to see each other's workouts and PRs. @${current.inviter.username}",
+                        "Follow each other to see each other's workouts and PRs. @${current.inviter.username}",
                     )
                     PrimaryButton(
-                        text = if (current.accepting) "Adding…" else "Become friends",
+                        text = if (current.accepting) "Following…" else "Follow each other",
                         onClick = viewModel::accept,
                         enabled = !current.accepting,
                     )
                     current.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.error, textAlign = TextAlign.Center) }
                     SecondaryButton(text = "Not now", onClick = onClose)
                 }
-                is InviteViewModel.State.Friends -> {
+                is InviteViewModel.State.FollowingEachOther -> {
                     Avatar(current.person.name, size = 88.dp)
-                    Message("You and ${current.person.name} are friends", "You'll see each other's workouts and PRs.")
+                    Message("You and ${current.person.name} follow each other", "You'll see each other's workouts and PRs.")
                     PrimaryButton(text = "See friends", onClick = onOpenFriends)
                 }
                 InviteViewModel.State.Yours -> {
-                    Message("This is your own invite", "Send it to a friend and they can add you in one tap.")
+                    Message("This is your own invite", "Send it to a friend and you'll follow each other in one tap.")
                     PrimaryButton(text = "See friends", onClick = onOpenFriends)
                 }
                 InviteViewModel.State.Invalid -> {

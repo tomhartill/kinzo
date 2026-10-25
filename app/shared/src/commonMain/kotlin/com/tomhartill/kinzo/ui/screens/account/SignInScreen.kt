@@ -49,7 +49,7 @@ fun SignInScreen(onClose: () -> Unit, onSignedIn: (newUser: Boolean) -> Unit, on
                 color = colors.onSurfaceVariant,
             )
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
-                Benefit("Friends, to see each other's workouts and PRs")
+                Benefit("Follow friends and see each other's workouts and PRs")
                 Benefit("Backup and sync between your devices, coming soon")
                 Benefit("The AI coach, when it arrives")
             }

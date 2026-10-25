@@ -9,8 +9,8 @@ import (
 	"github.com/tomhartill/kinzo/api/internal/store"
 )
 
-// friendError answers the errors friend actions share.
-func (s *Server) friendError(w http.ResponseWriter, what string, err error) bool {
+// peopleError answers the errors follow and block actions share.
+func (s *Server) peopleError(w http.ResponseWriter, what string, err error) bool {
 	switch {
 	case err == nil:
 		return false
@@ -26,63 +26,63 @@ func (s *Server) friendError(w http.ResponseWriter, what string, err error) bool
 
 func (s *Server) searchUsers(w http.ResponseWriter, r *http.Request, sess session) {
 	people, err := s.accounts.store.SearchUsers(r.Context(), sess.user.ID, r.URL.Query().Get("q"))
-	if s.friendError(w, "search users", err) {
+	if s.peopleError(w, "search users", err) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"users": people})
 }
 
 func (s *Server) getUser(w http.ResponseWriter, r *http.Request, sess session) {
-	person, err := s.accounts.store.PersonByID(r.Context(), sess.user.ID, r.PathValue("id"))
-	if s.friendError(w, "get user", err) {
+	profile, err := s.accounts.store.ProfileByID(r.Context(), sess.user.ID, r.PathValue("id"))
+	if s.peopleError(w, "get user", err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, person)
+	writeJSON(w, http.StatusOK, profile)
 }
 
-func (s *Server) listFriends(w http.ResponseWriter, r *http.Request, sess session) {
-	lists, err := s.accounts.store.Friends(r.Context(), sess.user.ID)
-	if s.friendError(w, "list friends", err) {
+func (s *Server) listFollows(w http.ResponseWriter, r *http.Request, sess session) {
+	lists, err := s.accounts.store.Follows(r.Context(), sess.user.ID)
+	if s.peopleError(w, "list follows", err) {
 		return
 	}
 	writeJSON(w, http.StatusOK, lists)
 }
 
-func (s *Server) sendFriendRequest(w http.ResponseWriter, r *http.Request, sess session) {
+func (s *Server) follow(w http.ResponseWriter, r *http.Request, sess session) {
 	var body struct {
 		UserID string `json:"user_id"`
 	}
 	if !readJSON(w, r, &body) {
 		return
 	}
-	rel, err := s.accounts.store.SendFriendRequest(r.Context(), sess.user.ID, body.UserID)
-	if s.friendError(w, "send friend request", err) {
+	person, err := s.accounts.store.Follow(r.Context(), sess.user.ID, body.UserID)
+	if s.peopleError(w, "follow", err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"relationship": rel})
+	writeJSON(w, http.StatusOK, person)
 }
 
-func (s *Server) acceptFriendRequest(w http.ResponseWriter, r *http.Request, sess session) {
-	err := s.accounts.store.AcceptFriendRequest(r.Context(), sess.user.ID, r.PathValue("id"))
+func (s *Server) unfollow(w http.ResponseWriter, r *http.Request, sess session) {
+	if s.peopleError(w, "unfollow", s.accounts.store.Unfollow(r.Context(), sess.user.ID, r.PathValue("id"))) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) acceptFollower(w http.ResponseWriter, r *http.Request, sess session) {
+	err := s.accounts.store.AcceptFollower(r.Context(), sess.user.ID, r.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "not_found", "That friend request has been withdrawn.")
+		writeError(w, http.StatusNotFound, "not_found", "That request has been withdrawn.")
 		return
 	}
-	if s.friendError(w, "accept friend request", err) {
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) deleteFriendRequest(w http.ResponseWriter, r *http.Request, sess session) {
-	if s.friendError(w, "delete friend request", s.accounts.store.DeleteFriendRequest(r.Context(), sess.user.ID, r.PathValue("id"))) {
+	if s.peopleError(w, "accept follower", err) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) removeFriend(w http.ResponseWriter, r *http.Request, sess session) {
-	if s.friendError(w, "remove friend", s.accounts.store.RemoveFriend(r.Context(), sess.user.ID, r.PathValue("id"))) {
+func (s *Server) removeFollower(w http.ResponseWriter, r *http.Request, sess session) {
+	if s.peopleError(w, "remove follower", s.accounts.store.RemoveFollower(r.Context(), sess.user.ID, r.PathValue("id"))) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -90,7 +90,7 @@ func (s *Server) removeFriend(w http.ResponseWriter, r *http.Request, sess sessi
 
 func (s *Server) listBlocks(w http.ResponseWriter, r *http.Request, sess session) {
 	people, err := s.accounts.store.Blocked(r.Context(), sess.user.ID)
-	if s.friendError(w, "list blocks", err) {
+	if s.peopleError(w, "list blocks", err) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"users": people})
@@ -103,14 +103,14 @@ func (s *Server) block(w http.ResponseWriter, r *http.Request, sess session) {
 	if !readJSON(w, r, &body) {
 		return
 	}
-	if s.friendError(w, "block", s.accounts.store.Block(r.Context(), sess.user.ID, body.UserID)) {
+	if s.peopleError(w, "block", s.accounts.store.Block(r.Context(), sess.user.ID, body.UserID)) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) unblock(w http.ResponseWriter, r *http.Request, sess session) {
-	if s.friendError(w, "unblock", s.accounts.store.Unblock(r.Context(), sess.user.ID, r.PathValue("id"))) {
+	if s.peopleError(w, "unblock", s.accounts.store.Unblock(r.Context(), sess.user.ID, r.PathValue("id"))) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -155,7 +155,7 @@ func (s *Server) getInvite(w http.ResponseWriter, r *http.Request, sess session)
 		s.internalError(w, "get invite", err)
 		return
 	}
-	person, err := s.accounts.store.PersonByID(r.Context(), sess.user.ID, inviter.ID)
+	profile, err := s.accounts.store.ProfileByID(r.Context(), sess.user.ID, inviter.ID)
 	if errors.Is(err, store.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "invite_not_found", "This invite link no longer works. Ask for a new one.")
 		return
@@ -164,7 +164,7 @@ func (s *Server) getInvite(w http.ResponseWriter, r *http.Request, sess session)
 		s.internalError(w, "get invite", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"inviter": person, "is_you": inviter.ID == sess.user.ID})
+	writeJSON(w, http.StatusOK, map[string]any{"inviter": profile.Person, "is_you": inviter.ID == sess.user.ID})
 }
 
 func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request, sess session) {
@@ -173,10 +173,10 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request, sess sessi
 		writeError(w, http.StatusNotFound, "invite_not_found", "This invite link no longer works. Ask for a new one.")
 		return
 	}
-	if s.friendError(w, "accept invite", err) {
+	if s.peopleError(w, "accept invite", err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, store.Person{PublicUser: inviter, Relationship: store.RelationFriends})
+	writeJSON(w, http.StatusOK, inviter)
 }
 
 // invitePage is what an invite link opens in a browser: who sent it and a button that opens
@@ -198,7 +198,7 @@ func (s *Server) invitePage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = pageTemplate.Execute(w, page{
 		Title:      name + " wants to train with you",
-		Body:       "Open the invite in Kinzo to become friends and see each other's workouts and PRs.",
+		Body:       "Open the invite in Kinzo to follow each other and see each other's workouts and PRs.",
 		ButtonText: "Open in Kinzo",
 		ButtonURL:  template.URL("kinzo://invite/" + strings.Trim(code, "/")),
 	})

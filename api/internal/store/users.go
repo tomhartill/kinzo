@@ -47,8 +47,10 @@ type User struct {
 	// Phone is the person's own number in E.164, when they sign in with phone codes.
 	Phone string `json:"phone,omitempty"`
 	// SignInMethods are the ways into the account, such as "google" and "phone".
-	SignInMethods []string  `json:"sign_in_methods"`
-	CreatedAt     time.Time `json:"created_at"`
+	SignInMethods []string `json:"sign_in_methods"`
+	// Private accounts approve each new follower.
+	Private   bool      `json:"private"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // PublicUser is what other people see of someone: never their email.
@@ -68,13 +70,13 @@ func userColumnsOf(t string) string {
 		coalesce(%[1]savatar_url, ''), coalesce(%[1]semail, ''), %[1]semail_verified_at IS NOT NULL,
 		coalesce((SELECT subject FROM auth_identities WHERE user_id = %[1]sid AND provider = 'phone'), ''),
 		array(SELECT provider FROM auth_identities WHERE user_id = %[1]sid ORDER BY provider),
-		%[1]screated_at`, t)
+		%[1]sprivate, %[1]screated_at`, t)
 }
 
 // scanTargets are where a row of userColumns goes, in order.
 func (u *User) scanTargets() []any {
 	return []any{&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Email, &u.EmailVerified,
-		&u.Phone, &u.SignInMethods, &u.CreatedAt}
+		&u.Phone, &u.SignInMethods, &u.Private, &u.CreatedAt}
 }
 
 func scanUser(row pgx.Row) (User, error) {
@@ -194,8 +196,9 @@ func createUser(ctx context.Context, tx pgx.Tx, name, avatarURL, email string, e
 	return "", errors.New("couldn't find a free username")
 }
 
-// UpdateProfile changes the username and/or display name. Nil leaves a field as it is.
-func (s *Store) UpdateProfile(ctx context.Context, userID string, username, displayName *string) (User, error) {
+// UpdateProfile changes the username, display name and whether the account is private. Nil
+// leaves a field as it is. Going public approves everyone waiting to follow.
+func (s *Store) UpdateProfile(ctx context.Context, userID string, username, displayName *string, private *bool) (User, error) {
 	if username != nil {
 		u := NormalizeUsername(*username)
 		if !ValidUsername(u) {
@@ -210,13 +213,25 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, username, disp
 		}
 		displayName = &d
 	}
-	user, err := scanUser(s.pool.QueryRow(ctx, `
-		UPDATE users SET
-			username = coalesce($2, username),
-			display_name = coalesce($3, display_name),
-			updated_at = now()
-		WHERE id = $1::uuid AND deleted_at IS NULL
-		RETURNING `+userColumns, userID, username, displayName))
+	var user User
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		user, err = scanUser(tx.QueryRow(ctx, `
+			UPDATE users SET
+				username = coalesce($2, username),
+				display_name = coalesce($3, display_name),
+				private = coalesce($4, private),
+				updated_at = now()
+			WHERE id = $1::uuid AND deleted_at IS NULL
+			RETURNING `+userColumns, userID, username, displayName, private))
+		if err != nil || user.Private {
+			return err
+		}
+		_, err = tx.Exec(ctx, `
+			UPDATE connections SET status = 'accepted', accepted_at = now()
+			WHERE owner_id = $1::uuid AND role = 'follow' AND status = 'pending'`, userID)
+		return err
+	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		return User{}, ErrUsernameTaken
@@ -236,7 +251,7 @@ func (s *Store) UsernameAvailable(ctx context.Context, userID, username string) 
 	return !taken, err
 }
 
-// DeleteAccount removes the user and everything of theirs: sessions, friendships, workouts.
+// DeleteAccount removes the user and everything of theirs: sessions, follows, workouts.
 func (s *Store) DeleteAccount(ctx context.Context, userID string) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM users WHERE id = $1::uuid`, userID)
 	return err

@@ -17,7 +17,7 @@ that aren't built yet have a spec in [`docs/specs/`](docs/specs).
 | [`tools/`](tools) | Scripts that build the exercise catalogue and pictograms | Python |
 
 The app is offline-first: it reads and writes a local database on the phone. Syncing with the
-API is the next big piece; today only accounts and friends go through the API.
+API is the next big piece; today only accounts and follows go through the API.
 
 ## Getting started
 

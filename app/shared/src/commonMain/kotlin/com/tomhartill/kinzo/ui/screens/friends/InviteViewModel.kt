@@ -6,7 +6,7 @@ import com.tomhartill.kinzo.data.AccountRepository
 import com.tomhartill.kinzo.data.api.ApiException
 import com.tomhartill.kinzo.data.api.KinzoApi
 import com.tomhartill.kinzo.data.api.Person
-import com.tomhartill.kinzo.data.api.Relationship
+import com.tomhartill.kinzo.data.api.Following
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** A friend's invite link, opened in the app. Accepting it makes you friends straight away. */
+/** A friend's invite link, opened in the app. Accepting it makes you follow each other straight away. */
 class InviteViewModel(
     private val code: String,
     private val api: KinzoApi,
@@ -31,7 +31,8 @@ class InviteViewModel(
         /** Your own link, opened on your own phone. */
         data object Yours : State
 
-        data class Friends(val person: Person) : State
+        /** You and they follow each other. */
+        data class FollowingEachOther(val person: Person) : State
 
         /** The link was reset or never existed. */
         data object Invalid : State
@@ -57,7 +58,7 @@ class InviteViewModel(
                 val preview = api.invite(code)
                 when {
                     preview.isYou -> State.Yours
-                    preview.inviter.relationship == Relationship.Friends -> State.Friends(preview.inviter)
+                    preview.inviter.following == Following.Yes && preview.inviter.followsYou -> State.FollowingEachOther(preview.inviter)
                     else -> State.Ready(preview.inviter)
                 }
             } catch (e: ApiException) {
@@ -72,7 +73,7 @@ class InviteViewModel(
         _state.value = ready.copy(accepting = true, error = null)
         viewModelScope.launch {
             try {
-                _state.value = State.Friends(api.acceptInvite(code))
+                _state.value = State.FollowingEachOther(api.acceptInvite(code))
             } catch (e: ApiException) {
                 _state.update { if (e.status == 404) State.Invalid else ready.copy(accepting = false, error = e.message) }
             }

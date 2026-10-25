@@ -38,8 +38,8 @@ keeps health data private. Mid-workout, the network is never on the critical pat
 | Profile (sex, date of birth, height, units) | Phone, synced | Edited locally like everything else; the server keeps the copy that other devices pull. |
 | Body measurements | Phone, synced | Private by default, so it never needs the server unless shared. |
 | Sign-in, sessions, tokens | Server | Needs secrets and must be trusted. |
-| Usernames, user search, friends, blocks, invites | Server | Needs other people's data. |
-| Feed and a friend's profile | Server queries, phone renders and caches | The server filters by the connection's scope on every request; the phone caches the last result so the screen opens instantly. |
+| Usernames, user search, follows, blocks, invites | Server | Needs other people's data. |
+| Feed and someone's profile | Server queries, phone renders and caches | The server filters by the connection's scope on every request; the phone caches the last result so the screen opens instantly. |
 | Sync (push, then pull changes since a cursor) | Both | The phone decides what changed; the server is the store of record and resolves conflicts (last write wins per row). |
 | AI coach chat, AI programme generation | Server proxy to the model | Needs a secret key, costs money and must be rate-limited. The phone sends a compact summary, not the raw history. |
 | Scan a machine (first version, built) | Server proxy to a vision model (`POST /v1/scan/machine`) | Same reasons as the coach. The server sends the photo and the machine list to Claude Haiku and answers with catalogue IDs, so the phone needs no extra data. Capped per user per day. |
@@ -101,8 +101,8 @@ future "download the latest catalogue" endpoint read from one source.
 - Check the connection and its scope on every request for someone else's data, in SQL rather
   than by loading rows and filtering in Go.
 - Rate-limit everything that costs money or can be abused: code sign-in, AI calls, user search.
-- Precompute the feed only if live queries get slow. With friends lists in the tens, a query over
-  friends' recent workouts is fine.
+- Precompute the feed only if live queries get slow. With following lists in the tens, a query
+  over their recent workouts is fine.
 
 ## Quick test for a new feature
 

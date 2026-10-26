@@ -193,6 +193,15 @@ many sessions you've done.
 A tiny line next to each exercise shows your last 12 sessions at a glance, with an up, down or
 flat mark.
 
+### Demo profile
+**Status:** Shipped
+
+Switch to a demo profile in Profile → Developer to see Kinzo with four months of made-up
+training already logged: push, pull and leg days, Saturday runs, a lighter week, a stalled squat
+and the odd missed session. Every progress chart and trend line has something to show straight
+away. Your own workouts are kept completely apart and come back when you switch off. Kinzo
+restarts to switch (on iPhone, close and reopen it). Meant for testing the alpha.
+
 ### Trends for muscles and body regions
 **Status:** Planned
 

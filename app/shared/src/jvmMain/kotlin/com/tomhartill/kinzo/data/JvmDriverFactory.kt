@@ -7,16 +7,18 @@ import java.io.File
 import java.util.Properties
 
 /**
- * Desktop (development) database, stored in ~/.kinzo by default. Pass
- * [JdbcSqliteDriver.IN_MEMORY] for a throwaway database in tests.
+ * Desktop (development) databases, stored in ~/.kinzo by default. Pass a [url] such as
+ * [JdbcSqliteDriver.IN_MEMORY] to open that instead, whatever the name: a throwaway database in
+ * tests.
  */
-class JvmDriverFactory(private val url: String = defaultUrl()) : DriverFactory {
-    override fun createDriver(): SqlDriver = JdbcSqliteDriver(url, Properties(), KinzoDatabase.Schema)
+class JvmDriverFactory(private val url: String? = null) : DriverFactory {
+    override fun createDriver(name: String): SqlDriver =
+        JdbcSqliteDriver(url ?: defaultUrl(name), Properties(), KinzoDatabase.Schema)
 
     private companion object {
-        fun defaultUrl(): String {
+        fun defaultUrl(name: String): String {
             val directory = File(System.getProperty("user.home"), ".kinzo").apply { mkdirs() }
-            return "jdbc:sqlite:${File(directory, DATABASE_NAME).absolutePath}"
+            return "jdbc:sqlite:${File(directory, name).absolutePath}"
         }
     }
 }

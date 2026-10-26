@@ -4,6 +4,7 @@ import com.tomhartill.kinzo.KinzoConfig
 import com.tomhartill.kinzo.data.AccountRepository
 import com.tomhartill.kinzo.data.CatalogueImporter
 import com.tomhartill.kinzo.data.CatalogueRepository
+import com.tomhartill.kinzo.data.DemoProfile
 import com.tomhartill.kinzo.data.DriverFactory
 import com.tomhartill.kinzo.data.GuidanceRepository
 import com.tomhartill.kinzo.data.KinzoWorkoutsImporter
@@ -16,7 +17,6 @@ import com.tomhartill.kinzo.data.SplitRepository
 import com.tomhartill.kinzo.data.TrendRepository
 import com.tomhartill.kinzo.data.WorkoutRepository
 import com.tomhartill.kinzo.data.api.KinzoApi
-import com.tomhartill.kinzo.data.createDatabase
 import com.tomhartill.kinzo.domain.RestTimer
 import com.tomhartill.kinzo.resources.Res
 import com.tomhartill.kinzo.ui.AppViewModel
@@ -54,8 +54,10 @@ import kotlin.time.Clock
 
 @OptIn(ExperimentalResourceApi::class)
 internal fun dataModule(driverFactory: DriverFactory): Module = module {
-    single { driverFactory.createDatabase() }
     single<Clock> { Clock.System }
+    // The real database, or the demo profile's when that is switched on.
+    single { DemoProfile(driverFactory, get(), get()) }
+    single { get<DemoProfile>().openActiveDatabase() }
     single { CatalogueRepository(get()) }
     single { SettingsRepository(get()) }
     single { GuidanceRepository(get()) }
@@ -114,7 +116,8 @@ internal val viewModelModule: Module = module {
  * Called once at startup by each platform, which supplies its own SQLite driver and a
  * [platformModule] with its sign-in and share sheet ([com.tomhartill.kinzo.account.BrowserSignIn],
  * [com.tomhartill.kinzo.account.NativeGoogleSignIn], [com.tomhartill.kinzo.account.Sharer]) and
- * its camera and photo storage ([com.tomhartill.kinzo.photos.Camera], [com.tomhartill.kinzo.photos.PhotoFiles]).
+ * its camera and photo storage ([com.tomhartill.kinzo.photos.Camera], [com.tomhartill.kinzo.photos.PhotoFiles]), and
+ * how it restarts ([com.tomhartill.kinzo.data.AppRestarter]).
  */
 fun initKoin(driverFactory: DriverFactory, platformModule: Module) {
     startKoin {

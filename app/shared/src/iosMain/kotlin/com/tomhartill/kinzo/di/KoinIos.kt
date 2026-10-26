@@ -11,6 +11,7 @@ import com.tomhartill.kinzo.photos.Camera
 import com.tomhartill.kinzo.photos.IosCamera
 import com.tomhartill.kinzo.photos.IosPhotoFiles
 import com.tomhartill.kinzo.photos.PhotoFiles
+import com.tomhartill.kinzo.data.AppRestarter
 import org.koin.dsl.module
 
 /** Swift entry point: `KoinIosKt.doInitKoinIos()`. */
@@ -22,5 +23,7 @@ fun initKoinIos() = initKoin(
         single<Sharer> { IosSharer() }
         single<Camera> { IosCamera() }
         single<PhotoFiles> { IosPhotoFiles() }
+        // iOS apps can't reopen themselves.
+        single<AppRestarter> { AppRestarter { false } }
     },
 )

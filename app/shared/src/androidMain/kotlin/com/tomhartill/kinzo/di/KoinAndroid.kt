@@ -13,6 +13,8 @@ import com.tomhartill.kinzo.photos.AndroidCamera
 import com.tomhartill.kinzo.photos.Camera
 import com.tomhartill.kinzo.photos.FilePhotoFiles
 import com.tomhartill.kinzo.photos.PhotoFiles
+import com.tomhartill.kinzo.data.AndroidAppRestarter
+import com.tomhartill.kinzo.data.AppRestarter
 import org.koin.dsl.module
 
 /** Called from the Application's onCreate, before any activity exists. */
@@ -26,5 +28,6 @@ fun initKoinAndroid(application: Application) = initKoin(
         single<Sharer> { AndroidSharer(get()) }
         single<Camera> { AndroidCamera(application, get()) }
         single<PhotoFiles> { FilePhotoFiles(application.filesDir.resolve("photos")) }
+        single<AppRestarter> { AndroidAppRestarter(application) }
     },
 )

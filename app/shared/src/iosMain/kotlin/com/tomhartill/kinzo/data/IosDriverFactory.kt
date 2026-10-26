@@ -5,5 +5,5 @@ import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import com.tomhartill.kinzo.db.KinzoDatabase
 
 class IosDriverFactory : DriverFactory {
-    override fun createDriver(): SqlDriver = NativeSqliteDriver(KinzoDatabase.Schema, DATABASE_NAME)
+    override fun createDriver(name: String): SqlDriver = NativeSqliteDriver(KinzoDatabase.Schema, name)
 }

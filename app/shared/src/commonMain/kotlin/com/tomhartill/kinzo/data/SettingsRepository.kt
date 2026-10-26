@@ -47,7 +47,7 @@ class SettingsRepository(
         queries.putSetting(key = key, value = value)
     }
 
-    private companion object {
+    internal companion object {
         const val WEIGHT_UNIT = "weight_unit"
         const val REST_SECONDS = "rest_seconds"
         const val THEME = "appearance.theme"

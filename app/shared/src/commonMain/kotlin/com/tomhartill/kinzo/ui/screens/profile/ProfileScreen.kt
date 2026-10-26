@@ -45,6 +45,7 @@ fun ProfileScreen(
     val colors = MaterialTheme.colorScheme
 
     TitledScreen(title = "Profile", modifier = modifier) {
+        DemoProfileNotice()
         SectionHeader("Account")
         val signedIn = account
         if (signedIn == null) {
@@ -148,6 +149,7 @@ fun ProfileScreen(
         )
 
         SectionHeader("Developer")
+        DemoProfileSetting()
         SecondaryButton(text = "Design system", onClick = onOpenDesignSystem)
     }
 }

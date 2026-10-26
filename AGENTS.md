@@ -26,7 +26,7 @@ finish something on the roadmap below, update "Where things stand" in the same c
 | --- | --- |
 | App: logging | Exercise library (about 915 exercises with pictograms, variations folded into groups such as Chest press, and 52 named machines), scan a machine with the camera to pick its exercise, live workout screen with sets, rest timer, reorder, swipe to delete, history with workout detail; edit any past workout, or resume one finished in the last three hours |
 | App: planning | Saved workouts (routines) with ready-made ones, workout types, splits, mesocycles |
-| App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database; a cached trend sparkline per exercise in the exercise list ([plan for muscles and regions](docs/specs/strength-trends.md)) |
+| App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database; a cached trend sparkline per exercise in the exercise list ([plan for muscles and regions](docs/specs/strength-trends.md)); a demo profile (Profile → Developer) with 16 weeks of made-up history in its own database, `kinzo-demo.db` |
 | App: body | Progress photos from Profile: take one by pose (front, side, back), browse by day, delete. Private to the phone |
 | App: accounts | Optional sign-in with Google or Facebook, or email and a phone code; username and name picker; account screen (add a phone, sign out, delete) |
 | App: appearance | Seven colour themes (Mono default, plus pastels) in light and dark, picked in Profile; no borders anywhere, everything stands apart by fill |

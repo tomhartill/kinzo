@@ -6,6 +6,6 @@ import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.tomhartill.kinzo.db.KinzoDatabase
 
 class AndroidDriverFactory(private val context: Context) : DriverFactory {
-    override fun createDriver(): SqlDriver =
-        AndroidSqliteDriver(KinzoDatabase.Schema, context.applicationContext, DATABASE_NAME)
+    override fun createDriver(name: String): SqlDriver =
+        AndroidSqliteDriver(KinzoDatabase.Schema, context.applicationContext, name)
 }

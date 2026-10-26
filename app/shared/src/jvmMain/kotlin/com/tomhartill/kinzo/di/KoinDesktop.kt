@@ -11,6 +11,7 @@ import com.tomhartill.kinzo.photos.Camera
 import com.tomhartill.kinzo.photos.DesktopCamera
 import com.tomhartill.kinzo.photos.FilePhotoFiles
 import com.tomhartill.kinzo.photos.PhotoFiles
+import com.tomhartill.kinzo.data.AppRestarter
 import org.koin.dsl.module
 
 /** The desktop app's startup. */
@@ -22,5 +23,7 @@ fun initKoinDesktop() = initKoin(
         single<Sharer> { DesktopSharer() }
         single<Camera> { DesktopCamera() }
         single<PhotoFiles> { FilePhotoFiles() }
+        // Development only: run it again to switch profile.
+        single<AppRestarter> { AppRestarter { false } }
     },
 )

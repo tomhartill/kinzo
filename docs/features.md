@@ -94,6 +94,13 @@ Start a workout, add exercises and log each set as weight and reps, reps only, t
 distance, then tick it off. Everything is saved on the phone and works with no signal and no
 account.
 
+### Ticked sets stand out
+**Status:** Shipped
+
+When you tick off a set, the whole row fills with your theme's accent colour and its numbers
+switch to the contrasting colour, so finished sets are easy to tell apart at a glance in every
+colour theme, light or dark.
+
 ### Last time's numbers
 **Status:** Shipped
 

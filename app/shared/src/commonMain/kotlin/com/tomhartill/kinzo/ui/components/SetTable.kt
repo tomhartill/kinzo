@@ -280,7 +280,8 @@ fun SetEditorRow(
         }
     }
 
-    val background by animateColorAsState(if (set.isCompleted) colors.surfaceContainerHigh else Color.Transparent)
+    // A ticked set fills with the accent colour and everything on it flips to the accent's text colour.
+    val background by animateColorAsState(if (set.isCompleted) colors.primary else Color.Transparent)
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -290,11 +291,11 @@ fun SetEditorRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm),
     ) {
-        SetLabel(label = label, isWarmup = set.isWarmup, onToggleWarmup = onToggleWarmup, onRemove = onRemove)
+        SetLabel(label = label, isWarmup = set.isWarmup, isCompleted = set.isCompleted, onToggleWarmup = onToggleWarmup, onRemove = onRemove)
         Text(
             text = previous?.let { Format.set(type, it.values, unit, compact = true) } ?: "–",
             style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-            color = colors.onSurfaceVariant,
+            color = if (set.isCompleted) colors.onPrimary else colors.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
@@ -475,13 +476,17 @@ fun TargetInputs(
 }
 
 @Composable
-private fun SetLabel(label: String, isWarmup: Boolean, onToggleWarmup: () -> Unit, onRemove: () -> Unit) {
+private fun SetLabel(label: String, isWarmup: Boolean, isCompleted: Boolean, onToggleWarmup: () -> Unit, onRemove: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
     Box {
         Text(
             text = label,
             style = NumericStyle,
-            color = if (isWarmup) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            color = when {
+                isCompleted -> MaterialTheme.colorScheme.onPrimary.copy(alpha = if (isWarmup) 0.7f else 1f)
+                isWarmup -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.onSurface
+            },
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .width(SetColumnWidth)
@@ -589,11 +594,11 @@ private fun SetInput(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
-        textStyle = NumericStyle.copy(color = if (sliding) colors.onPrimary else colors.onSurface, textAlign = TextAlign.Center),
+        textStyle = NumericStyle.copy(color = if (sliding || isCompleted) colors.onPrimary else colors.onSurface, textAlign = TextAlign.Center),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
         // Next moves along the row and down the sets; after the last field it closes the keyboard.
         keyboardActions = KeyboardActions(onNext = { if (!focusManager.moveFocus(FocusDirection.Next)) focusManager.clearFocus() }),
-        cursorBrush = SolidColor(colors.onSurface),
+        cursorBrush = SolidColor(if (isCompleted) colors.onPrimary else colors.onSurface),
         modifier = modifier
             .height(40.dp)
             .onSizeChanged { boxWidth = it.width }
@@ -623,7 +628,8 @@ private fun SetInput(
                 contentAlignment = Alignment.Center,
             ) {
                 if (value.isEmpty()) {
-                    Text(placeholder, style = NumericStyle, color = colors.onSurfaceVariant.copy(alpha = 0.6f), maxLines = 1)
+                    val hint = if (isCompleted) colors.onPrimary else colors.onSurfaceVariant
+                    Text(placeholder, style = NumericStyle, color = hint.copy(alpha = 0.6f), maxLines = 1)
                 }
                 innerTextField()
                 val from = slideFrom
@@ -641,13 +647,16 @@ private fun SetInput(
     )
 }
 
-/** The tick box. [problem] says why the last tick didn't count, and is read out by screen readers. */
+/**
+ * The tick box. [problem] says why the last tick didn't count, and is read out by screen readers.
+ * Once ticked it sits on the accent-filled row, so it turns the accent's text colour with an accent tick.
+ */
 @Composable
 private fun DoneToggle(label: String, done: Boolean, problem: String?, onToggle: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val fill by animateColorAsState(
         when {
-            done -> colors.primary
+            done -> colors.onPrimary
             problem != null -> colors.errorContainer
             else -> colors.surfaceContainerHigh
         },
@@ -667,7 +676,7 @@ private fun DoneToggle(label: String, done: Boolean, problem: String?, onToggle:
         contentAlignment = Alignment.Center,
     ) {
         if (done) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = colors.onPrimary, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.Check, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
         }
     }
 }

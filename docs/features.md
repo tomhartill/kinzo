@@ -16,6 +16,75 @@ in the same commit. Put the feature under the section it fits (or add a section)
 three lines: a `###` name, a `**Status:**` line, then a short paragraph on what it does for the
 user. Change the status when it changes; don't delete shipped features.
 
+## What Kinzo is
+
+Use this to lead anything written about Kinzo. Agreed with Tom in October 2026.
+
+1. **A social workout tracker.** Train with your friends: follow each other, watch each other's
+   progress, design workouts for each other, and set goals and chase achievements together, so
+   you keep each other accountable.
+2. **The fully featured workout app with no paywall.** Everything in the app is free: no
+   subscription and no locked features (the AI coach's price is still to be decided).
+3. **Built on data and research.** Detailed progress data for every exercise, exercise ratings
+   from published studies with the evidence shown, and, if you choose, your anonymised training
+   data helping sports science research.
+
+Most of the social side is still to come. Following friends is built and switches on with
+sign-in; sending a workout to a friend is next; seeing the workouts and progress of people you
+follow comes after sync. The statuses below say exactly where each feature is.
+
+## Training together
+
+Kinzo's main focus. Everything here needs a free account.
+
+### Follow friends
+**Status:** In progress
+
+Follow people, as on Instagram: find them by name or username and follow them, without them
+having to follow you back. See who follows you and who you follow, remove a follower, or block
+someone. Make your account private and you approve each new follower. Share an invite link, and
+whoever opens it in Kinzo follows you and is followed back straight away. Built in the app and
+the server; it switches on with sign-in once the Kinzo server is live.
+
+### Design a workout for a friend
+**Status:** Planned
+
+Build a workout and send it to someone who follows you. It lands in their Library as "From Sam:
+Push Day", and they can save their own copy or decline it. Next to be built.
+
+### Feed and profiles
+**Status:** Planned
+
+Open the profile of anyone you follow to see their workouts, personal records and progress, and
+see their latest workouts in a feed. Body stats and photos are never shared unless you turn
+that on. Comes after sync.
+
+### Goals with friends
+**Status:** Planned
+
+Set a goal, such as a target lift or a number of workouts a week, on your own or together with
+friends, and see how each of you is getting on. Details still to be designed.
+
+### Achievements
+**Status:** Planned
+
+Earn achievements for milestones such as a new personal best or a run of training weeks, and
+share them with the people who follow you. Details still to be designed.
+
+### Keep each other accountable
+**Status:** Planned
+
+See whether the people you train with have trained this week, and give a friend a nudge when
+they haven't. Details still to be designed.
+
+## Free for everyone
+
+### No paywall
+**Status:** Shipped
+
+Every feature in Kinzo is free to use: no subscription, no trial and no locked extras. Whether
+the planned AI coach stays free isn't decided yet.
+
 ## Logging workouts
 
 ### Offline workout logging
@@ -130,16 +199,6 @@ flat mark.
 The same at-a-glance trend lines for each muscle, muscle group, and upper and lower body, so you
 can see which parts of you are getting stronger.
 
-### How well each exercise trains each muscle
-**Status:** Planned
-
-Every exercise shows which muscles it trains, each rated from 1 to 5 from published research,
-with how strong the evidence is and the studies behind it. Kinzo rates from training studies
-that measured muscle growth, not from muscle activation (EMG) readings, which don't reliably
-predict growth. Each exercise also gets a stability score from 1 to 5: a Smith machine press
-holds you steady and puts more of the effort into the muscle, while a dumbbell press asks you
-to balance too.
-
 ## Planning your training
 
 ### Saved workouts
@@ -190,7 +249,27 @@ Line up photos from different weeks side by side or with a slider, automatically
 size and angle, with measured changes to your outline such as "waist 3% narrower". All on the
 phone.
 
-## Friends and accounts
+## Data and research
+
+### How well each exercise trains each muscle
+**Status:** Planned
+
+Every exercise shows which muscles it trains, each rated from 1 to 5 from published research,
+with how strong the evidence is and the studies behind it. Kinzo rates from training studies
+that measured muscle growth, not from muscle activation (EMG) readings, which don't reliably
+predict growth. Each exercise also gets a stability score from 1 to 5: a Smith machine press
+holds you steady and puts more of the effort into the muscle, while a dumbbell press asks you
+to balance too.
+
+### Share anonymised training data with researchers
+**Status:** Planned
+
+Choose to share your training data, with everything that could identify you removed, to help
+sports science researchers. It's off unless you turn it on, and you can turn it off again at any
+time. The data will only be shared once it meets the UK GDPR standard for anonymisation, so it
+can't be traced back to you.
+
+## Accounts and sync
 
 ### Optional account
 **Status:** In progress
@@ -206,32 +285,10 @@ Sign in with your email and a six-digit code sent by text or WhatsApp, no passwo
 also add a phone to a Google or Facebook account and use codes from then on. Built in the app
 and the server; it switches on once the Kinzo server is live and Twilio is set up.
 
-### Follow friends
-**Status:** In progress
-
-Follow people, as on Instagram: find them by name or username and follow them, without them
-having to follow you back. See who follows you and who you follow, remove a follower, or block
-someone. Make your account private and you approve each new follower. Share an invite link, and
-whoever opens it in Kinzo follows you and is followed back straight away. Built in the app and
-the server; it switches on with sign-in once the Kinzo server is live.
-
 ### Sync across devices
 **Status:** Planned
 
 Your workouts, plans and history backed up to your account and kept in step across your phones.
-
-### Feed and profiles
-**Status:** Planned
-
-Open the profile of anyone you follow to see their workouts, personal records and progress, and
-see their latest workouts in a feed. Body stats and photos are never shared unless you turn
-that on.
-
-### Send a workout to someone
-**Status:** Planned
-
-Build a workout and send it to someone who follows you. It lands in their Library as "From Sam:
-Push Day", and they can save their own copy or decline it.
 
 ### Sign in with Apple
 **Status:** Planned
@@ -242,16 +299,6 @@ Sign in with your Apple ID on iPhone.
 **Status:** Planned
 
 A coach that helps plan and adjust your training. Needs an account.
-
-## Privacy and research
-
-### Share anonymised training data with researchers
-**Status:** Planned
-
-Choose to share your training data, with everything that could identify you removed, to help
-sports science researchers. It's off unless you turn it on, and you can turn it off again at any
-time. The data will only be shared once it meets the UK GDPR standard for anonymisation, so it
-can't be traced back to you.
 
 ## Look and feel
 

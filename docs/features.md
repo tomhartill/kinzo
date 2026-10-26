@@ -128,6 +128,14 @@ A timer starts between sets and keeps time even if the phone sleeps. Each exerci
 its own rest time (or Off), with a default set in Profile, and the rest bar has quick -15 and
 +15 second buttons.
 
+### Notes on each exercise
+**Status:** Shipped
+
+Write a note under any exercise in a workout, such as a seat height, a form cue or how it felt.
+It saves as you type and stays with that workout, so you see it again when you look back at the
+workout, edit it, or check the exercise's history. Next time you do the exercise, your last note
+shows faintly in the empty box as a reminder.
+
 ### Reorder exercises and delete sets
 **Status:** Shipped
 

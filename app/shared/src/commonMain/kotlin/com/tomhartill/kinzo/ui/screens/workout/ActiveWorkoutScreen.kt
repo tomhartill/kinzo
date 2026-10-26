@@ -263,6 +263,7 @@ fun ActiveWorkoutScreen(
                         canReorder = workout.exercises.size > 1,
                         onOpenInfo = { onOpenExercise(exercise.exerciseId) },
                         onRestChange = { viewModel.setRest(exercise, it) },
+                        onNotesChange = { viewModel.setNotes(exercise, it) },
                         onReorder = { reordering = true },
                         onRemove = {
                             if (exercise.sets.any { it.isCompleted }) {
@@ -406,6 +407,7 @@ private fun ExerciseSection(
     canReorder: Boolean,
     onOpenInfo: () -> Unit,
     onRestChange: (seconds: Int) -> Unit,
+    onNotesChange: (String) -> Unit,
     onReorder: () -> Unit,
     onRemove: () -> Unit,
     onAddSet: (percent: Double) -> Unit,
@@ -458,6 +460,12 @@ private fun ExerciseSection(
                 }
             }
         }
+        ExerciseNotesField(
+            exerciseName = exercise.name,
+            notes = exercise.notes,
+            previousNotes = exercise.previousNotes,
+            onSave = onNotesChange,
+        )
         if (restSeconds != null) RestChip(seconds = restSeconds, onSelect = onRestChange)
         SetTableHeader(type = exercise.measurementType, unit = unit)
         // A wider gap between sets than the rest of the section, to fit the weight change marker.

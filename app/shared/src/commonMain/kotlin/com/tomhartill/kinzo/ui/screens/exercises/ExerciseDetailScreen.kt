@@ -260,6 +260,9 @@ private fun Session(session: ExerciseSession, type: MeasurementType, unit: Weigh
                 modifier = Modifier.weight(1f).alignByBaseline(),
             )
         }
+        session.notes?.let { notes ->
+            Text(notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         session.sets.forEachIndexed { index, set ->
             SetSummaryRow(label = labels[index], text = Format.set(type, set.values, unit), isWarmup = set.isWarmup)
         }

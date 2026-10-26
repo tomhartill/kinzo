@@ -64,8 +64,9 @@ class WorkoutRepository(
 
     /** One workout with its exercises and sets. Emits null once it is deleted. */
     fun workout(id: String, withPrevious: Boolean = false): Flow<Workout?> = flow {
-        // Last time's sets don't change during a workout, so each exercise's are read once.
+        // Last time's sets and note don't change during a workout, so each exercise's are read once.
         val previousByExercise = mutableMapOf<String, List<PreviousSet>>()
+        val previousNotesByExercise = mutableMapOf<String, String?>()
         emitAll(
             combine(
                 queries.workoutById(id).asFlow().mapToOneOrNull(io),
@@ -104,6 +105,16 @@ class WorkoutRepository(
                                 emptyList()
                             },
                             restSeconds = exercise.rest_s?.toInt(),
+                            notes = exercise.notes,
+                            previousNotes = if (withPrevious) {
+                                if (exercise.exercise_id in previousNotesByExercise) {
+                                    previousNotesByExercise[exercise.exercise_id]
+                                } else {
+                                    previousNotes(exercise.exercise_id, id).also { previousNotesByExercise[exercise.exercise_id] = it }
+                                }
+                            } else {
+                                null
+                            },
                         )
                     },
                 )
@@ -138,6 +149,7 @@ class WorkoutRepository(
                     workoutId = workoutId,
                     workoutName = sets.first().workout_name,
                     startedAt = sets.first().started_at,
+                    notes = sets.first().notes,
                     sets = sets.map { set ->
                         PreviousSet(
                             values = SetValues(
@@ -169,6 +181,9 @@ class WorkoutRepository(
                 isWarmup = set.is_warmup != 0L,
             )
         }
+
+    private fun previousNotes(exerciseId: String, excludeWorkoutId: String): String? =
+        queries.previousNotes(exerciseId = exerciseId, excludeWorkoutId = excludeWorkoutId).executeAsOneOrNull()?.notes
 
     // Writes
 
@@ -437,6 +452,11 @@ class WorkoutRepository(
             now = now(),
             id = workoutExerciseId,
         )
+    }
+
+    /** Saves the note for one exercise in a workout. A blank note is stored as none. */
+    suspend fun setExerciseNotes(workoutExerciseId: String, notes: String) = withContext(io) {
+        queries.setWorkoutExerciseNotes(notes = notes.trim().ifEmpty { null }, now = now(), id = workoutExerciseId)
     }
 
     suspend fun removeExercise(workoutExerciseId: String) = withContext(io) {

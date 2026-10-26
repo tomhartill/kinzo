@@ -25,6 +25,8 @@ CREATE TABLE workout_exercise (
     position            INTEGER NOT NULL,
     -- Seconds of rest after each set; 0 turns the timer off. NULL uses the default setting.
     rest_s              INTEGER,
+    -- What the user wrote about this exercise in this workout, such as a seat height or a form cue.
+    notes               TEXT,
     updated_at          INTEGER NOT NULL,
     deleted_at          INTEGER
 );
@@ -118,7 +120,7 @@ WHERE we.workout_id = :workoutId AND we.deleted_at IS NULL
 -- Exercises within a workout
 
 workoutExercises:
-SELECT we.id, we.exercise_id, we.position, we.rest_s, e.name, e.measurement_type
+SELECT we.id, we.exercise_id, we.position, we.rest_s, we.notes, e.name, e.measurement_type
 FROM workout_exercise we
 JOIN exercise e ON e.id = we.exercise_id
 WHERE we.workout_id = :workoutId AND we.deleted_at IS NULL
@@ -136,8 +138,8 @@ JOIN workout w ON w.id = we.workout_id
 WHERE we.id = :id AND we.deleted_at IS NULL;
 
 insertWorkoutExercise:
-INSERT INTO workout_exercise(id, workout_id, exercise_id, position, rest_s, updated_at, deleted_at)
-VALUES (:id, :workoutId, :exerciseId, :position, :restS, :now, NULL);
+INSERT INTO workout_exercise(id, workout_id, exercise_id, position, rest_s, notes, updated_at, deleted_at)
+VALUES (:id, :workoutId, :exerciseId, :position, :restS, NULL, :now, NULL);
 
 setWorkoutExerciseRest:
 UPDATE workout_exercise SET rest_s = :restS, updated_at = :now WHERE id = :id;
@@ -150,6 +152,22 @@ JOIN workout w ON w.id = we.workout_id
 WHERE we.exercise_id = :exerciseId AND we.rest_s IS NOT NULL
   AND we.deleted_at IS NULL AND w.deleted_at IS NULL
 ORDER BY w.started_at DESC, we.updated_at DESC
+LIMIT 1;
+
+setWorkoutExerciseNotes:
+UPDATE workout_exercise SET notes = :notes, updated_at = :now WHERE id = :id;
+
+-- The latest note for this exercise from a finished workout before this one, shown as a hint
+-- while this workout's note is empty. Workouts without one are skipped, so a seat height
+-- written once keeps showing.
+previousNotes:
+SELECT we.id, we.notes
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.exercise_id = :exerciseId AND we.notes IS NOT NULL AND we.deleted_at IS NULL
+  AND w.deleted_at IS NULL AND w.ended_at IS NOT NULL AND w.id != :excludeWorkoutId
+  AND w.started_at <= (SELECT started_at FROM workout WHERE id = :excludeWorkoutId)
+ORDER BY w.started_at DESC, we.position ASC
 LIMIT 1;
 
 setWorkoutExercisePosition:
@@ -286,6 +304,7 @@ SELECT
     w.id AS workout_id,
     w.name AS workout_name,
     w.started_at,
+    we.notes,
     s.reps,
     s.weight_kg,
     s.duration_s,

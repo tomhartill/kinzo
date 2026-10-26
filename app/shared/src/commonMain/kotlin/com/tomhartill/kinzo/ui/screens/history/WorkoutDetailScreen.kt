@@ -259,6 +259,14 @@ private fun ExerciseSummary(exercise: WorkoutExercise, unit: WeightUnit) {
     val labels = SetRules.labels(sets.map { it.isWarmup })
     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
         Text(exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = KinzoTheme.spacing.xs))
+        exercise.notes?.let { notes ->
+            Text(
+                notes,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = KinzoTheme.spacing.xs),
+            )
+        }
         sets.forEachIndexed { index, set ->
             SetSummaryRow(
                 label = labels[index],

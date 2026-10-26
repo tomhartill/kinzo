@@ -139,6 +139,10 @@ data class WorkoutExercise(
     val previous: List<PreviousSet>,
     /** Rest after each set in seconds, 0 for none, or null to use the default setting. */
     val restSeconds: Int? = null,
+    /** What the user wrote about this exercise in this workout, such as a seat height. */
+    val notes: String? = null,
+    /** The note from the last finished workout with this exercise, shown as a hint while [notes] is empty. */
+    val previousNotes: String? = null,
 ) {
     /** The rest that applies, given the default from settings. */
     fun rest(defaultSeconds: Int): Int = restSeconds ?: defaultSeconds
@@ -215,6 +219,8 @@ data class ExerciseSession(
     val workoutName: String,
     val startedAt: Long,
     val sets: List<PreviousSet>,
+    /** The note written for the exercise in that workout, if any. */
+    val notes: String? = null,
 )
 
 /** Who made a saved workout. */

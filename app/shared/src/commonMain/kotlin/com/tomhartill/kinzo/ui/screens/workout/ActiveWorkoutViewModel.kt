@@ -100,6 +100,11 @@ class ActiveWorkoutViewModel(
         viewModelScope.launch { workouts.setExerciseRest(exercise.id, seconds) }
     }
 
+    /** Saves the note for one exercise in this workout. */
+    fun setNotes(exercise: WorkoutExercise, notes: String) {
+        viewModelScope.launch { workouts.setExerciseNotes(exercise.id, notes) }
+    }
+
     /** Starts a rest by hand, between exercises for example. */
     fun startRest(seconds: Int) = restTimer.start(seconds)
 

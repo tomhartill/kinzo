@@ -378,4 +378,43 @@ class WorkoutRepositoryTest {
         workouts.deleteWorkout(id)
         assertEquals(StartResult.NotFound, workouts.repeatWorkout(id))
     }
+
+    @Test
+    fun exerciseNotesAreSavedTrimmedAndClearedWhenBlank() = runTest {
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-bench"))
+        val exercise = active().exercises.single()
+        assertNull(exercise.notes)
+
+        workouts.setExerciseNotes(exercise.id, "  Seat on 4  ")
+        assertEquals("Seat on 4", active().exercises.single().notes)
+
+        workouts.setExerciseNotes(exercise.id, "   ")
+        assertNull(active().exercises.single().notes)
+    }
+
+    @Test
+    fun theLastNoteWrittenForAnExerciseIsTheHint() = runTest {
+        val first = logBench(60.0 to 5)
+        val benchInFirst = assertNotNull(workouts.workout(first).first()).exercises.single()
+        workouts.setExerciseNotes(benchInFirst.id, "Seat on 4")
+        // A workout without a note doesn't hide the one before it.
+        logBench(62.5 to 5)
+
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-bench"))
+        val bench = active().exercises.single()
+        assertNull(bench.notes)
+        assertEquals("Seat on 4", bench.previousNotes)
+
+        // Repeating starts with an empty note too, with last time's as the hint.
+        workouts.deleteWorkout(id)
+        assertIs<StartResult.Started>(workouts.repeatWorkout(first))
+        val repeated = active().exercises.single()
+        assertNull(repeated.notes)
+        assertEquals("Seat on 4", repeated.previousNotes)
+
+        // And each session in the exercise's history shows its own note.
+        assertEquals(listOf(null, "Seat on 4"), workouts.exerciseHistory("ex-bench").first().map { it.notes })
+    }
 }

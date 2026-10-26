@@ -55,10 +55,31 @@ fun ExercisePickerScreen(
     )
 }
 
+/** Picks one exercise to take the place of [workoutExerciseId] in its workout. */
+@Composable
+fun ReplaceExerciseScreen(
+    workoutExerciseId: String,
+    onClose: () -> Unit,
+    onReplaced: () -> Unit,
+    onSignIn: () -> Unit,
+    viewModel: ExerciseBrowserViewModel = koinViewModel(),
+) {
+    ExercisePicker(
+        onClose = onClose,
+        onConfirm = { picked ->
+            picked.firstOrNull()?.let { viewModel.replaceInWorkout(workoutExerciseId, it.id, onReplaced) } ?: onClose()
+        },
+        onSignIn = onSignIn,
+        single = true,
+        viewModel = viewModel,
+    )
+}
+
 /**
  * The exercise library with a tick on each row. [onConfirm] gets the picked exercises in the
  * order they were tapped, once. "Scan a machine" picks from a photo; [onSignIn] opens sign-in
- * when scanning needs it, where the screen can.
+ * when scanning needs it, where the screen can. With [single] only one can be ticked at a
+ * time, to replace an exercise.
  */
 @Composable
 fun ExercisePicker(
@@ -66,49 +87,58 @@ fun ExercisePicker(
     onConfirm: (List<ExerciseSummary>) -> Unit,
     modifier: Modifier = Modifier,
     onSignIn: (() -> Unit)? = null,
+    single: Boolean = false,
     viewModel: ExerciseBrowserViewModel = koinViewModel(),
     scanViewModel: MachineScanViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scan by scanViewModel.state.collectAsStateWithLifecycle()
     var selected by rememberSaveable { mutableStateOf(listOf<String>()) }
+    fun toggle(id: String) {
+        selected = when {
+            id in selected -> selected - id
+            single -> listOf(id)
+            else -> selected + id
+        }
+    }
     // The variation a scan thinks it is comes ticked, once per scan.
     LaunchedEffect(scan) {
         val suggested = (scan as? MachineScanState.Found)?.suggestedExerciseId ?: return@LaunchedEffect
-        if (suggested !in selected) selected = selected + suggested
+        if (suggested !in selected) toggle(suggested)
     }
     var confirmed by remember { mutableStateOf(false) }
     val colors = MaterialTheme.colorScheme
 
-    ScreenTipsEffect(KinzoTips.ExercisePicker)
+    // The tips are about adding several at once, which replacing doesn't do.
+    ScreenTipsEffect(KinzoTips.ExercisePicker, enabled = !single)
     Column(modifier.fillMaxSize().background(colors.background).imePadding()) {
         KinzoTopBar(
-            title = "Add exercises",
+            title = if (single) "Replace exercise" else "Add exercises",
             onBack = onClose,
             backIcon = Icons.Filled.Close,
             backLabel = "Close",
             actions = {
-                TipsButton(KinzoTips.ExercisePicker)
-                if (selected.isNotEmpty()) {
+                if (!single) TipsButton(KinzoTips.ExercisePicker)
+                if (selected.isNotEmpty() && !single) {
                     TextButton(onClick = { selected = emptyList() }) {
                         Text("Clear", color = colors.onSurface, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             },
         )
-        PageTipCard(
-            KinzoTips.ExercisePicker,
-            Modifier.padding(horizontal = KinzoTheme.spacing.screen, vertical = KinzoTheme.spacing.xs),
-        )
+        if (!single) {
+            PageTipCard(
+                KinzoTips.ExercisePicker,
+                Modifier.padding(horizontal = KinzoTheme.spacing.screen, vertical = KinzoTheme.spacing.xs),
+            )
+        }
         ExerciseBrowser(
             query = viewModel.query,
             state = state,
             onQueryChange = viewModel::search,
             onMuscleChange = viewModel::setMuscle,
             onEquipmentChange = viewModel::setEquipment,
-            onExerciseClick = { exercise ->
-                selected = if (exercise.id in selected) selected - exercise.id else selected + exercise.id
-            },
+            onExerciseClick = { exercise -> toggle(exercise.id) },
             selectedIds = selected,
             modifier = Modifier.weight(1f),
             header = { ScanMachineButton(onClick = scanViewModel::scan) },
@@ -116,7 +146,11 @@ fun ExercisePicker(
         if (selected.isNotEmpty()) {
             HorizontalDivider(thickness = 0.5.dp, color = colors.outlineVariant)
             PrimaryButton(
-                text = if (selected.size == 1) "Add 1 exercise" else "Add ${selected.size} exercises",
+                text = when {
+                    single -> "Replace with ${state.byId[selected.single()]?.name ?: "exercise"}"
+                    selected.size == 1 -> "Add 1 exercise"
+                    else -> "Add ${selected.size} exercises"
+                },
                 enabled = !confirmed,
                 onClick = {
                     confirmed = true
@@ -132,9 +166,7 @@ fun ExercisePicker(
         state = scan,
         exercises = state.byId,
         selectedIds = selected,
-        onToggle = { exercise ->
-            selected = if (exercise.id in selected) selected - exercise.id else selected + exercise.id
-        },
+        onToggle = { exercise -> toggle(exercise.id) },
         onRetry = {
             scanViewModel.dismiss()
             scanViewModel.scan()

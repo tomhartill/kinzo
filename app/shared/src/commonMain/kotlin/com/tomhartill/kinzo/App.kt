@@ -87,6 +87,7 @@ import com.tomhartill.kinzo.ui.screens.friends.FriendsScreen
 import com.tomhartill.kinzo.ui.screens.friends.InviteScreen
 import com.tomhartill.kinzo.ui.screens.exercises.ExerciseDetailScreen
 import com.tomhartill.kinzo.ui.screens.exercises.ExercisePickerScreen
+import com.tomhartill.kinzo.ui.screens.exercises.ReplaceExerciseScreen
 import com.tomhartill.kinzo.ui.screens.history.HistoryScreen
 import com.tomhartill.kinzo.ui.screens.history.WorkoutDetailScreen
 import com.tomhartill.kinzo.ui.screens.library.LibraryScreen
@@ -372,6 +373,7 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
         Destination.ActiveWorkout -> ActiveWorkoutScreen(
             onMinimise = back,
             onAddExercises = { ifCurrent { navigator.push(Destination.AddExercises()) } },
+            onReplaceExercise = { id -> ifCurrent { navigator.push(Destination.ReplaceExercise(id)) } },
             onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
             onFinished = { id -> ifCurrent { navigator.replace(Destination.WorkoutDetail(id, justFinished = true)) } },
             onClosed = back,
@@ -379,6 +381,7 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
         is Destination.EditWorkout -> ActiveWorkoutScreen(
             onMinimise = back,
             onAddExercises = { ifCurrent { navigator.push(Destination.AddExercises(destination.workoutId)) } },
+            onReplaceExercise = { id -> ifCurrent { navigator.push(Destination.ReplaceExercise(id)) } },
             onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
             onFinished = { back() },
             onClosed = back,
@@ -388,6 +391,12 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             workoutId = destination.workoutId,
             onClose = back,
             onAdded = back,
+            onSignIn = { ifCurrent { navigator.push(Destination.SignIn) } },
+        )
+        is Destination.ReplaceExercise -> ReplaceExerciseScreen(
+            workoutExerciseId = destination.workoutExerciseId,
+            onClose = back,
+            onReplaced = back,
             onSignIn = { ifCurrent { navigator.push(Destination.SignIn) } },
         )
         is Destination.ExerciseDetail -> ExerciseDetailScreen(exerciseId = destination.exerciseId, onBack = back)

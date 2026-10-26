@@ -29,6 +29,11 @@ sealed interface Destination {
         override val route = if (workoutId == null) "workout/add" else "workout/add/$workoutId"
     }
 
+    /** Swaps one exercise of a workout, in progress or being edited, for another. */
+    data class ReplaceExercise(val workoutExerciseId: String) : Destination {
+        override val route = "workout/replace/$workoutExerciseId"
+    }
+
     /** A finished workout, open for changes. */
     data class EditWorkout(val workoutId: String) : Destination {
         override val route = "edit-workout/$workoutId"
@@ -105,6 +110,7 @@ sealed interface Destination {
                 route == ActiveWorkout.route -> ActiveWorkout
                 route == AddExercises().route -> AddExercises()
                 parts.size == 3 && parts[0] == "workout" && parts[1] == "add" -> AddExercises(parts[2])
+                parts.size == 3 && parts[0] == "workout" && parts[1] == "replace" -> ReplaceExercise(parts[2])
                 parts.size == 2 && parts[0] == "edit-workout" -> EditWorkout(parts[1])
                 route == DesignSystem.route -> DesignSystem
                 route == SignIn.route -> SignIn

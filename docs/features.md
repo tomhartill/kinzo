@@ -141,6 +141,15 @@ shows faintly in the empty box as a reminder.
 
 Drag exercises into a new order mid-workout, and swipe a set left to delete it, with Undo.
 
+### Replace an exercise mid-workout
+**Status:** Shipped
+
+Machine taken or something doesn't feel right? Pick "Replace exercise" from an exercise's menu
+during a workout and choose another. The new one takes the same place in the workout with the
+same number of sets, ready for its own numbers, and shows what you lifted on it last time. If
+you'd already ticked sets of the old exercise, Kinzo checks before removing them. Works when
+editing a past workout too.
+
 ### Exercise instructions mid-workout
 **Status:** Shipped
 

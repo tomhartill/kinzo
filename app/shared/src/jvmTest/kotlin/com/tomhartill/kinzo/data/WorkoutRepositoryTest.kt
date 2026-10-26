@@ -163,6 +163,30 @@ class WorkoutRepositoryTest {
     }
 
     @Test
+    fun replacingAnExerciseKeepsItsPlaceAndSetCountButNotItsNumbers() = runTest {
+        logBench(40.0 to 10, 60.0 to 8, warmups = 1)
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-curl", "ex-plank"))
+        val curl = active().exercises.first()
+        workouts.addSet(curl.id)
+        workouts.setWarmup(curl.sets.first().id, true)
+        workouts.completeSet(curl.sets.first().id, SetValues(weightKg = 20.0, reps = 12))
+        workouts.setExerciseNotes(curl.id, "Bar on the low rack")
+        val setCount = active().exercises.first().sets.size
+
+        workouts.replaceExercise(curl.id, "ex-bench")
+        val exercises = active().exercises
+        assertEquals(listOf("Bench Press", "Plank"), exercises.map { it.name })
+        val bench = exercises.first()
+        assertEquals(setCount, bench.sets.size)
+        assertEquals(listOf(true) + List(setCount - 1) { false }, bench.sets.map { it.isWarmup })
+        assertTrue(bench.sets.none { it.isCompleted || it.values != SetValues() })
+        assertNull(bench.notes)
+        assertEquals(listOf(40.0, 60.0), bench.previous.map { it.values.weightKg })
+        assertTrue(workouts.exerciseHistory("ex-curl").first().isEmpty())
+    }
+
+    @Test
     fun deletingAWorkoutRemovesItEverywhere() = runTest {
         val id = logBench(60.0 to 8)
         assertEquals(1, workouts.history().first().size)

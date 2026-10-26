@@ -13,6 +13,7 @@ class DestinationTest {
             Destination.ActiveWorkout,
             Destination.AddExercises(),
             Destination.AddExercises(id),
+            Destination.ReplaceExercise(id),
             Destination.EditWorkout(id),
             Destination.DesignSystem,
             Destination.ExerciseDetail(id),

@@ -101,6 +101,7 @@ private sealed interface WorkoutDialog {
     data object NothingCompleted : WorkoutDialog
     data class ConfirmFinish(val unticked: Int) : WorkoutDialog
     data class RemoveExercise(val exercise: WorkoutExercise) : WorkoutDialog
+    data class ReplaceExercise(val exercise: WorkoutExercise, val ticked: Int) : WorkoutDialog
 }
 
 /**
@@ -111,6 +112,7 @@ private sealed interface WorkoutDialog {
 fun ActiveWorkoutScreen(
     onMinimise: () -> Unit,
     onAddExercises: () -> Unit,
+    onReplaceExercise: (workoutExerciseId: String) -> Unit,
     onOpenExercise: (exerciseId: String) -> Unit,
     onFinished: (workoutId: String) -> Unit,
     onClosed: () -> Unit,
@@ -265,6 +267,15 @@ fun ActiveWorkoutScreen(
                         onRestChange = { viewModel.setRest(exercise, it) },
                         onNotesChange = { viewModel.setNotes(exercise, it) },
                         onReorder = { reordering = true },
+                        onReplace = {
+                            // Ticked sets were for the old exercise, so they go: ask first.
+                            val ticked = exercise.sets.count { it.isCompleted }
+                            if (ticked > 0) {
+                                dialog = WorkoutDialog.ReplaceExercise(exercise, ticked)
+                            } else {
+                                onReplaceExercise(exercise.id)
+                            }
+                        },
                         onRemove = {
                             if (exercise.sets.any { it.isCompleted }) {
                                 dialog = WorkoutDialog.RemoveExercise(exercise)
@@ -395,6 +406,21 @@ fun ActiveWorkoutScreen(
             },
             onDismiss = { dialog = null },
         )
+        is WorkoutDialog.ReplaceExercise -> ConfirmDialog(
+            title = "Replace ${current.exercise.name}?",
+            message = if (current.ticked == 1) {
+                "Its ticked set will be deleted."
+            } else {
+                "Its ${current.ticked} ticked sets will be deleted."
+            },
+            confirmLabel = "Replace",
+            destructive = true,
+            onConfirm = {
+                dialog = null
+                onReplaceExercise(current.exercise.id)
+            },
+            onDismiss = { dialog = null },
+        )
     }
 }
 
@@ -409,6 +435,7 @@ private fun ExerciseSection(
     onRestChange: (seconds: Int) -> Unit,
     onNotesChange: (String) -> Unit,
     onReorder: () -> Unit,
+    onReplace: () -> Unit,
     onRemove: () -> Unit,
     onAddSet: (percent: Double) -> Unit,
     onValuesChange: (LoggedSet, SetValues) -> Unit,
@@ -453,6 +480,10 @@ private fun ExerciseSection(
                             onReorder()
                         })
                     }
+                    DropdownMenuItem(text = { Text("Replace exercise") }, onClick = {
+                        menuOpen = false
+                        onReplace()
+                    })
                     DropdownMenuItem(text = { Text("Remove exercise", color = colors.error) }, onClick = {
                         menuOpen = false
                         onRemove()

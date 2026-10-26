@@ -471,6 +471,41 @@ class WorkoutRepository(
         }
     }
 
+    /**
+     * Swaps one exercise in a workout for [exerciseId], in the same place. The new one keeps
+     * the number of sets and which are warm-ups, but starts blank: the old numbers, ticks and
+     * note belonged to the other exercise, so they go with it. It gets the rest time last
+     * chosen for the new exercise.
+     */
+    suspend fun replaceExercise(workoutExerciseId: String, exerciseId: String) = withContext(io) {
+        db.transaction {
+            val old = queries.workoutExerciseById(workoutExerciseId).executeAsOneOrNull() ?: return@transaction
+            if (old.exercise_id == exerciseId) return@transaction
+            val warmups = queries.workoutSets(old.workout_id).executeAsList()
+                .filter { it.workout_exercise_id == workoutExerciseId }
+                .map { it.is_warmup != 0L }
+                .ifEmpty { listOf(false) }
+            val now = now()
+            queries.softDeleteSetsOfWorkoutExercise(now = now, workoutExerciseId = workoutExerciseId)
+            queries.softDeleteWorkoutExercise(now = now, id = workoutExerciseId)
+            val newId = Ids.newId()
+            queries.insertWorkoutExercise(
+                id = newId,
+                workoutId = old.workout_id,
+                exerciseId = exerciseId,
+                position = old.position,
+                restS = queries.lastRestForExercise(exerciseId).executeAsOneOrNull(),
+                now = now,
+            )
+            warmups.forEachIndexed { index, isWarmup ->
+                insertSet(workoutExerciseId = newId, position = index, isWarmup = isWarmup, now = now)
+            }
+            // Swapped in a finished workout (while editing it): the old exercise's trend loses
+            // that session. The new one has no ticked sets yet, so its trend is unchanged.
+            if (old.ended_at != null) trends.refreshExercises(listOf(old.exercise_id))
+        }
+    }
+
     /** Moves an exercise up (negative [offset]) or down within its workout. */
     suspend fun moveExercise(workoutExerciseId: String, offset: Int) = withContext(io) {
         db.transaction {

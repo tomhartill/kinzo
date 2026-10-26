@@ -115,4 +115,12 @@ class ExerciseBrowserViewModel(
             onAdded()
         }
     }
+
+    /** Swaps the exercise [workoutExerciseId] in a workout for [exerciseId], in the same place. */
+    fun replaceInWorkout(workoutExerciseId: String, exerciseId: String, onReplaced: () -> Unit) {
+        viewModelScope.launch {
+            workouts.replaceExercise(workoutExerciseId, exerciseId)
+            onReplaced()
+        }
+    }
 }

@@ -1,0 +1,22 @@
+-- Small key-value store for app preferences such as the weight unit.
+
+CREATE TABLE setting (
+    setting_key     TEXT NOT NULL PRIMARY KEY,
+    setting_value   TEXT NOT NULL
+);
+
+allSettings:
+SELECT setting_key, setting_value FROM setting;
+
+getSetting:
+SELECT setting_value FROM setting WHERE setting_key = :key;
+
+putSetting:
+INSERT OR REPLACE INTO setting(setting_key, setting_value) VALUES (:key, :value);
+
+deleteSetting:
+DELETE FROM setting WHERE setting_key = :key;
+
+-- The prefix must not contain % or _, which LIKE treats as wildcards.
+deleteSettingsWithPrefix:
+DELETE FROM setting WHERE setting_key LIKE :prefix || '%';

@@ -23,6 +23,24 @@ services:
     restart: on-failure
     environment:
       DATABASE_URL: postgres://kinzo:kinzo@db:5432/kinzo?sslmode=disable
+      # Sign-in. Put these in a .env file next to this one; see docs/sign-in.md.
+      KINZO_PUBLIC_URL: ${KINZO_PUBLIC_URL:-http://localhost:8080}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      # Email and phone code sign-in: off unless set. Use log locally (codes appear in this
+      # service's log), twilio for real texts; see docs/sign-in.md part 5.
+      KINZO_OTP_PROVIDER: ${KINZO_OTP_PROVIDER:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID:-}
+      KINZO_OTP_CHANNELS: ${KINZO_OTP_CHANNELS:-sms}
+      KINZO_PHONE_COUNTRIES: ${KINZO_PHONE_COUNTRIES:-GB}
+      KINZO_OTP_TEST_NUMBERS: ${KINZO_OTP_TEST_NUMBERS:-}
+      KINZO_BEHIND_PROXY: ${KINZO_BEHIND_PROXY:-}
+      # Machine scanning. Leave it empty to turn scanning off; see api/README.md.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "8080:8080"
     depends_on:

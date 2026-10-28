@@ -1,0 +1,338 @@
+-- Workouts, the exercises in them, and their sets. Mirrors the server's workouts,
+-- workout_exercises and sets tables ("set" is an SQL keyword, hence workout_set).
+--
+-- Rows are never deleted outright: deleting sets deleted_at, so sync can tell the server
+-- later. Every read filters deleted rows out. A workout with ended_at NULL is in progress,
+-- and there is at most one of those. Positions within a workout and within an exercise are
+-- kept contiguous from 0.
+
+CREATE TABLE workout (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    routine_id          TEXT,
+    started_at          INTEGER NOT NULL,
+    ended_at            INTEGER,
+    notes               TEXT,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+CREATE INDEX workout_started_at ON workout(started_at);
+
+CREATE TABLE workout_exercise (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    workout_id          TEXT NOT NULL,
+    exercise_id         TEXT NOT NULL,
+    position            INTEGER NOT NULL,
+    -- Seconds of rest after each set; 0 turns the timer off. NULL uses the default setting.
+    rest_s              INTEGER,
+    -- What the user wrote about this exercise in this workout, such as a seat height or a form cue.
+    notes               TEXT,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+CREATE INDEX workout_exercise_workout ON workout_exercise(workout_id, position);
+CREATE INDEX workout_exercise_exercise ON workout_exercise(exercise_id);
+
+CREATE TABLE workout_set (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    workout_exercise_id TEXT NOT NULL,
+    position            INTEGER NOT NULL,
+    reps                INTEGER,
+    weight_kg           REAL,
+    duration_s          INTEGER,
+    distance_m          REAL,
+    rpe                 REAL,
+    pain_score          INTEGER,
+    is_warmup           INTEGER NOT NULL DEFAULT 0,
+    note                TEXT,
+    completed_at        INTEGER,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+CREATE INDEX workout_set_exercise ON workout_set(workout_exercise_id, position);
+
+-- Workouts
+
+activeWorkoutId:
+SELECT id FROM workout
+WHERE ended_at IS NULL AND deleted_at IS NULL
+ORDER BY started_at DESC
+LIMIT 1;
+
+activeWorkoutInfo:
+SELECT id, name, started_at FROM workout
+WHERE ended_at IS NULL AND deleted_at IS NULL
+ORDER BY started_at DESC
+LIMIT 1;
+
+workoutById:
+SELECT id, name, routine_id, started_at, ended_at
+FROM workout
+WHERE id = :id AND deleted_at IS NULL;
+
+insertWorkout:
+INSERT INTO workout(id, name, routine_id, started_at, ended_at, notes, updated_at, deleted_at)
+VALUES (:id, :name, :routineId, :startedAt, NULL, NULL, :startedAt, NULL);
+
+renameWorkout:
+UPDATE workout SET name = :name, updated_at = :now WHERE id = :id;
+
+finishWorkout:
+UPDATE workout SET ended_at = :endedAt, updated_at = :endedAt WHERE id = :id;
+
+-- Back in progress. The start moves on by the time it sat finished, so the timer carries on
+-- from where it stopped rather than counting the break.
+resumeWorkout:
+UPDATE workout SET started_at = :startedAt, ended_at = NULL, updated_at = :now WHERE id = :id;
+
+softDeleteWorkout:
+UPDATE workout SET deleted_at = :now, updated_at = :now WHERE id = :id;
+
+softDeleteAllExercisesOfWorkout:
+UPDATE workout_exercise SET deleted_at = :now, updated_at = :now
+WHERE workout_id = :workoutId AND deleted_at IS NULL;
+
+softDeleteAllSetsOfWorkout:
+UPDATE workout_set SET deleted_at = :now, updated_at = :now
+WHERE deleted_at IS NULL
+  AND workout_exercise_id IN (SELECT id FROM workout_exercise WHERE workout_id = :workoutId);
+
+softDeleteIncompleteSetsOfWorkout:
+UPDATE workout_set SET deleted_at = :now, updated_at = :now
+WHERE deleted_at IS NULL AND completed_at IS NULL
+  AND workout_exercise_id IN (SELECT id FROM workout_exercise WHERE workout_id = :workoutId);
+
+softDeleteEmptyExercisesOfWorkout:
+UPDATE workout_exercise SET deleted_at = :now, updated_at = :now
+WHERE workout_id = :workoutId AND deleted_at IS NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM workout_set s
+      WHERE s.workout_exercise_id = workout_exercise.id AND s.deleted_at IS NULL
+  );
+
+countCompletedSetsOfWorkout:
+SELECT COUNT(*)
+FROM workout_set s
+JOIN workout_exercise we ON we.id = s.workout_exercise_id
+WHERE we.workout_id = :workoutId AND we.deleted_at IS NULL
+  AND s.deleted_at IS NULL AND s.completed_at IS NOT NULL;
+
+-- Exercises within a workout
+
+workoutExercises:
+SELECT we.id, we.exercise_id, we.position, we.rest_s, we.notes, e.name, e.measurement_type
+FROM workout_exercise we
+JOIN exercise e ON e.id = we.exercise_id
+WHERE we.workout_id = :workoutId AND we.deleted_at IS NULL
+ORDER BY we.position;
+
+workoutExerciseIds:
+SELECT id FROM workout_exercise
+WHERE workout_id = :workoutId AND deleted_at IS NULL
+ORDER BY position;
+
+workoutExerciseById:
+SELECT we.id, we.workout_id, we.exercise_id, we.position, w.ended_at
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.id = :id AND we.deleted_at IS NULL;
+
+insertWorkoutExercise:
+INSERT INTO workout_exercise(id, workout_id, exercise_id, position, rest_s, notes, updated_at, deleted_at)
+VALUES (:id, :workoutId, :exerciseId, :position, :restS, NULL, :now, NULL);
+
+setWorkoutExerciseRest:
+UPDATE workout_exercise SET rest_s = :restS, updated_at = :now WHERE id = :id;
+
+-- The rest last chosen for this exercise, so a new workout starts with it.
+lastRestForExercise:
+SELECT we.rest_s
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.exercise_id = :exerciseId AND we.rest_s IS NOT NULL
+  AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+ORDER BY w.started_at DESC, we.updated_at DESC
+LIMIT 1;
+
+setWorkoutExerciseNotes:
+UPDATE workout_exercise SET notes = :notes, updated_at = :now WHERE id = :id;
+
+-- The latest note for this exercise from a finished workout before this one, shown as a hint
+-- while this workout's note is empty. Workouts without one are skipped, so a seat height
+-- written once keeps showing.
+previousNotes:
+SELECT we.id, we.notes
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.exercise_id = :exerciseId AND we.notes IS NOT NULL AND we.deleted_at IS NULL
+  AND w.deleted_at IS NULL AND w.ended_at IS NOT NULL AND w.id != :excludeWorkoutId
+  AND w.started_at <= (SELECT started_at FROM workout WHERE id = :excludeWorkoutId)
+ORDER BY w.started_at DESC, we.position ASC
+LIMIT 1;
+
+setWorkoutExercisePosition:
+UPDATE workout_exercise SET position = :position, updated_at = :now WHERE id = :id;
+
+softDeleteWorkoutExercise:
+UPDATE workout_exercise SET deleted_at = :now, updated_at = :now WHERE id = :id;
+
+-- Sets
+
+workoutSets:
+SELECT
+    s.id,
+    s.workout_exercise_id,
+    s.position,
+    s.reps,
+    s.weight_kg,
+    s.duration_s,
+    s.distance_m,
+    s.is_warmup,
+    s.completed_at
+FROM workout_set s
+JOIN workout_exercise we ON we.id = s.workout_exercise_id
+WHERE we.workout_id = :workoutId AND we.deleted_at IS NULL AND s.deleted_at IS NULL
+ORDER BY we.position, s.position;
+
+setIdsOfWorkoutExercise:
+SELECT id FROM workout_set
+WHERE workout_exercise_id = :workoutExerciseId AND deleted_at IS NULL
+ORDER BY position;
+
+setById:
+SELECT id, workout_exercise_id, position, is_warmup, completed_at
+FROM workout_set
+WHERE id = :id AND deleted_at IS NULL;
+
+-- A set even after it was deleted, to undo the delete.
+anySetById:
+SELECT id, workout_exercise_id, position, deleted_at
+FROM workout_set
+WHERE id = :id;
+
+insertSet:
+INSERT INTO workout_set(id, workout_exercise_id, position, reps, weight_kg, duration_s, distance_m, rpe, pain_score, is_warmup, note, completed_at, updated_at, deleted_at)
+VALUES (:id, :workoutExerciseId, :position, :reps, :weightKg, :durationS, :distanceM, NULL, NULL, :isWarmup, NULL, NULL, :now, NULL);
+
+updateSetValues:
+UPDATE workout_set
+SET reps = :reps, weight_kg = :weightKg, duration_s = :durationS, distance_m = :distanceM, updated_at = :now
+WHERE id = :id;
+
+completeSet:
+UPDATE workout_set
+SET reps = :reps, weight_kg = :weightKg, duration_s = :durationS, distance_m = :distanceM,
+    completed_at = :now, updated_at = :now
+WHERE id = :id;
+
+uncompleteSet:
+UPDATE workout_set SET completed_at = NULL, updated_at = :now WHERE id = :id;
+
+setWarmup:
+UPDATE workout_set SET is_warmup = :isWarmup, updated_at = :now WHERE id = :id;
+
+setSetPosition:
+UPDATE workout_set SET position = :position, updated_at = :now WHERE id = :id;
+
+softDeleteSet:
+UPDATE workout_set SET deleted_at = :now, updated_at = :now WHERE id = :id;
+
+undeleteSet:
+UPDATE workout_set SET deleted_at = NULL, updated_at = :now WHERE id = :id;
+
+workoutExerciseIdsOfExercise:
+SELECT id FROM workout_exercise
+WHERE workout_id = :workoutId AND exercise_id = :exerciseId AND deleted_at IS NULL;
+
+softDeleteSetsOfWorkoutExercise:
+UPDATE workout_set SET deleted_at = :now, updated_at = :now
+WHERE workout_exercise_id = :workoutExerciseId AND deleted_at IS NULL;
+
+-- The completed sets from the most recent finished workout before this one that included this
+-- exercise, shown as "previous" beside each set. "Before" matters when editing an old workout.
+previousSets:
+SELECT s.reps, s.weight_kg, s.duration_s, s.distance_m, s.is_warmup
+FROM workout_set s
+WHERE s.workout_exercise_id = (
+    SELECT we.id
+    FROM workout_exercise we
+    JOIN workout w ON w.id = we.workout_id
+    WHERE we.exercise_id = :exerciseId AND we.deleted_at IS NULL
+      AND w.deleted_at IS NULL AND w.ended_at IS NOT NULL AND w.id != :excludeWorkoutId
+      AND w.started_at <= (SELECT started_at FROM workout WHERE id = :excludeWorkoutId)
+    ORDER BY w.started_at DESC, we.position ASC
+    LIMIT 1
+)
+  AND s.deleted_at IS NULL AND s.completed_at IS NOT NULL
+ORDER BY s.position;
+
+-- History
+
+finishedWorkouts:
+SELECT
+    w.id,
+    w.name,
+    w.started_at,
+    w.ended_at,
+    (
+        SELECT COUNT(*)
+        FROM workout_set s
+        JOIN workout_exercise we ON we.id = s.workout_exercise_id
+        WHERE we.workout_id = w.id AND we.deleted_at IS NULL
+          AND s.deleted_at IS NULL AND s.completed_at IS NOT NULL
+    ) AS set_count,
+    (
+        SELECT TOTAL(s.weight_kg * s.reps)
+        FROM workout_set s
+        JOIN workout_exercise we ON we.id = s.workout_exercise_id
+        WHERE we.workout_id = w.id AND we.deleted_at IS NULL
+          AND s.deleted_at IS NULL AND s.completed_at IS NOT NULL AND s.is_warmup = 0
+    ) AS volume_kg
+FROM workout w
+WHERE w.deleted_at IS NULL AND w.ended_at IS NOT NULL
+ORDER BY w.started_at DESC;
+
+finishedWorkoutExercises:
+SELECT we.workout_id, e.name, COUNT(s.id) AS set_count
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+JOIN exercise e ON e.id = we.exercise_id
+LEFT JOIN workout_set s
+    ON s.workout_exercise_id = we.id AND s.deleted_at IS NULL AND s.completed_at IS NOT NULL
+WHERE we.deleted_at IS NULL AND w.deleted_at IS NULL AND w.ended_at IS NOT NULL
+GROUP BY we.id
+ORDER BY w.started_at DESC, we.position;
+
+exerciseHistory:
+SELECT
+    w.id AS workout_id,
+    w.name AS workout_name,
+    w.started_at,
+    we.notes,
+    -- Whether anything else was logged in that workout, so deleting this exercise from it
+    -- can say if the workout goes too.
+    (
+        SELECT COUNT(*) FROM workout_exercise o
+        WHERE o.workout_id = w.id AND o.deleted_at IS NULL AND o.exercise_id != we.exercise_id
+    ) AS other_exercise_count,
+    s.reps,
+    s.weight_kg,
+    s.duration_s,
+    s.distance_m,
+    s.is_warmup
+FROM workout_set s
+JOIN workout_exercise we ON we.id = s.workout_exercise_id
+JOIN workout w ON w.id = we.workout_id
+WHERE we.exercise_id = :exerciseId
+  AND s.deleted_at IS NULL AND we.deleted_at IS NULL AND w.deleted_at IS NULL
+  AND w.ended_at IS NOT NULL AND s.completed_at IS NOT NULL
+ORDER BY w.started_at DESC, we.position, s.position;
+
+recentExerciseIds:
+SELECT we.exercise_id
+FROM workout_exercise we
+JOIN workout w ON w.id = we.workout_id
+WHERE we.deleted_at IS NULL AND w.deleted_at IS NULL AND w.ended_at IS NOT NULL
+GROUP BY we.exercise_id
+ORDER BY MAX(w.started_at) DESC
+LIMIT :limit;

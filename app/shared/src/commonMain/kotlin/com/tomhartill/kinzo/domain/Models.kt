@@ -221,6 +221,8 @@ data class ExerciseSession(
     val sets: List<PreviousSet>,
     /** The note written for the exercise in that workout, if any. */
     val notes: String? = null,
+    /** How many other exercises that workout has; with none, deleting this one deletes the workout. */
+    val otherExerciseCount: Int = 0,
 )
 
 /** Who made a saved workout. */

@@ -150,6 +150,7 @@ class WorkoutRepository(
                     workoutName = sets.first().workout_name,
                     startedAt = sets.first().started_at,
                     notes = sets.first().notes,
+                    otherExerciseCount = sets.first().other_exercise_count.toInt(),
                     sets = sets.map { set ->
                         PreviousSet(
                             values = SetValues(
@@ -468,6 +469,30 @@ class WorkoutRepository(
             renumberExercises(exercise.workout_id, now)
             // Taken out of a finished workout (while editing it): its trend loses that session.
             if (exercise.ended_at != null) trends.refreshExercises(listOf(exercise.exercise_id))
+        }
+    }
+
+    /**
+     * Deletes one exercise's sets from one finished workout, as picked from that exercise's
+     * history. The rest of the workout stays as it was, unless nothing else is left in it, in
+     * which case the workout is deleted too. Trends and stats lose that session.
+     */
+    suspend fun removeExerciseFromWorkout(workoutId: String, exerciseId: String) = withContext(io) {
+        db.transaction {
+            val workout = queries.workoutById(workoutId).executeAsOneOrNull() ?: return@transaction
+            // A workout in progress is changed on its own screen.
+            if (workout.ended_at == null) return@transaction
+            val now = now()
+            queries.workoutExerciseIdsOfExercise(workoutId = workoutId, exerciseId = exerciseId).executeAsList().forEach { id ->
+                queries.softDeleteSetsOfWorkoutExercise(now = now, workoutExerciseId = id)
+                queries.softDeleteWorkoutExercise(now = now, id = id)
+            }
+            if (queries.workoutExerciseIds(workoutId).executeAsList().isEmpty()) {
+                queries.softDeleteWorkout(now = now, id = workoutId)
+            } else {
+                renumberExercises(workoutId, now)
+            }
+            trends.refreshExercises(listOf(exerciseId))
         }
     }
 

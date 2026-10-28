@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class ExerciseDetailState(
     val loading: Boolean = true,
@@ -25,9 +26,9 @@ data class ExerciseDetailState(
 )
 
 class ExerciseDetailViewModel(
-    exerciseId: String,
+    private val exerciseId: String,
     catalogue: CatalogueRepository,
-    workouts: WorkoutRepository,
+    private val workouts: WorkoutRepository,
     settings: SettingsRepository,
 ) : ViewModel() {
     val state: StateFlow<ExerciseDetailState> = combine(
@@ -43,4 +44,9 @@ class ExerciseDetailViewModel(
             unit = settingsValue.weightUnit,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseDetailState())
+
+    /** Deletes this exercise from one past workout, leaving the rest of that workout alone. */
+    fun deleteSession(workoutId: String) {
+        viewModelScope.launch { workouts.removeExerciseFromWorkout(workoutId, exerciseId) }
+    }
 }

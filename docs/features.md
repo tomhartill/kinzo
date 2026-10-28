@@ -180,6 +180,14 @@ stopped, without counting the break.
 
 Fix or fill in any older workout. Progress and trends update to match.
 
+### Edit or delete one exercise from your history
+**Status:** Shipped
+
+On an exercise's page, each past session has a menu. Edit workout opens that day's workout to
+fix the numbers. Delete from history removes just that exercise's sets from that day, leaving
+the rest of the workout alone (if it was the only thing logged, the workout goes too). Your
+best set, progress chart and trends update straight away.
+
 ### Repeat a past workout
 **Status:** Shipped
 

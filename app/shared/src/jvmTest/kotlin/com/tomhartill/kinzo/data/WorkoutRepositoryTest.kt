@@ -201,6 +201,34 @@ class WorkoutRepositoryTest {
     }
 
     @Test
+    fun deletingAnExerciseFromAPastWorkoutKeepsTheRest() = runTest {
+        logBench(60.0 to 8)
+        val id = workouts.startWorkout("Push")
+        workouts.addExercises(id, listOf("ex-bench", "ex-plank"))
+        workouts.completeSet(active().exercises[0].sets.single().id, SetValues(weightKg = 70.0, reps = 5))
+        workouts.completeSet(active().exercises[1].sets.single().id, SetValues(durationS = 60))
+        assertTrue(workouts.finishWorkout(id))
+        assertEquals(1, workouts.exerciseHistory("ex-bench").first().first().otherExerciseCount)
+
+        workouts.removeExerciseFromWorkout(id, "ex-bench")
+        val bench = workouts.exerciseHistory("ex-bench").first()
+        assertEquals(listOf(listOf(60.0)), bench.map { session -> session.sets.map { it.values.weightKg } })
+        val workout = assertNotNull(workouts.workout(id).first())
+        assertEquals(listOf("Plank"), workout.exercises.map { it.name })
+        assertEquals(1, workouts.exerciseHistory("ex-plank").first().size)
+    }
+
+    @Test
+    fun deletingTheOnlyExerciseOfAPastWorkoutDeletesTheWorkout() = runTest {
+        val id = logBench(60.0 to 8)
+        assertEquals(0, workouts.exerciseHistory("ex-bench").first().single().otherExerciseCount)
+        workouts.removeExerciseFromWorkout(id, "ex-bench")
+        assertNull(workouts.workout(id).first())
+        assertTrue(workouts.history().first().isEmpty())
+        assertTrue(workouts.exerciseHistory("ex-bench").first().isEmpty())
+    }
+
+    @Test
     fun exerciseHistoryIsNewestFirst() = runTest {
         logBench(60.0 to 8)
         logBench(62.5 to 8, 62.5 to 7)

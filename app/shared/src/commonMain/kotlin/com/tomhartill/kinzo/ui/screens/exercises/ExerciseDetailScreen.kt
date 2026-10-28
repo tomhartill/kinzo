@@ -20,6 +20,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,6 +53,7 @@ import com.tomhartill.kinzo.domain.SetValues
 import com.tomhartill.kinzo.domain.Weight
 import com.tomhartill.kinzo.domain.WeightUnit
 import com.tomhartill.kinzo.ui.components.ChoiceRow
+import com.tomhartill.kinzo.ui.components.ConfirmDialog
 import com.tomhartill.kinzo.ui.components.ExerciseIcon
 import com.tomhartill.kinzo.ui.components.KinzoCard
 import com.tomhartill.kinzo.ui.components.KinzoTopBar
@@ -60,11 +69,15 @@ import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-/** One exercise: what it works, your best set and past sessions, and how to do it. */
+/**
+ * One exercise: what it works, your best set and past sessions, and how to do it. Each past
+ * session can be edited, which opens that workout, or deleted on its own.
+ */
 @Composable
 fun ExerciseDetailScreen(
     exerciseId: String,
     onBack: () -> Unit,
+    onEditWorkout: (workoutId: String) -> Unit,
     viewModel: ExerciseDetailViewModel = koinViewModel { parametersOf(exerciseId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -76,6 +89,7 @@ fun ExerciseDetailScreen(
     val zone = remember { TimeZone.currentSystemDefault() }
     val now by rememberNow(intervalMillis = 60_000)
     val navigationBars = WindowInsets.navigationBars.asPaddingValues()
+    var confirmDelete by remember { mutableStateOf<ExerciseSession?>(null) }
 
     ScreenTipsEffect(KinzoTips.ExerciseDetail)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -127,11 +141,40 @@ fun ExerciseDetailScreen(
                         }
                     }
                     items(state.sessions, key = { "session-${it.workoutId}" }) { session ->
-                        Session(session, exercise.measurementType, state.unit, now, zone)
+                        Session(
+                            session,
+                            exercise.measurementType,
+                            state.unit,
+                            now,
+                            zone,
+                            onEdit = { onEditWorkout(session.workoutId) },
+                            onDelete = { confirmDelete = session },
+                        )
                     }
                 }
             }
         }
+    }
+
+    confirmDelete?.let { session ->
+        val day = Dates.dayLabel(session.startedAt, now, zone)
+        ConfirmDialog(
+            title = "Delete from history?",
+            message = if (session.otherExerciseCount == 0) {
+                "These sets from $day will be removed from your history and progress. " +
+                    "Nothing else was logged in ${session.workoutName}, so the workout goes too."
+            } else {
+                "These sets from $day will be removed from your history and progress. " +
+                    "The rest of ${session.workoutName} stays as it is."
+            },
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = {
+                confirmDelete = null
+                viewModel.deleteSession(session.workoutId)
+            },
+            onDismiss = { confirmDelete = null },
+        )
     }
 }
 
@@ -242,23 +285,53 @@ private fun Step(number: Int, text: String) {
 }
 
 @Composable
-private fun Session(session: ExerciseSession, type: MeasurementType, unit: WeightUnit, now: Long, zone: TimeZone) {
+private fun Session(
+    session: ExerciseSession,
+    type: MeasurementType,
+    unit: WeightUnit,
+    now: Long,
+    zone: TimeZone,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val labels = SetRules.labels(session.sets.map { it.isWarmup })
+    var menuOpen by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm)) {
-            Text(
-                Dates.dayLabel(session.startedAt, now, zone),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.alignByBaseline(),
-            )
-            Text(
-                session.workoutName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).alignByBaseline(),
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm)) {
+                Text(
+                    Dates.dayLabel(session.startedAt, now, zone),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Text(
+                    session.workoutName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).alignByBaseline(),
+                )
+            }
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = "Options for ${Dates.dayLabel(session.startedAt, now, zone)}",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(text = { Text("Edit workout") }, onClick = {
+                        menuOpen = false
+                        onEdit()
+                    })
+                    DropdownMenuItem(text = { Text("Delete from history", color = MaterialTheme.colorScheme.error) }, onClick = {
+                        menuOpen = false
+                        onDelete()
+                    })
+                }
+            }
         }
         session.notes?.let { notes ->
             Text(notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

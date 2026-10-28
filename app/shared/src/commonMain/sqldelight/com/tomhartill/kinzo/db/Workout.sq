@@ -240,6 +240,10 @@ UPDATE workout_set SET deleted_at = :now, updated_at = :now WHERE id = :id;
 undeleteSet:
 UPDATE workout_set SET deleted_at = NULL, updated_at = :now WHERE id = :id;
 
+workoutExerciseIdsOfExercise:
+SELECT id FROM workout_exercise
+WHERE workout_id = :workoutId AND exercise_id = :exerciseId AND deleted_at IS NULL;
+
 softDeleteSetsOfWorkoutExercise:
 UPDATE workout_set SET deleted_at = :now, updated_at = :now
 WHERE workout_exercise_id = :workoutExerciseId AND deleted_at IS NULL;
@@ -305,6 +309,12 @@ SELECT
     w.name AS workout_name,
     w.started_at,
     we.notes,
+    -- Whether anything else was logged in that workout, so deleting this exercise from it
+    -- can say if the workout goes too.
+    (
+        SELECT COUNT(*) FROM workout_exercise o
+        WHERE o.workout_id = w.id AND o.deleted_at IS NULL AND o.exercise_id != we.exercise_id
+    ) AS other_exercise_count,
     s.reps,
     s.weight_kg,
     s.duration_s,

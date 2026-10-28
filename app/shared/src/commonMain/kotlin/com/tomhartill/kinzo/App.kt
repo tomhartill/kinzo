@@ -399,7 +399,11 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             onReplaced = back,
             onSignIn = { ifCurrent { navigator.push(Destination.SignIn) } },
         )
-        is Destination.ExerciseDetail -> ExerciseDetailScreen(exerciseId = destination.exerciseId, onBack = back)
+        is Destination.ExerciseDetail -> ExerciseDetailScreen(
+            exerciseId = destination.exerciseId,
+            onBack = back,
+            onEditWorkout = { id -> ifCurrent { navigator.push(Destination.EditWorkout(id)) } },
+        )
         is Destination.WorkoutDetail -> WorkoutDetailScreen(
             workoutId = destination.workoutId,
             justFinished = destination.justFinished,

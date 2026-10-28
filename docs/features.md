@@ -275,6 +275,28 @@ of how well each one trains each muscle. Works offline with no account.
 Take progress photos by pose (front, side and back), browse them by day, and delete them. They're
 kept private inside Kinzo, out of your photo gallery, and never shared with friends.
 
+### Pose outline for progress photos
+**Status:** Planned
+
+Prop your phone up and step into a body outline on the screen that shows exactly how to stand
+for a front, side or back photo. When you fit the outline and hold still, Kinzo counts down and
+takes the photo by itself. After the first time the outline is your own, so every week's photos
+match the same pose and distance.
+
+### Weekly body check-in
+**Status:** Planned
+
+One quick weekly routine: today's weight, the three outline photos and, if you like, a few tape
+measurements, with an optional reminder on the day you choose. Logging just your weight works
+any day.
+
+### Body composition changes
+**Status:** Planned
+
+From your check-in photos and your weight, Kinzo estimates how much of a change was fat and how
+much was muscle, for example "down 2.1 kg, mostly fat". Shown as an estimate with a range, only
+once there are a few weeks to compare, and never shared. All worked out on the phone.
+
 ### Compare progress photos
 **Status:** Planned
 

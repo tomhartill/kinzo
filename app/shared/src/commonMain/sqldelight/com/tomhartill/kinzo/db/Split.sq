@@ -1,0 +1,39 @@
+-- Splits: how training is divided across days, like Push or Upper, so each saved workout can
+-- say which part of the body it trains. Each split belongs to one workout type; for now the
+-- app only offers them for resistance training. The built-in ones come with the ready-made
+-- workouts (created_by 'kinzo', never synced) and the user can add their own ('user').
+--
+-- Rows are soft-deleted. A workout keeps showing the name of a split the user has removed.
+
+CREATE TABLE split (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    -- A WorkoutType key, such as 'resistance'.
+    workout_type        TEXT NOT NULL,
+    created_by          TEXT NOT NULL,
+    -- For built-in splits this is their place in the bundle, which keeps them in order.
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+-- The built-in splits in their bundled order, then the user's own in the order they were added.
+splits:
+SELECT id, name, workout_type, created_by
+FROM split
+WHERE deleted_at IS NULL
+ORDER BY CASE created_by WHEN 'kinzo' THEN 0 ELSE 1 END, created_at, name;
+
+upsertSplit:
+INSERT OR REPLACE INTO split(id, name, workout_type, created_by, created_at, updated_at, deleted_at)
+VALUES (:id, :name, :workoutType, :createdBy, :createdAt, :updatedAt, NULL);
+
+-- Only the user's own splits can be removed.
+softDeleteUserSplit:
+UPDATE split SET deleted_at = :now, updated_at = :now
+WHERE id = :id AND created_by = 'user' AND deleted_at IS NULL;
+
+-- Built-in splits the new bundle no longer has.
+softDeleteSplitsBy:
+UPDATE split SET deleted_at = :now, updated_at = :now
+WHERE created_by = :createdBy AND deleted_at IS NULL;

@@ -1,0 +1,2 @@
+-- Version 1 to 2: a rest time for each exercise in a workout.
+ALTER TABLE workout_exercise ADD COLUMN rest_s INTEGER;

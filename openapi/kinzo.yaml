@@ -4,12 +4,29 @@ info:
   version: 0.1.0
   description: |
     The contract between the Kinzo app and the Go API. Change this file first, then the
-    server and the app. Endpoints for auth and sync arrive in milestone 5.
+    server and the app. Sync endpoints arrive later.
 
     Conventions:
     - IDs are UUIDs; the app generates UUIDv7 for rows it creates.
     - Weights are kilograms, distances metres, durations seconds.
     - Timestamps are RFC 3339 in UTC.
+    - Signed-in requests send `Authorization: Bearer <token>` with the session token from sign-in.
+    - Errors return `{"error": {"code": "...", "message": "..."}}`. A 401 with code `signed_out`
+      means the session has ended and the app should sign out locally.
+
+    Sign-in. Android uses Google's one-tap sheet and posts the ID token to
+    `/v1/auth/google/id-token`. Everything else signs in through the browser:
+    1. The app opens `/v1/auth/{provider}/start` with `redirect_uri` (`kinzo://auth/callback`, or a
+       loopback URL on desktop) and an S256 PKCE `code_challenge`.
+    2. The API sends the browser to Google or Facebook, which sends it back to
+       `/v1/auth/{provider}/callback`.
+    3. The API redirects to `redirect_uri` with `?code=...`, or `?error=cancelled|failed`.
+    4. The app posts the code and its `code_verifier` to `/v1/auth/exchange` for a session token.
+
+    Email and phone code sign-in (on when the server has a code sender; see
+    docs/specs/email-and-phone-sign-in.md): the app posts the email to `/v1/auth/phone/start`,
+    adds a phone number if the email is new, then posts the texted or WhatsApped code to
+    `/v1/auth/phone/verify` for the same `SignedIn` response.
 servers:
   - url: http://localhost:8080
     description: Local development (docker compose up)
@@ -37,8 +54,654 @@ paths:
               example:
                 status: degraded
                 database: unreachable
+  /v1/auth/providers:
+    get:
+      summary: Which sign-in options this server has turned on
+      operationId: getAuthProviders
+      responses:
+        "200":
+          description: Provider names, and whether Google ID tokens from the app are accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers, google_id_tokens, phone_channels]
+                properties:
+                  providers:
+                    type: array
+                    items: { type: string, enum: [google, facebook, phone] }
+                  google_id_tokens: { type: boolean }
+                  phone_channels:
+                    type: array
+                    description: How codes can be sent. Empty when `phone` is off.
+                    items: { $ref: "#/components/schemas/CodeChannel" }
+  /v1/auth/{provider}/start:
+    get:
+      summary: Start a browser sign-in
+      operationId: startSignIn
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string, enum: [google, facebook] } }
+        - { name: redirect_uri, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge_method, in: query, required: true, schema: { type: string, enum: [S256] } }
+      responses:
+        "302": { description: Redirect to the provider's sign-in page. }
+        "400": { $ref: "#/components/responses/Error" }
+  /v1/auth/{provider}/callback:
+    get:
+      summary: Where the provider sends the browser back (not called by the app)
+      operationId: signInCallback
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string } }
+      responses:
+        "302": { description: Redirect to the app's redirect_uri with code or error. }
+  /v1/auth/exchange:
+    post:
+      summary: Swap a browser sign-in's one-time code for a session
+      operationId: exchangeSignInCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, code_verifier]
+              properties:
+                code: { type: string }
+                code_verifier: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/SignedIn" }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/auth/google/id-token:
+    post:
+      summary: Sign in with a Google ID token the app got itself
+      operationId: signInWithGoogleIdToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/SignedIn" }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/auth/phone/start:
+    post:
+      summary: Start an email and phone code sign-in, or resend the code
+      description: |
+        Send the email alone first. A known email with a phone gets a code at once (`phone` is
+        ignored); a new email answers `next: phone`, and the app calls again with the number; an
+        email whose account signs in only with Google or Facebook answers `next: provider`.
+        Calling again resends, optionally on the other channel.
+      operationId: startPhoneSignIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, channel]
+              properties:
+                email: { type: string, format: email }
+                phone: { type: string, description: "As typed, with a country code (+44...)." }
+                channel: { $ref: "#/components/schemas/CodeChannel" }
+      responses:
+        "200":
+          description: What the app shows next.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [next]
+                properties:
+                  next: { type: string, enum: [code, phone, provider] }
+                  challenge: { $ref: "#/components/schemas/CodeChallenge" }
+                  providers:
+                    type: array
+                    description: With `next = provider`, the ways this account signs in.
+                    items: { type: string, enum: [google, facebook] }
+              examples:
+                codeSent:
+                  value:
+                    next: code
+                    challenge: { challenge_id: 0199e3a1-7c2b-7d3e-9f00-123456789abc, phone_hint: "•••• 123", channel: sms, expires_in: 600, resend_in: 30 }
+                newEmail: { value: { next: phone } }
+                googleOnly: { value: { next: provider, providers: [google] } }
+        "400": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/TooManyCodes" }
+        "502": { $ref: "#/components/responses/Error" }
+  /v1/auth/phone/verify:
+    post:
+      summary: Finish an email and phone code sign-in
+      operationId: verifyPhoneSignIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CodeAttempt" }
+      responses:
+        "200": { $ref: "#/components/responses/SignedIn" }
+        "400": { $ref: "#/components/responses/CodeError" }
+        "410": { $ref: "#/components/responses/Error" }
+  /v1/auth/sign-out:
+    post:
+      summary: End this device's session
+      operationId: signOut
+      security: [{ session: [] }]
+      responses:
+        "204": { description: Signed out. }
+  /v1/me:
+    get:
+      summary: The signed-in account
+      operationId: getMe
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Error" }
+    patch:
+      summary: Change username, display name or privacy
+      operationId: updateMe
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string, description: "3 to 30 of a-z, 0-9, dot, underscore. A leading @ and capitals are tidied." }
+                display_name: { type: string, maxLength: 50 }
+                private:
+                  type: boolean
+                  description: Private accounts approve each new follower. Turning it off approves everyone waiting.
+      responses:
+        "200":
+          description: The updated account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Delete the account and everything in it
+      operationId: deleteMe
+      security: [{ session: [] }]
+      responses:
+        "204": { description: Deleted. }
+  /v1/me/phone:
+    delete:
+      summary: Remove the account's phone number
+      description: Refused with `last_sign_in_method` when the phone is the only way in.
+      operationId: deleteMyPhone
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The updated account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/me/phone/start:
+    post:
+      summary: Send a code to add or change the account's phone number
+      operationId: startAddPhone
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, channel]
+              properties:
+                phone: { type: string }
+                channel: { $ref: "#/components/schemas/CodeChannel" }
+      responses:
+        "200":
+          description: Code sent.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CodeChallenge" }
+        "400": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/TooManyCodes" }
+        "502": { $ref: "#/components/responses/Error" }
+  /v1/me/phone/verify:
+    post:
+      summary: Confirm the code and save the phone number on the account
+      operationId: verifyAddPhone
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CodeAttempt" }
+      responses:
+        "200":
+          description: The updated account.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/CodeError" }
+        "410": { $ref: "#/components/responses/Error" }
+  /v1/usernames/{username}:
+    get:
+      summary: Whether a username is free
+      operationId: checkUsername
+      security: [{ session: [] }]
+      parameters:
+        - { name: username, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Availability.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [username, available, valid]
+                properties:
+                  username: { type: string }
+                  available: { type: boolean }
+                  valid: { type: boolean }
+  /v1/users/search:
+    get:
+      summary: Find people by username or name
+      operationId: searchUsers
+      security: [{ session: [] }]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2 } }
+      responses:
+        "200":
+          description: Up to 20 people. Blocked people, either way, never appear.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: "#/components/schemas/Person" }
+  /v1/users/{id}:
+    get:
+      summary: One person
+      operationId: getUser
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: The person, with how many follow them and how many they follow.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Person"
+                  - type: object
+                    required: [follower_count, following_count]
+                    properties:
+                      follower_count: { type: integer }
+                      following_count: { type: integer }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/follows:
+    get:
+      summary: Your followers, who you follow, and requests to follow you
+      description: |
+        Following is one-way, as on Instagram. `requests` only fills when the account is
+        private, since anyone can follow a public account straight away. `following` includes
+        requests you've sent to private accounts, with `following: requested`.
+      operationId: listFollows
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The three lists. Followers and following by name, requests newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [followers, following, requests]
+                properties:
+                  followers: { type: array, items: { $ref: "#/components/schemas/Person" } }
+                  following: { type: array, items: { $ref: "#/components/schemas/Person" } }
+                  requests: { type: array, items: { $ref: "#/components/schemas/Person" } }
+    post:
+      summary: Follow someone
+      description: A public account is followed at once; a private one gets a request to approve.
+      operationId: follow
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The person afterwards.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/follows/{id}:
+    delete:
+      summary: Unfollow this person, or cancel a request to follow them
+      operationId: unfollow
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: No longer following. }
+  /v1/followers/{id}/accept:
+    post:
+      summary: Approve this person's request to follow you
+      operationId: acceptFollower
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: They follow you now. }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/followers/{id}:
+    delete:
+      summary: Remove a follower, or decline their request
+      operationId: removeFollower
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: They no longer follow you. }
+  /v1/blocks:
+    get:
+      summary: People you've blocked
+      operationId: listBlocks
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: Blocked people.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users: { type: array, items: { $ref: "#/components/schemas/PublicUser" } }
+    post:
+      summary: Block someone. Ends any follows or requests between you, both ways.
+      operationId: block
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: string, format: uuid }
+      responses:
+        "204": { description: Blocked. }
+  /v1/blocks/{id}:
+    delete:
+      summary: Unblock someone
+      operationId: unblock
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Unblocked. }
+  /v1/invites/mine:
+    get:
+      summary: Your invite link
+      operationId: getMyInvite
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The link.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invite" }
+  /v1/invites/mine/reset:
+    post:
+      summary: Replace your invite link; the old one stops working
+      operationId: resetMyInvite
+      security: [{ session: [] }]
+      responses:
+        "200":
+          description: The new link.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invite" }
+  /v1/invites/{code}:
+    get:
+      summary: Who sent this invite
+      operationId: getInvite
+      security: [{ session: [] }]
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The inviter.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [inviter, is_you]
+                properties:
+                  inviter: { $ref: "#/components/schemas/Person" }
+                  is_you: { type: boolean }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/invites/{code}/accept:
+    post:
+      summary: Accept an invite. You and the inviter follow each other straight away, even if either account is private.
+      operationId: acceptInvite
+      security: [{ session: [] }]
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The inviter, now following you and followed by you.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/scan/machine:
+    post:
+      summary: Say which gym machine a photo shows
+      description: |
+        The body is the photo itself, at most 5 MB (the app sends about 1280 pixels on the long
+        edge). Each scan is a paid vision-model call, so a person gets a daily allowance
+        (`KINZO_SCAN_DAILY_LIMIT`, 30 by default). Machine and exercise IDs are the catalogue's,
+        so the phone already has them.
+      operationId: scanMachine
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: { type: string, format: binary }
+          image/png:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: What the photo could show. `matches` is empty when it's no machine Kinzo knows.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MachineScan" }
+              example:
+                matches:
+                  - { machine_id: 6f1c2a9e-4b1d-5c3e-9a7f-1e2d3c4b5a69, confidence: high }
+                exercise_id: 0a9b8c7d-6e5f-5a4b-8c3d-2e1f0a9b8c7d
+                description: A plate-loaded incline chest press with independent arms.
+        "413": { $ref: "#/components/responses/Error" }
+        "415": { $ref: "#/components/responses/Error" }
+        "422":
+          description: The photo couldn't be read (`unreadable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Today's scans are used up (`scan_limit`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+        "503":
+          description: Scanning isn't set up on this server (`scan_unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 components:
+  securitySchemes:
+    session:
+      type: http
+      scheme: bearer
+  responses:
+    Error:
+      description: Something went wrong; see the code.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    SignedIn:
+      description: Signed in.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token, user, new_user]
+            properties:
+              token: { type: string, description: Session token. Send it as a bearer token. }
+              user: { $ref: "#/components/schemas/User" }
+              new_user: { type: boolean, description: True on a first sign-in. }
+    TooManyCodes:
+      description: A sending limit (`too_many_codes`), with the seconds until another code can go.
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Error"
+              - type: object
+                properties:
+                  retry_in: { type: integer }
+    CodeError:
+      description: Wrong code (`wrong_code`), with the tries left on this code.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Error"
+              - type: object
+                properties:
+                  attempts_left: { type: integer }
   schemas:
+    MachineScan:
+      type: object
+      required: [matches, description]
+      properties:
+        matches:
+          type: array
+          maxItems: 3
+          description: Best first.
+          items:
+            type: object
+            required: [machine_id, confidence]
+            properties:
+              machine_id: { type: string, format: uuid }
+              confidence: { type: string, enum: [high, medium, low] }
+        exercise_id:
+          type: string
+          format: uuid
+          description: The variation the photo most likely shows, from the first match. Absent when unclear.
+        description: { type: string, description: One sentence on what the photo shows. }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+    User:
+      type: object
+      required: [id, username, display_name, email_verified, sign_in_methods, private, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string }
+        email: { type: string }
+        email_verified:
+          type: boolean
+          description: False for an email typed at a phone sign-up, which nobody has confirmed.
+        phone:
+          type: string
+          description: The person's own number in E.164, if they added one.
+        sign_in_methods:
+          type: array
+          description: The ways into the account.
+          items: { type: string, enum: [google, facebook, apple, phone] }
+        private: { type: boolean, description: New followers need approval. }
+        created_at: { type: string, format: date-time }
+    CodeChannel:
+      type: string
+      enum: [sms, whatsapp]
+    CodeChallenge:
+      type: object
+      required: [challenge_id, phone_hint, channel, expires_in, resend_in]
+      properties:
+        challenge_id: { type: string, format: uuid }
+        phone_hint: { type: string, description: "Last three digits only, e.g. •••• 123." }
+        channel: { $ref: "#/components/schemas/CodeChannel" }
+        expires_in: { type: integer, description: Seconds until the code expires. }
+        resend_in: { type: integer, description: Seconds until another code can be sent. }
+    CodeAttempt:
+      type: object
+      required: [challenge_id, code]
+      properties:
+        challenge_id: { type: string, format: uuid }
+        code: { type: string, pattern: "^[0-9]{6}$" }
+    PublicUser:
+      type: object
+      required: [id, username, display_name]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string }
+    Person:
+      allOf:
+        - $ref: "#/components/schemas/PublicUser"
+        - type: object
+          required: [private, following, follows_you, requested_you]
+          properties:
+            private: { type: boolean }
+            following:
+              type: string
+              enum: [none, requested, following]
+              description: Whether you follow them, or have asked to.
+            follows_you: { type: boolean }
+            requested_you: { type: boolean, description: They've asked to follow your private account. }
+            since: { type: string, format: date-time, description: "In lists: when that follow or request started." }
+    Invite:
+      type: object
+      required: [code, url]
+      properties:
+        code: { type: string }
+        url: { type: string }
     Health:
       type: object
       required: [status, database]

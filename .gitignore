@@ -2,3 +2,5 @@
 .idea/
 *.iml
 local.properties
+__pycache__/
+.env

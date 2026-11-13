@@ -1,93 +1,244 @@
 package com.tomhartill.kinzo.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.tomhartill.kinzo.domain.Weight
+import com.tomhartill.kinzo.domain.Format
+import com.tomhartill.kinzo.domain.LoggedSet
+import com.tomhartill.kinzo.domain.MeasurementType
+import com.tomhartill.kinzo.domain.PreviousSet
+import com.tomhartill.kinzo.domain.ProgressPoint
+import com.tomhartill.kinzo.domain.SetRules
+import com.tomhartill.kinzo.domain.SetValues
+import com.tomhartill.kinzo.domain.ThemeMode
+import com.tomhartill.kinzo.domain.ThemeName
 import com.tomhartill.kinzo.domain.WeightUnit
+import com.tomhartill.kinzo.ui.components.ChoiceRow
 import com.tomhartill.kinzo.ui.components.KinzoCard
+import com.tomhartill.kinzo.ui.components.KinzoTopBar
 import com.tomhartill.kinzo.ui.components.PrimaryButton
+import com.tomhartill.kinzo.ui.components.ProgressChart
 import com.tomhartill.kinzo.ui.components.SecondaryButton
 import com.tomhartill.kinzo.ui.components.SectionHeader
-import com.tomhartill.kinzo.ui.components.SetRow
+import com.tomhartill.kinzo.ui.components.SetEditorRow
+import com.tomhartill.kinzo.ui.components.SetSummaryRow
 import com.tomhartill.kinzo.ui.components.SetTableHeader
 import com.tomhartill.kinzo.ui.components.StatTile
+import com.tomhartill.kinzo.ui.components.ThemePicker
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
-/** Living reference for the design system: every token and component in one place. */
+/**
+ * Living reference for the design system: every token and component in one place, in any
+ * theme and mode, so a new screen can be checked in all of them.
+ */
 @Composable
-fun DesignSystemScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
-    TitledScreen(title = "Design system", subtitle = "Tokens and components", modifier = modifier) {
-        SecondaryButton(text = "Back", onClick = onBack)
+fun DesignSystemScreen(onBack: () -> Unit) {
+    // Null follows the app's own choice.
+    var previewTheme by remember { mutableStateOf<ThemeName?>(null) }
+    var previewMode by remember { mutableStateOf<ThemeMode?>(null) }
+    val content: @Composable () -> Unit = {
+        DesignSystemContent(
+            onBack = onBack,
+            previewTheme = previewTheme,
+            onPreviewTheme = { previewTheme = it },
+            previewMode = previewMode,
+            onPreviewMode = { previewMode = it },
+        )
+    }
+    val theme = previewTheme
+    if (theme == null && previewMode == null) {
+        content()
+    } else {
+        val mode = previewMode ?: if (KinzoTheme.isDark) ThemeMode.Dark else ThemeMode.Light
+        KinzoTheme(theme = theme ?: ThemeName.Mono, mode = mode, applySystemBars = false, content = content)
+    }
+}
 
-        SectionHeader("Colour")
-        val colors = MaterialTheme.colorScheme
-        Row(horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.sm)) {
-            listOf(colors.primary, colors.onSurfaceVariant, colors.outline, colors.surfaceContainerHigh, colors.surface, colors.error)
-                .forEach { Swatch(it) }
+@Composable
+private fun DesignSystemContent(
+    onBack: () -> Unit,
+    previewTheme: ThemeName?,
+    onPreviewTheme: (ThemeName) -> Unit,
+    previewMode: ThemeMode?,
+    onPreviewMode: (ThemeMode) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val spacing = KinzoTheme.spacing
+    Column(Modifier.fillMaxSize().background(colors.background)) {
+        KinzoTopBar(title = "Design system", subtitle = "Tokens and components", onBack = onBack)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = spacing.screen, vertical = spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
+        ) {
+            SectionHeader("Preview theme")
+            ThemePicker(selected = previewTheme ?: ThemeName.Mono, onSelect = onPreviewTheme)
+            ChoiceRow(
+                options = listOf(ThemeMode.Light, ThemeMode.Dark),
+                selected = previewMode ?: if (KinzoTheme.isDark) ThemeMode.Dark else ThemeMode.Light,
+                optionLabel = { it.label },
+                onSelect = onPreviewMode,
+            )
+
+            SectionHeader("Colour roles")
+            val roles = KinzoTheme.colors
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                listOf(
+                    "background" to roles.background,
+                    "surface" to roles.surface,
+                    "surfaceHigh" to roles.surfaceHigh,
+                    "accent" to roles.accent,
+                    "onAccent" to roles.onAccent,
+                    "accentSoft" to roles.accentSoft,
+                    "text" to roles.text,
+                    "textMuted" to roles.textMuted,
+                    "danger" to roles.danger,
+                ).forEach { (name, color) ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
+                        Swatch(color)
+                        Text(name, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            SectionHeader("Type")
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+                Text("Display", style = MaterialTheme.typography.displayMedium)
+                Text("Headline", style = MaterialTheme.typography.headlineMedium)
+                Text("Title", style = MaterialTheme.typography.titleMedium)
+                Text("Body text for descriptions and instructions.", style = MaterialTheme.typography.bodyMedium)
+                Text("Label", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            }
+
+            SectionHeader("Buttons")
+            PrimaryButton(text = "Primary", onClick = {})
+            SecondaryButton(text = "Secondary", onClick = {})
+            PrimaryButton(text = "Disabled", onClick = {}, enabled = false)
+            var unit by remember { mutableStateOf(WeightUnit.Kilograms) }
+            ChoiceRow(options = WeightUnit.entries, selected = unit, optionLabel = { it.label }, onSelect = { unit = it })
+
+            SectionHeader("Stats")
+            KinzoCard {
+                Row(Modifier.fillMaxWidth()) {
+                    StatTile(value = "100", unit = unit.label, label = "Best bench", modifier = Modifier.weight(1f))
+                    StatTile(value = "12", label = "Workouts", modifier = Modifier.weight(1f))
+                }
+            }
+
+            SectionHeader("Progress chart")
+            KinzoCard {
+                Text("Bench press · est. 1RM", style = MaterialTheme.typography.titleMedium)
+                ProgressChart(points = SamplePoints, formatValue = { Format.decimal(it, maxDecimals = 1) }, unit = "kg")
+            }
+
+            SectionHeader("Logging")
+            LoggingSample(unit)
         }
+        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+    }
+}
 
-        SectionHeader("Type")
-        Column(verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xs)) {
-            Text("Display", style = MaterialTheme.typography.displayMedium)
-            Text("Headline", style = MaterialTheme.typography.headlineMedium)
-            Text("Title", style = MaterialTheme.typography.titleMedium)
-            Text("Body text for descriptions and instructions.", style = MaterialTheme.typography.bodyMedium)
-            Text("Label", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-        }
+/** Twenty sessions, two or three days apart, climbing with the odd bad day. */
+private val SamplePoints: List<ProgressPoint> = List(20) { session ->
+    val day = 86_400_000L
+    val wobble = listOf(0.0, 1.5, -1.0, 0.5, -2.0)[session % 5]
+    ProgressPoint(atMillis = 1_780_000_000_000L + session * (2 + session % 2) * day, value = 92.5 + session * 0.9 + wobble)
+}
 
-        SectionHeader("Buttons")
-        PrimaryButton(text = "Primary", onClick = {})
-        SecondaryButton(text = "Secondary", onClick = {})
-        PrimaryButton(text = "Disabled", onClick = {}, enabled = false)
-
-        SectionHeader("Stats")
-        KinzoCard {
-            Row(Modifier.fillMaxWidth()) {
-                StatTile(value = "100", unit = "kg", label = "Best bench", modifier = Modifier.weight(1f))
-                StatTile(value = "12", label = "Workouts", modifier = Modifier.weight(1f))
+/** A working set table backed by local state, to try the logging controls without a workout. */
+@Composable
+private fun LoggingSample(unit: WeightUnit) {
+    val sets = remember {
+        mutableStateListOf(
+            LoggedSet("a", SetValues(reps = 10, weightKg = 40.0), isWarmup = true, completedAt = 1L),
+            LoggedSet("b", SetValues(reps = 8, weightKg = 80.0), isWarmup = false, completedAt = 1L),
+            LoggedSet("c", SetValues(), isWarmup = false, completedAt = null),
+        )
+    }
+    val previous = listOf(
+        PreviousSet(SetValues(reps = 10, weightKg = 40.0), isWarmup = true),
+        PreviousSet(SetValues(reps = 8, weightKg = 77.5), isWarmup = false),
+        PreviousSet(SetValues(reps = 8, weightKg = 77.5), isWarmup = false),
+    )
+    val type = MeasurementType.WeightReps
+    val labels = SetRules.labels(sets.map { it.isWarmup })
+    KinzoCard {
+        Text("Bench press", style = MaterialTheme.typography.titleMedium)
+        Column {
+            SetTableHeader(type = type, unit = unit)
+            sets.forEachIndexed { index, set ->
+                SetEditorRow(
+                    label = labels[index],
+                    set = set,
+                    previous = previous.getOrNull(index),
+                    type = type,
+                    unit = unit,
+                    onValuesChange = { sets[index] = set.copy(values = it) },
+                    onToggleDone = { entered ->
+                        if (set.isCompleted) {
+                            sets[index] = set.copy(completedAt = null)
+                            true
+                        } else {
+                            val values = SetRules.resolveForCompletion(type, entered, previous.getOrNull(index)?.values)
+                            if (values != null) sets[index] = set.copy(values = values, completedAt = 1L)
+                            values != null
+                        }
+                    },
+                    onToggleWarmup = { sets[index] = set.copy(isWarmup = !set.isWarmup) },
+                    onRemove = { sets.removeAt(index) },
+                )
             }
         }
-
-        SectionHeader("Logging")
-        val done = remember { mutableStateListOf(true, false, false) }
-        val unit = WeightUnit.Kilograms
-        KinzoCard {
-            Text("Bench press", style = MaterialTheme.typography.titleMedium)
-            SetTableHeader(weightUnit = unit.label)
-            done.forEachIndexed { index, isDone ->
-                SetRow(
-                    setNumber = index + 1,
-                    previous = "${Weight.format(80.0, unit)} × 8",
-                    weight = Weight.format(82.5, unit),
-                    reps = "8",
-                    done = isDone,
-                    onToggleDone = { done[index] = !isDone },
+    }
+    val previousLabels = SetRules.labels(previous.map { it.isWarmup })
+    KinzoCard {
+        Text("Finished sets", style = MaterialTheme.typography.titleMedium)
+        Column {
+            previous.forEachIndexed { index, set ->
+                SetSummaryRow(
+                    label = previousLabels[index],
+                    text = Format.set(type, set.values, unit),
+                    isWarmup = set.isWarmup,
                 )
             }
         }
     }
 }
 
+// Swatches sit on a filled square so white shows up on a white screen, without a border.
 @Composable
 private fun Swatch(color: Color) {
     Box(
         Modifier
             .size(40.dp)
-            .background(color, MaterialTheme.shapes.small)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small),
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small)
+            .padding(4.dp)
+            .background(color, MaterialTheme.shapes.extraSmall),
     )
 }

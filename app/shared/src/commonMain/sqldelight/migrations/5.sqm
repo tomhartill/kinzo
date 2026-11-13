@@ -1,0 +1,42 @@
+-- Version 5 to 6: groups of exercise variations, named machines for the machine scan, and
+-- progress photos. The catalogue import that follows fills the first two.
+ALTER TABLE exercise ADD COLUMN group_id TEXT;
+
+CREATE TABLE exercise_group (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    icon                TEXT,
+    source              TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE machine (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    equipment_id        TEXT,
+    aliases             TEXT NOT NULL,
+    description         TEXT,
+    source              TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE machine_exercise (
+    machine_id          TEXT NOT NULL,
+    exercise_id         TEXT NOT NULL,
+    position            INTEGER NOT NULL,
+    PRIMARY KEY (machine_id, exercise_id)
+);
+
+CREATE TABLE progress_photo (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    taken_at            INTEGER NOT NULL,
+    pose                TEXT NOT NULL,
+    file_name           TEXT NOT NULL,
+    thumbnail_file_name TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE INDEX progress_photo_taken_at ON progress_photo(taken_at);

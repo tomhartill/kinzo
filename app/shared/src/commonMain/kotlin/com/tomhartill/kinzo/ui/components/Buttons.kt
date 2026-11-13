@@ -4,9 +4,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -38,7 +38,7 @@ fun PrimaryButton(
     }
 }
 
-/** Outlined button for secondary actions. */
+/** Filled, quieter button for secondary actions. No outline: the fill sets it apart. */
 @Composable
 fun SecondaryButton(
     text: String,
@@ -46,14 +46,26 @@ fun SecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    OutlinedButton(
+    Button(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().heightIn(min = KinzoTheme.spacing.touchTarget),
         enabled = enabled,
         shape = MaterialTheme.shapes.medium,
         contentPadding = ButtonPadding,
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+        colors = secondaryButtonColors(),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge)
     }
+}
+
+/** Colours for secondary buttons anywhere: a filled track in the card colour, plain text. */
+@Composable
+fun secondaryButtonColors(): ButtonColors {
+    val colors = MaterialTheme.colorScheme
+    return ButtonDefaults.buttonColors(
+        containerColor = colors.surfaceContainerHigh,
+        contentColor = colors.onSurface,
+        disabledContainerColor = colors.surfaceContainerHigh,
+        disabledContentColor = colors.onSurfaceVariant,
+    )
 }

@@ -1,0 +1,29 @@
+-- Version 3 to 4: a workout type, split and mesocycle for each saved workout, and an icon for
+-- each exercise.
+CREATE TABLE split (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    workout_type        TEXT NOT NULL,
+    created_by          TEXT NOT NULL,
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE TABLE mesocycle (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL,
+    start_date          TEXT NOT NULL,
+    end_date            TEXT NOT NULL,
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+-- Workouts saved so far were all weight training. The app puts the user's own into a first
+-- mesocycle when it starts.
+ALTER TABLE routine ADD COLUMN workout_type TEXT NOT NULL DEFAULT 'resistance';
+ALTER TABLE routine ADD COLUMN split_id TEXT;
+ALTER TABLE routine ADD COLUMN mesocycle_id TEXT;
+
+ALTER TABLE exercise ADD COLUMN icon TEXT;

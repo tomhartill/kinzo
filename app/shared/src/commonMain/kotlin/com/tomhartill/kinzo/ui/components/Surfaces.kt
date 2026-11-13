@@ -1,6 +1,5 @@
 package com.tomhartill.kinzo.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,23 +14,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.tomhartill.kinzo.ui.theme.KinzoTheme
 
-/** Flat card with a hairline border; no shadows anywhere in the app. */
+/**
+ * Flat card that stands apart from the screen by its fill alone: no border and no shadow, here
+ * or anywhere in the app. Tappable with [onClick].
+ */
 @Composable
 fun KinzoCard(
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(KinzoTheme.spacing.xxs / 2, MaterialTheme.colorScheme.outlineVariant),
-    ) {
+    val shape = MaterialTheme.shapes.large
+    val color = MaterialTheme.colorScheme.surface
+    val inner: @Composable () -> Unit = {
         Column(
             modifier = Modifier.padding(KinzoTheme.spacing.lg),
             verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md),
             content = content,
         )
+    }
+    if (onClick != null) {
+        Surface(onClick = onClick, modifier = modifier.fillMaxWidth(), shape = shape, color = color, content = inner)
+    } else {
+        Surface(modifier = modifier.fillMaxWidth(), shape = shape, color = color, content = inner)
     }
 }
 
@@ -46,17 +51,22 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** A headline number with its label, e.g. "12,450 kg  Volume this week". */
+/**
+ * A headline number with its label, e.g. "12,450 kg  Volume this week". [compact] uses a
+ * smaller number so three tiles fit side by side.
+ */
 @Composable
 fun StatTile(
     value: String,
     label: String,
     modifier: Modifier = Modifier,
     unit: String? = null,
+    compact: Boolean = false,
 ) {
+    val valueStyle = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.xxs)) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"))
+            Text(value, style = valueStyle.copy(fontFeatureSettings = "tnum"), maxLines = 1)
             if (unit != null) {
                 Text(
                     text = " $unit",

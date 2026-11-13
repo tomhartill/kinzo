@@ -1,0 +1,38 @@
+-- Progress photos: the most sensitive data in the app. The images stay in the app's private
+-- storage on the phone (never the shared photo gallery); this table only names their files.
+-- Times are epoch milliseconds.
+
+CREATE TABLE progress_photo (
+    id                  TEXT NOT NULL PRIMARY KEY,
+    taken_at            INTEGER NOT NULL,
+    -- front, side or back.
+    pose                TEXT NOT NULL,
+    file_name           TEXT NOT NULL,
+    -- A small copy for the grid, so it never decodes full-size photos.
+    thumbnail_file_name TEXT NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    deleted_at          INTEGER
+);
+
+CREATE INDEX progress_photo_taken_at ON progress_photo(taken_at);
+
+insertPhoto:
+INSERT INTO progress_photo(id, taken_at, pose, file_name, thumbnail_file_name, updated_at, deleted_at)
+VALUES (:id, :takenAt, :pose, :fileName, :thumbnailFileName, :updatedAt, NULL);
+
+photos:
+SELECT id, taken_at, pose, file_name, thumbnail_file_name
+FROM progress_photo
+WHERE deleted_at IS NULL
+ORDER BY taken_at DESC;
+
+photoById:
+SELECT id, taken_at, pose, file_name, thumbnail_file_name
+FROM progress_photo
+WHERE id = :id AND deleted_at IS NULL;
+
+-- The row stays, marked deleted, so a later sync can remove it from other devices; the files go
+-- at once.
+softDeletePhoto:
+UPDATE progress_photo SET deleted_at = :now, updated_at = :now
+WHERE id = :id;

@@ -5,6 +5,9 @@ import com.tomhartill.kinzo.ui.tips.ScreenTipsEffect
 import com.tomhartill.kinzo.ui.tips.PageTipCard
 import com.tomhartill.kinzo.ui.tips.KinzoTips
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomhartill.kinzo.domain.Dates
 import com.tomhartill.kinzo.domain.ExerciseDetail
 import com.tomhartill.kinzo.domain.ExerciseSession
+import com.tomhartill.kinzo.domain.ExerciseVariation
 import com.tomhartill.kinzo.domain.Format
 import com.tomhartill.kinzo.domain.MeasurementType
 import com.tomhartill.kinzo.domain.ProgressMetric
@@ -70,7 +74,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * One exercise: what it works, your best set and past sessions, and how to do it. Each past
+ * One exercise: what it works, your best set and past sessions, how to do it, and the other
+ * variations in its group (other grips, stances and equipment), each of which opens. Each past
  * session can be edited, which opens that workout, or deleted on its own.
  */
 @Composable
@@ -78,6 +83,7 @@ fun ExerciseDetailScreen(
     exerciseId: String,
     onBack: () -> Unit,
     onEditWorkout: (workoutId: String) -> Unit,
+    onOpenExercise: (exerciseId: String) -> Unit,
     viewModel: ExerciseDetailViewModel = koinViewModel { parametersOf(exerciseId) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -129,6 +135,10 @@ fun ExerciseDetailScreen(
                         itemsIndexed(exercise.instructions, key = { index, _ -> "step-$index" }) { index, step ->
                             Step(number = index + 1, text = step)
                         }
+                    }
+                    if (exercise.variations.isNotEmpty()) {
+                        item(key = "variations-header") { SectionHeader("Variations", Modifier.padding(top = spacing.sm)) }
+                        item(key = "variations") { Variations(exercise.variations, onOpenExercise) }
                     }
                     item(key = "history-header") { SectionHeader("History", Modifier.padding(top = spacing.sm)) }
                     if (state.sessions.isEmpty()) {
@@ -191,6 +201,13 @@ private fun Header(exercise: ExerciseDetail) {
             Text("A variation of ${group.lowercase()}", style = MaterialTheme.typography.labelLarge, color = colors.primary)
         }
         Text(exercise.name, style = MaterialTheme.typography.headlineSmall)
+        if (exercise.aliases.isNotEmpty()) {
+            Text(
+                "Also called " + exercise.aliases.joinToString(", "),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
         if (works.isNotEmpty()) {
             Text(works, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
@@ -268,6 +285,32 @@ private fun progressChart(metric: ProgressMetric, sessions: List<ExerciseSession
         ProgressMetric.Reps -> ProgressChartData(points, { it.roundToLong().toString() }, "reps")
         ProgressMetric.Duration -> ProgressChartData(points, { Format.duration(it.roundToLong()) }, null)
         ProgressMetric.Distance -> ProgressChartData(converted { it / 1000.0 }, { Format.decimal(it, maxDecimals = 2) }, "km")
+    }
+}
+
+/** The other exercises in this one's group, such as other grips; a tap opens one. */
+@Composable
+private fun Variations(variations: List<ExerciseVariation>, onOpen: (String) -> Unit) {
+    KinzoCard {
+        variations.forEach { variation ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClickLabel = "Open exercise") { onOpen(variation.id) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(KinzoTheme.spacing.md),
+            ) {
+                ExerciseIcon(variation.icon, size = 32.dp)
+                Text(
+                    variation.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
     }
 }
 

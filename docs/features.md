@@ -207,9 +207,28 @@ menu, on the workout itself or on a past workout in your history.
 ### Exercise library
 **Status:** Shipped
 
-About 915 exercises with search and filters, each with a simple pictogram of the movement and
-nearly all with step-by-step instructions. Variations such as every kind of chest press fold into one row to keep the list
-short, and 52 named gym machines list the exercises each one supports.
+About 910 exercises with search and filters, each with a simple pictogram of the movement and
+nearly all with step-by-step instructions. Exercises have plain names, like Bench Press,
+Overhead Press and Lat Pulldown, and 52 named gym machines list the exercises each one supports.
+
+### Exercise variations
+**Status:** Shipped
+
+Each lift and its variations (other grips, stances and equipment) sit together under one name,
+such as Bench press, Incline bench press or Overhead press, with the plain lift first and
+Close-Grip, Wide-Grip, Dumbbell or Smith machine versions under it. The list shows each group as
+one row that opens in place, and every exercise's page lists its other variations, so you can
+jump from Bench Press to Close-Grip Bench Press in a tap.
+
+### Search by any name
+**Status:** Shipped
+
+Search finds exercises by the names people actually use, not just the one in the app: "military
+press", "strict press" or "OHP" find the Overhead Press, "RDL" finds the Romanian Deadlift, and
+"pullup", "pull up" and "pull-up" all work. Searching a group, such as "shoulder press", lists
+every variation after the best match. Each exercise's page shows the other names it goes by.
+When an exercise is renamed or two duplicates are combined, your logged sets and saved workouts
+come with it, so no history is lost.
 
 ### Progress charts
 **Status:** Shipped

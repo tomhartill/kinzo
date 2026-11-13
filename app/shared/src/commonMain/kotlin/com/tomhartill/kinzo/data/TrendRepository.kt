@@ -109,7 +109,7 @@ class TrendRepository(
         }
     }
 
-    private companion object {
+    internal companion object {
         const val VERSION_KEY = "trend_version"
     }
 }

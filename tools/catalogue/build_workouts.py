@@ -58,7 +58,7 @@ def held(name, sets, seconds, rest):
     return {"exercise": name, "sets": sets, "seconds": seconds, "rest": rest}
 
 
-BENCH = "Barbell Bench Press - Medium Grip"
+BENCH = "Bench Press"
 
 # Rest is in seconds. Heavy compound lifts get the longest rests, accessories the shortest.
 WORKOUTS = [
@@ -68,9 +68,9 @@ WORKOUTS = [
         "name": "Full body A",
         "notes": "A beginner barbell session. Alternate with Full body B, three days a week, and add a little weight each time.",
         "exercises": [
-            reps("Barbell Squat", 3, 5, 180),
+            reps("Back Squat", 3, 5, 180),
             reps(BENCH, 3, 5, 180),
-            reps("Bent Over Barbell Row", 3, 5, 150),
+            reps("Barbell Row", 3, 5, 150),
             held("Plank", 3, 30, 60),
         ],
     },
@@ -80,9 +80,9 @@ WORKOUTS = [
         "name": "Full body B",
         "notes": "The other half of the beginner plan. Alternate with Full body A.",
         "exercises": [
-            reps("Barbell Deadlift", 1, 5, 180),
-            reps("Standing Military Press", 3, 5, 150),
-            reps("Pullups", 3, 8, 120),
+            reps("Deadlift", 1, 5, 180),
+            reps("Overhead Press", 3, 5, 150),
+            reps("Pull-Up", 3, 8, 120),
             reps("Hanging Leg Raise", 3, 10, 60),
         ],
     },
@@ -94,8 +94,8 @@ WORKOUTS = [
         "exercises": [
             reps(BENCH, 4, 8, 150),
             reps("Incline Dumbbell Press", 3, 10, 120),
-            reps("Standing Military Press", 3, 8, 120),
-            reps("Side Lateral Raise", 3, 12, 60),
+            reps("Overhead Press", 3, 8, 120),
+            reps("Dumbbell Lateral Raise", 3, 12, 60),
             reps("Triceps Pushdown", 3, 12, 60),
         ],
     },
@@ -105,12 +105,12 @@ WORKOUTS = [
         "name": "Pull",
         "notes": "Back and biceps. Pairs with Push and Legs.",
         "exercises": [
-            reps("Barbell Deadlift", 3, 5, 180),
+            reps("Deadlift", 3, 5, 180),
             reps("Wide-Grip Lat Pulldown", 3, 10, 90),
-            reps("Seated Cable Rows", 3, 10, 90),
+            reps("Seated Cable Row", 3, 10, 90),
             reps("Face Pull", 3, 15, 60),
             reps("Barbell Curl", 3, 10, 60),
-            reps("Hammer Curls", 2, 12, 60),
+            reps("Hammer Curl", 2, 12, 60),
         ],
     },
     {
@@ -119,11 +119,11 @@ WORKOUTS = [
         "name": "Legs",
         "notes": "Quads, hamstrings, glutes and calves. Pairs with Push and Pull.",
         "exercises": [
-            reps("Barbell Squat", 4, 8, 180),
+            reps("Back Squat", 4, 8, 180),
             reps("Romanian Deadlift", 3, 8, 150),
             reps("Leg Press", 3, 12, 120),
-            reps("Lying Leg Curls", 3, 12, 60),
-            reps("Standing Calf Raises", 4, 15, 60),
+            reps("Lying Leg Curl", 3, 12, 60),
+            reps("Standing Calf Raise", 4, 15, 60),
         ],
     },
     {
@@ -133,7 +133,7 @@ WORKOUTS = [
         "notes": "Everything above the waist. Alternate with Lower body, four days a week.",
         "exercises": [
             reps(BENCH, 4, 6, 150),
-            reps("Bent Over Barbell Row", 4, 8, 120),
+            reps("Barbell Row", 4, 8, 120),
             reps("Dumbbell Shoulder Press", 3, 10, 90),
             reps("Wide-Grip Lat Pulldown", 3, 10, 90),
             reps("Barbell Curl", 2, 12, 60),
@@ -146,11 +146,11 @@ WORKOUTS = [
         "name": "Lower body",
         "notes": "Legs and core. Alternate with Upper body.",
         "exercises": [
-            reps("Barbell Squat", 4, 6, 180),
+            reps("Back Squat", 4, 6, 180),
             reps("Romanian Deadlift", 3, 8, 150),
-            reps("Dumbbell Lunges", 3, 10, 90),
-            reps("Leg Extensions", 3, 12, 60),
-            reps("Standing Calf Raises", 3, 15, 60),
+            reps("Dumbbell Lunge", 3, 10, 90),
+            reps("Leg Extension", 3, 12, 60),
+            reps("Standing Calf Raise", 3, 15, 60),
             held("Plank", 3, 45, 60),
         ],
     },
@@ -162,8 +162,8 @@ WORKOUTS = [
         "exercises": [
             reps("Goblet Squat", 3, 10, 90),
             reps("Dumbbell Bench Press", 3, 10, 90),
-            reps("One-Arm Dumbbell Row", 3, 10, 90),
-            reps("Stiff-Legged Dumbbell Deadlift", 3, 10, 90),
+            reps("Single-Arm Dumbbell Row", 3, 10, 90),
+            reps("Dumbbell Stiff-Leg Deadlift", 3, 10, 90),
             reps("Dumbbell Shoulder Press", 3, 10, 90),
         ],
     },
@@ -173,10 +173,10 @@ WORKOUTS = [
         "name": "Bodyweight at home",
         "notes": "No equipment needed. Add reps as it gets easier.",
         "exercises": [
-            reps("Pushups", 3, 12, 60),
+            reps("Push-Up", 3, 12, 60),
             reps("Bodyweight Squat", 3, 15, 60),
             reps("Bodyweight Walking Lunge", 3, 12, 60),
-            reps("Butt Lift (Bridge)", 3, 15, 45),
+            reps("Glute Bridge", 3, 15, 45),
             held("Superman", 3, 30, 45),
             held("Plank", 3, 30, 45),
         ],
@@ -187,7 +187,7 @@ WORKOUTS = [
         "name": "Core",
         "notes": "A short abs and core finisher, on its own or after another workout.",
         "exercises": [
-            reps("Crunches", 3, 15, 45),
+            reps("Crunch", 3, 15, 45),
             reps("Russian Twist", 3, 20, 45),
             reps("Flat Bench Lying Leg Raise", 3, 12, 45),
             held("Side Bridge", 2, 30, 30),

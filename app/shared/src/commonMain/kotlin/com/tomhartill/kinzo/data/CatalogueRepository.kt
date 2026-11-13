@@ -3,20 +3,29 @@ package com.tomhartill.kinzo.data
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
+import com.tomhartill.kinzo.db.ExerciseById
 import com.tomhartill.kinzo.db.KinzoDatabase
+import com.tomhartill.kinzo.db.MusclesForExercise
 import com.tomhartill.kinzo.domain.Equipment
 import com.tomhartill.kinzo.domain.ExerciseDetail
 import com.tomhartill.kinzo.domain.ExerciseSummary
+import com.tomhartill.kinzo.domain.ExerciseVariation
 import com.tomhartill.kinzo.domain.Machine
 import com.tomhartill.kinzo.domain.MeasurementType
 import com.tomhartill.kinzo.domain.Muscle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
+
+/** One alias per line in the database; null or blank means none. */
+private fun String?.aliasList(): List<String> = this?.split('\n')?.map(String::trim)?.filter(String::isNotEmpty).orEmpty()
 
 /** Read access to exercises and equipment. */
 class CatalogueRepository(
@@ -40,14 +49,29 @@ class CatalogueRepository(
                     groupId = row.group_id,
                     groupName = row.group_name,
                     groupIcon = row.group_icon,
+                    aliases = row.aliases.aliasList(),
+                    groupAliases = row.group_aliases.aliasList(),
                 )
             }
         }
 
+    /** One exercise with its muscles and the other variations in its group. */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun exercise(id: String): Flow<ExerciseDetail?> = combine(
         queries.exerciseById(id).asFlow().mapToOneOrNull(io),
         queries.musclesForExercise(id).asFlow().mapToList(io),
-    ) { row, muscles ->
+    ) { row, muscles -> row to muscles }.flatMapLatest { (row, muscles) ->
+        val groupId = row?.group_id
+        if (groupId == null) {
+            flowOf(detail(row, muscles, emptyList()))
+        } else {
+            queries.groupVariations(groupId = groupId, exceptId = id).asFlow().mapToList(io).map { variations ->
+                detail(row, muscles, variations.map { ExerciseVariation(id = it.id, name = it.name, icon = it.icon) })
+            }
+        }
+    }
+
+    private fun detail(row: ExerciseById?, muscles: List<MusclesForExercise>, variations: List<ExerciseVariation>): ExerciseDetail? =
         row?.let {
             ExerciseDetail(
                 id = it.id,
@@ -60,9 +84,10 @@ class CatalogueRepository(
                 secondaryMuscles = muscles.filter { m -> m.is_primary == 0L }.mapNotNull { m -> Muscle.fromKey(m.muscle) },
                 icon = it.icon,
                 groupName = it.group_name,
+                aliases = it.aliases.aliasList(),
+                variations = variations,
             )
         }
-    }
 
     /** Every named machine, for the machine scan's results and its "not found" list. */
     suspend fun machines(): List<Machine> = withContext(io) {

@@ -24,7 +24,7 @@ finish something on the roadmap below, update "Where things stand" in the same c
 
 | Area | What works |
 | --- | --- |
-| App: logging | Exercise library (about 915 exercises with pictograms, variations folded into groups such as Chest press, and 52 named machines), scan a machine with the camera to pick its exercise, live workout screen with sets, rest timer, reorder, swipe to delete, history with workout detail; edit any past workout, or resume one finished in the last three hours; edit or delete one exercise's session from its history |
+| App: logging | Exercise library (about 910 exercises with plain names, pictograms, aliases for search such as "military press", variations folded into groups such as Bench press with the plain lift first, and 52 named machines), scan a machine with the camera to pick its exercise, live workout screen with sets, rest timer, reorder, swipe to delete, history with workout detail; edit any past workout, or resume one finished in the last three hours; edit or delete one exercise's session from its history |
 | App: planning | Saved workouts (routines) with ready-made ones, workout types, splits, mesocycles |
 | App: progress | Per-exercise progress charts (Vico), stats and PRs from the local database; a cached trend sparkline per exercise in the exercise list ([plan for muscles and regions](docs/specs/strength-trends.md)); a demo profile (Profile → Developer) with 16 weeks of made-up history in its own database, `kinzo-demo.db` |
 | App: body | Progress photos from Profile: take one by pose (front, side, back), browse by day, delete. Private to the phone |
@@ -60,6 +60,11 @@ Decisions already made:
   `connections` row with role `follow` (viewer follows owner). These defaults were proposed to
   Tom and not yet confirmed.
 - Accepting an invite link makes two people follow each other at once, even private accounts.
+- Catalogue exercise IDs come from the source (free-exercise-db id or Kinzo key), never the
+  name, so renaming an exercise in `tools/catalogue/kinzo_catalogue.py` is safe. Folding a
+  duplicate into another goes in `MERGES`; `catalogue.json` then lists it under `merged` and the
+  app moves logged workouts and routines onto the kept exercise. Sync must apply the same moves
+  on the server.
 - Workouts and PRs are shared with followers by default; body stats and photos never, unless the
   user turns that on.
 

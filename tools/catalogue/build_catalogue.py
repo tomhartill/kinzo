@@ -10,7 +10,8 @@ Usage:
     python3 tools/catalogue/build_catalogue.py path/to/exercises.json
 
 The input is free-exercise-db's dist/exercises.json. Kinzo's own additions (named machines,
-extra machine exercises and the groups that gather variations) come from kinzo_catalogue.py.
+extra exercises, clearer names, merged duplicates, aliases for search and the groups that
+gather variations) come from kinzo_catalogue.py.
 Re-running on the same input gives the same output byte for byte. Bump CATALOGUE_VERSION
 whenever the output changes, so installed apps re-import it.
 
@@ -26,7 +27,7 @@ from pathlib import Path
 
 import kinzo_catalogue
 
-CATALOGUE_VERSION = 3
+CATALOGUE_VERSION = 4
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "app/shared/src/commonMain/composeResources/files/catalogue.json"
@@ -318,16 +319,24 @@ def normalised_name(name):
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 
-GROUP_RULES = [(key, name, re.compile(pattern)) for key, name, pattern in kinzo_catalogue.GROUPS]
-GROUP_KEYS = {key for key, _, _ in kinzo_catalogue.GROUPS}
+GROUP_RULES = [(key, name, re.compile(pattern)) for key, name, pattern, _ in kinzo_catalogue.GROUPS]
+GROUP_KEYS = {key for key, _, _, _ in kinzo_catalogue.GROUPS}
 
 
-def group_key_for(name):
-    """The key of the group an exercise belongs to, or None."""
-    if name in kinzo_catalogue.GROUP_OVERRIDES:
-        return kinzo_catalogue.GROUP_OVERRIDES[name]
-    text = normalised_name(name)
-    return next((key for key, _, pattern in GROUP_RULES if pattern.search(text)), None)
+def group_key_for(name, former_name=None):
+    """The key of the group an exercise belongs to, or None. A renamed exercise that no
+    pattern matches by its new name is tried by its free-exercise-db name."""
+    for candidate in (name, former_name):
+        if candidate in kinzo_catalogue.GROUP_OVERRIDES:
+            return kinzo_catalogue.GROUP_OVERRIDES[candidate]
+    for candidate in (name, former_name):
+        if candidate is None:
+            continue
+        text = normalised_name(candidate)
+        key = next((key for key, _, pattern in GROUP_RULES if pattern.search(text)), None)
+        if key is not None:
+            return key
+    return None
 
 
 def equipment_row(key):
@@ -364,13 +373,13 @@ def add_groups(exercises):
     """Files each exercise under its group, and returns the groups that have two or more."""
     members = {}
     for exercise in exercises:
-        key = group_key_for(exercise["name"])
+        key = group_key_for(exercise["name"], exercise.pop("formerName", None))
         if key is not None:
             if key not in GROUP_KEYS:
                 raise ValueError(f"unknown group {key!r} for {exercise['name']}")
             members.setdefault(key, []).append(exercise)
     groups = []
-    for key, name, _ in kinzo_catalogue.GROUPS:
+    for key, name, _, aliases in kinzo_catalogue.GROUPS:
         group_exercises = members.get(key, [])
         if len(group_exercises) < 2:
             continue
@@ -380,8 +389,82 @@ def add_groups(exercises):
         # The group shows the pictogram most of its exercises use.
         icons = [e["icon"] for e in group_exercises]
         icon = max(sorted(set(icons)), key=icons.count)
-        groups.append({"id": group_id, "name": name, "icon": icon})
+        group = {"id": group_id, "name": name, "icon": icon}
+        if aliases:
+            group["aliases"] = aliases
+        groups.append(group)
     return sorted(groups, key=lambda g: g["name"].lower())
+
+
+def rename_and_merge(exercises):
+    """Applies kinzo_catalogue.RENAMES and MERGES to the free-exercise-db exercises. Returns
+    the exercises left and the merges as [{"from": id, "to": id}] for the app to move history."""
+    by_name = {e["name"]: e for e in exercises}
+    for old in list(kinzo_catalogue.RENAMES) + list(kinzo_catalogue.MERGES):
+        if old not in by_name:
+            raise ValueError(f"no free-exercise-db exercise called {old!r} to rename or merge")
+    for old, new in kinzo_catalogue.RENAMES.items():
+        if new in by_name and new != old:
+            raise ValueError(f"can't rename {old!r}: {new!r} is already taken")
+        exercise = by_name.pop(old)
+        exercise["formerName"] = old
+        exercise["name"] = new
+        by_name[new] = exercise
+    merged = []
+    for old, into in kinzo_catalogue.MERGES.items():
+        if into not in by_name:
+            raise ValueError(f"can't merge {old!r} into {into!r}: no such exercise")
+        duplicate, kept = by_name.pop(old), by_name[into]
+        if duplicate["measurementType"] != kept["measurementType"]:
+            raise ValueError(f"can't merge {old!r} into {into!r}: they're logged differently")
+        kept.setdefault("mergedNames", []).append(old)
+        merged.append({"from": duplicate["id"], "to": kept["id"]})
+    return list(by_name.values()), sorted(merged, key=lambda m: m["from"])
+
+
+# Words that don't tell two names apart, for deciding whether an old name is worth keeping.
+FILLER_WORDS = {"a", "an", "the", "with", "on", "of", "version", "attachment"}
+SAME_WORDS = {"one": "single", "alternate": "alternating", "legged": "leg", "skullcrusher": "skull crusher"}
+
+
+def words(text):
+    """The words of a name, singular, without filler: "Seated Cable Rows" -> cable, row, seated."""
+    found = set()
+    for word in normalised_name(text).split():
+        if word in FILLER_WORDS:
+            continue
+        word = SAME_WORDS.get(word, word)
+        if word.endswith(("sses", "ches", "shes", "yes")):
+            word = word[:-2]
+        elif len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+            word = word[:-1]
+        found.add(word)
+    return found
+
+
+def add_aliases(exercises):
+    """Gives each exercise its other names: those in kinzo_catalogue.ALIASES, plus any old
+    free-exercise-db name whose words the name and aliases don't already cover."""
+    by_name = {e["name"]: e for e in exercises}
+    missing = [name for name in kinzo_catalogue.ALIASES if name not in by_name]
+    if missing:
+        raise ValueError(f"aliases for exercises that aren't in the catalogue: {missing}")
+    for exercise in exercises:
+        aliases = list(kinzo_catalogue.ALIASES.get(exercise["name"], []))
+        for old in [exercise.get("formerName")] + exercise.pop("mergedNames", []):
+            if old is None:
+                continue
+            covered = words(exercise["name"]).union(*(words(a) for a in aliases))
+            if not words(old) <= covered:
+                aliases.append(old)
+        seen = {exercise["name"].lower()}
+        unique = []
+        for alias in aliases:
+            if alias.lower() not in seen:
+                seen.add(alias.lower())
+                unique.append(alias)
+        if unique:
+            exercise["aliases"] = unique
 
 
 def machines(exercises):
@@ -424,6 +507,7 @@ def build(source_bytes):
             "sourceRef": ex["id"],
             "icon": icon_for(ex),
         })
+    exercises, merged = rename_and_merge(exercises)
     names = {e["name"].lower() for e in exercises}
     for exercise in kinzo_exercises():
         if exercise["name"].lower() in names:
@@ -436,6 +520,7 @@ def build(source_bytes):
     ids = [e["id"] for e in exercises]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate exercise IDs")
+    add_aliases(exercises)
     groups = add_groups(exercises)
     return {
         "version": CATALOGUE_VERSION,
@@ -449,6 +534,7 @@ def build(source_bytes):
         "groups": groups,
         "machines": machines(exercises),
         "exercises": exercises,
+        "merged": merged,
     }
 
 

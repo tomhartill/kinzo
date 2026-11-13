@@ -83,6 +83,48 @@ class CatalogueImporterTest {
     }
 
     @Test
+    fun importsAliasesAndListsVariations() = runTest {
+        val catalogueJson = """{"version":1,"source":{"name":"test"},
+            "equipment":[{"id":"eq-bar","name":"Barbell","type":"free_weight"}],
+            "groups":[{"id":"g-ohp","name":"Overhead press","aliases":["shoulder press","military press"]}],
+            "exercises":[
+              {"id":"ex-ohp","name":"Overhead Press","equipmentId":"eq-bar","measurementType":"weight_reps","primaryMuscles":["shoulders"],"groupId":"g-ohp","aliases":["Military Press","Strict Press"]},
+              {"id":"ex-seated","name":"Seated Overhead Press","equipmentId":"eq-bar","measurementType":"weight_reps","primaryMuscles":["shoulders"],"groupId":"g-ohp"},
+              {"id":"ex-curl","name":"Barbell Curl","equipmentId":"eq-bar","measurementType":"weight_reps","primaryMuscles":["biceps"]}
+            ]}"""
+        importer(catalogueJson).importIfNeeded()
+
+        val press = catalogue.exercises().first().single { it.id == "ex-ohp" }
+        assertEquals(listOf("Military Press", "Strict Press"), press.aliases)
+        assertEquals(listOf("shoulder press", "military press"), press.groupAliases)
+        assertEquals(emptyList(), catalogue.exercises().first().single { it.id == "ex-curl" }.aliases)
+
+        val detail = assertNotNull(catalogue.exercise("ex-ohp").first())
+        assertEquals(listOf("Military Press", "Strict Press"), detail.aliases)
+        assertEquals(listOf("Seated Overhead Press"), detail.variations.map { it.name })
+        assertEquals(emptyList(), catalogue.exercise("ex-curl").first()?.variations)
+    }
+
+    @Test
+    fun aMergedDuplicateMovesItsHistoryOntoTheExerciseKept() = runTest {
+        importer(smallCatalogue(version = 1)).importIfNeeded()
+        db.workoutQueries.insertWorkout(id = "w1", name = "Arms", routineId = null, startedAt = 1)
+        db.workoutQueries.insertWorkoutExercise(id = "we1", workoutId = "w1", exerciseId = "ex-curl", position = 0, restS = null, now = 1)
+        db.settingQueries.putSetting(key = TrendRepository.VERSION_KEY, value = "1")
+
+        // Version 2 folds the Barbell Curl into the Bench Press, just to have two exercises.
+        val merged = smallCatalogue(version = 2, includeCurl = false)
+            .replace("\"exercises\":[", "\"merged\":[{\"from\":\"ex-curl\",\"to\":\"ex-bench\"}],\"exercises\":[")
+        assertTrue(importer(merged).importIfNeeded())
+
+        val logged = db.workoutQueries.workoutExercises("w1").executeAsList().single()
+        assertEquals("ex-bench", logged.exercise_id)
+        assertEquals("Bench Press", logged.name)
+        // The trend cache rebuilds on the next launch, with the curl's sessions under the bench.
+        assertEquals(null, db.settingQueries.getSetting(TrendRepository.VERSION_KEY).executeAsOneOrNull())
+    }
+
+    @Test
     fun theBundledCatalogueIsValid() = runTest {
         val file = File("src/commonMain/composeResources/files/catalogue.json")
         val parsed = json.decodeFromString(CatalogueFile.serializer(), file.readText())
@@ -110,6 +152,17 @@ class CatalogueImporterTest {
             assertTrue(machine.exerciseIds.isNotEmpty(), machine.name)
             machine.exerciseIds.forEach { assertTrue(it in exerciseIds, "${machine.name}: $it") }
         }
+
+        // A merge folds a dropped exercise into one still in the catalogue.
+        parsed.merged.forEach { merge ->
+            assertTrue(merge.to in exerciseIds, "merge into ${merge.to}")
+            assertFalse(merge.from in exerciseIds, "merge from ${merge.from}")
+        }
+        // The names people look for are there, with the names they know them by.
+        val byName = parsed.exercises.associateBy { it.name }
+        assertTrue("Military Press" in byName.getValue("Overhead Press").aliases)
+        assertNotNull(byName["Lat Pulldown"])
+        assertNotNull(byName["Bench Press"])
 
         assertTrue(importer(file.readText()).importIfNeeded())
         assertEquals(parsed.exercises.size, catalogue.exercises().first().size)

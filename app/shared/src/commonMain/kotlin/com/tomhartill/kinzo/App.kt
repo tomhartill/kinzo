@@ -403,6 +403,7 @@ private fun Screen(entry: BackStackEntry, navigator: Navigator) {
             exerciseId = destination.exerciseId,
             onBack = back,
             onEditWorkout = { id -> ifCurrent { navigator.push(Destination.EditWorkout(id)) } },
+            onOpenExercise = { id -> ifCurrent { navigator.push(Destination.ExerciseDetail(id)) } },
         )
         is Destination.WorkoutDetail -> WorkoutDetailScreen(
             workoutId = destination.workoutId,

@@ -10,7 +10,10 @@ sealed interface ExerciseListRow {
         override val name: String get() = exercise.name
     }
 
-    /** Variations of one movement, such as every bench press, in alphabetical order. */
+    /**
+     * Variations of one movement, such as every bench press: the exercise named like the group
+     * first (the plain Bench Press), then the rest in alphabetical order.
+     */
     data class Group(
         val id: String,
         override val name: String,
@@ -37,11 +40,15 @@ object ExerciseGroups {
             if (groupId == null || members == null || members.size < 2) {
                 rows += ExerciseListRow.Single(exercise)
             } else if (seenGroups.add(groupId)) {
+                val name = exercise.groupName ?: exercise.name
                 rows += ExerciseListRow.Group(
                     id = groupId,
-                    name = exercise.groupName ?: exercise.name,
+                    name = name,
                     icon = exercise.groupIcon ?: exercise.icon,
-                    exercises = members.sortedBy { it.name.lowercase() },
+                    // The plain lift leads its variations: Bench Press before Close-Grip Bench Press.
+                    exercises = members.sortedWith(
+                        compareBy<ExerciseSummary> { !it.name.equals(name, ignoreCase = true) }.thenBy { it.name.lowercase() },
+                    ),
                 )
             }
         }

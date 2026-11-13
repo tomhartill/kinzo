@@ -34,6 +34,20 @@ class ExerciseGroupsTest {
     }
 
     @Test
+    fun thePlainLiftLeadsItsVariations() {
+        val rows = ExerciseGroups.rows(
+            listOf(
+                exercise("c", "Close-Grip Bench Press", "bench", "Bench press"),
+                exercise("b", "Bench Press", "bench", "Bench press"),
+                exercise("w", "Wide-Grip Bench Press", "bench", "Bench press"),
+            ),
+        )
+
+        val group = assertIs<ExerciseListRow.Group>(rows.single())
+        assertEquals(listOf("Bench Press", "Close-Grip Bench Press", "Wide-Grip Bench Press"), group.exercises.map { it.name })
+    }
+
+    @Test
     fun aGroupWithOneExerciseLeftShowsItOnItsOwn() {
         val rows = ExerciseGroups.rows(listOf(exercise("i", "Machine Incline Chest Press", "press", "Chest press")))
 

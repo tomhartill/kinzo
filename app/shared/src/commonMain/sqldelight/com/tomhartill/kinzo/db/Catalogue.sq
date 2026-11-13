@@ -30,7 +30,10 @@ CREATE TABLE exercise (
     updated_at          INTEGER NOT NULL,
     deleted_at          INTEGER,
     -- The group of variations it belongs to, such as every bench press, or null.
-    group_id            TEXT
+    group_id            TEXT,
+    -- Other names people search by, such as "Military Press" for the overhead press, one per
+    -- line, or null.
+    aliases             TEXT
 );
 
 -- Variations of one movement shown together, such as every bench press or chest press.
@@ -40,7 +43,9 @@ CREATE TABLE exercise_group (
     icon                TEXT,
     source              TEXT NOT NULL,
     updated_at          INTEGER NOT NULL,
-    deleted_at          INTEGER
+    deleted_at          INTEGER,
+    -- Other names for the movement, one per line, or null. Searching one lists every variation.
+    aliases             TEXT
 );
 
 -- Named gym machines, such as a leg press or a pec deck, for the machine scan. Each belongs to
@@ -76,12 +81,20 @@ INSERT OR REPLACE INTO equipment(id, name, type, description, setup_instructions
 VALUES (:id, :name, :type, NULL, NULL, :source, :updatedAt, NULL);
 
 upsertExercise:
-INSERT OR REPLACE INTO exercise(id, name, description, instructions, equipment_id, measurement_type, source, source_ref, icon, updated_at, deleted_at, group_id)
-VALUES (:id, :name, NULL, :instructions, :equipmentId, :measurementType, :source, :sourceRef, :icon, :updatedAt, NULL, :groupId);
+INSERT OR REPLACE INTO exercise(id, name, description, instructions, equipment_id, measurement_type, source, source_ref, icon, updated_at, deleted_at, group_id, aliases)
+VALUES (:id, :name, NULL, :instructions, :equipmentId, :measurementType, :source, :sourceRef, :icon, :updatedAt, NULL, :groupId, :aliases);
 
 upsertGroup:
-INSERT OR REPLACE INTO exercise_group(id, name, icon, source, updated_at, deleted_at)
-VALUES (:id, :name, :icon, :source, :updatedAt, NULL);
+INSERT OR REPLACE INTO exercise_group(id, name, icon, source, updated_at, deleted_at, aliases)
+VALUES (:id, :name, :icon, :source, :updatedAt, NULL, :aliases);
+
+-- When the catalogue folds a duplicate exercise into another, logged workouts and saved
+-- routines move onto the one that's kept, so no history is lost.
+moveWorkoutExercises:
+UPDATE workout_exercise SET exercise_id = :toId, updated_at = :now WHERE exercise_id = :fromId;
+
+moveRoutineExercises:
+UPDATE routine_exercise SET exercise_id = :toId, updated_at = :now WHERE exercise_id = :fromId;
 
 upsertMachine:
 INSERT OR REPLACE INTO machine(id, name, equipment_id, aliases, description, source, updated_at, deleted_at)
@@ -131,7 +144,9 @@ SELECT
     COALESCE((SELECT group_concat(m.muscle) FROM exercise_muscle m WHERE m.exercise_id = e.id AND m.is_primary = 0), '') AS secondary_muscles,
     g.id AS group_id,
     g.name AS group_name,
-    g.icon AS group_icon
+    g.icon AS group_icon,
+    e.aliases,
+    g.aliases AS group_aliases
 FROM exercise e
 LEFT JOIN equipment eq ON eq.id = e.equipment_id
 LEFT JOIN exercise_group g ON g.id = e.group_id AND g.deleted_at IS NULL
@@ -151,11 +166,20 @@ SELECT
     eq.name AS equipment_name,
     e.source,
     e.icon,
-    g.name AS group_name
+    g.id AS group_id,
+    g.name AS group_name,
+    e.aliases
 FROM exercise e
 LEFT JOIN equipment eq ON eq.id = e.equipment_id
 LEFT JOIN exercise_group g ON g.id = e.group_id AND g.deleted_at IS NULL
 WHERE e.id = :id;
+
+-- The other exercises in a group, for an exercise page's list of variations.
+groupVariations:
+SELECT id, name, icon
+FROM exercise
+WHERE group_id = :groupId AND id != :exceptId AND deleted_at IS NULL
+ORDER BY name COLLATE NOCASE;
 
 musclesForExercise:
 SELECT muscle, is_primary

@@ -69,6 +69,10 @@ data class ExerciseSummary(
     val groupId: String? = null,
     val groupName: String? = null,
     val groupIcon: String? = null,
+    /** Other names people search by, such as "Military Press" for the overhead press. */
+    val aliases: List<String> = emptyList(),
+    /** Other names for its group, such as "shoulder press"; searching one finds every variation. */
+    val groupAliases: List<String> = emptyList(),
 )
 
 /** A named gym machine, such as a leg press, and the exercises it supports in order. */
@@ -92,7 +96,14 @@ data class ExerciseDetail(
     val icon: String? = null,
     /** The group of variations it belongs to, such as Bench press, if any. */
     val groupName: String? = null,
+    /** Other names people know it by, such as "Military Press" for the overhead press. */
+    val aliases: List<String> = emptyList(),
+    /** The other exercises in its group, such as close- and wide-grip bench press, by name. */
+    val variations: List<ExerciseVariation> = emptyList(),
 )
+
+/** Another exercise in the same group, listed on an exercise's page. */
+data class ExerciseVariation(val id: String, val name: String, val icon: String?)
 
 /**
  * The numbers recorded for one set, in storage units: kilograms, seconds and metres.

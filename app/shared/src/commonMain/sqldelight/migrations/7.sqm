@@ -1,0 +1,4 @@
+-- Version 7 to 8: other names for exercises and groups, so a search for "military press"
+-- finds the overhead press. The catalogue import that follows fills them.
+ALTER TABLE exercise ADD COLUMN aliases TEXT;
+ALTER TABLE exercise_group ADD COLUMN aliases TEXT;

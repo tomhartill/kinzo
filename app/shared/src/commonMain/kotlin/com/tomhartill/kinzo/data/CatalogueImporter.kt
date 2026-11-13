@@ -44,7 +44,14 @@ class CatalogueImporter(
                 queries.softDeleteMachinesFromSource(now = now, source = source)
             }
             file.groups.forEach { group ->
-                queries.upsertGroup(id = group.id, name = group.name, icon = group.icon, source = KINZO_SOURCE, updatedAt = now)
+                queries.upsertGroup(
+                    id = group.id,
+                    name = group.name,
+                    icon = group.icon,
+                    source = KINZO_SOURCE,
+                    updatedAt = now,
+                    aliases = group.aliases.joinToString("\n").ifEmpty { null },
+                )
             }
             file.equipment.forEach { equipment ->
                 queries.upsertEquipment(
@@ -67,6 +74,7 @@ class CatalogueImporter(
                     icon = exercise.icon,
                     updatedAt = now,
                     groupId = exercise.groupId,
+                    aliases = exercise.aliases.joinToString("\n").ifEmpty { null },
                 )
                 exercise.primaryMuscles.forEach { queries.insertMuscle(exerciseId = exercise.id, muscle = it, isPrimary = 1) }
                 exercise.secondaryMuscles.forEach { queries.insertMuscle(exerciseId = exercise.id, muscle = it, isPrimary = 0) }
@@ -85,6 +93,19 @@ class CatalogueImporter(
                     queries.insertMachineExercise(machineId = machine.id, exerciseId = exerciseId, position = position.toLong())
                 }
             }
+            // Duplicates folded into another exercise: their logged sets and routine entries move
+            // across, so history survives. Every merge ever made is listed, so this also covers
+            // an app that skipped versions; once moved, a merge finds nothing left to move.
+            val activeIds = file.exercises.mapTo(HashSet()) { it.id }
+            var moved = false
+            file.merged.filter { it.to in activeIds && it.from !in activeIds }.forEach { merge ->
+                val workouts = queries.moveWorkoutExercises(toId = merge.to, now = now, fromId = merge.from).value
+                val routines = queries.moveRoutineExercises(toId = merge.to, now = now, fromId = merge.from).value
+                if (workouts > 0 || routines > 0) moved = true
+            }
+            // The cached trends are per exercise, so after a move they're rebuilt from history:
+            // without its setting, TrendRepository.rebuildIfNeeded starts over.
+            if (moved) db.settingQueries.deleteSetting(TrendRepository.VERSION_KEY)
             db.settingQueries.putSetting(key = VERSION_KEY, value = file.version.toString())
         }
     }
@@ -109,10 +130,20 @@ internal data class CatalogueFile(
     val exercises: List<CatalogueExercise>,
     val groups: List<CatalogueGroup> = emptyList(),
     val machines: List<CatalogueMachine> = emptyList(),
+    /** Every duplicate ever folded into another exercise, so history can move across. */
+    val merged: List<CatalogueMerge> = emptyList(),
 )
 
 @Serializable
-internal data class CatalogueGroup(val id: String, val name: String, val icon: String? = null)
+internal data class CatalogueMerge(val from: String, val to: String)
+
+@Serializable
+internal data class CatalogueGroup(
+    val id: String,
+    val name: String,
+    val icon: String? = null,
+    val aliases: List<String> = emptyList(),
+)
 
 @Serializable
 internal data class CatalogueMachine(
@@ -141,4 +172,5 @@ internal data class CatalogueExercise(
     /** Null for free-exercise-db rows; "kinzo" for Kinzo's own. */
     val source: String? = null,
     val groupId: String? = null,
+    val aliases: List<String> = emptyList(),
 )
